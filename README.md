@@ -5,7 +5,7 @@ This is a non-commercial fan project and isn't affiliated with Bob's Burgers or 
 
 ## Install on the phone
 
-1. On the phone, open **[the latest release](https://github.com/pedroG-git/joanas-games/releases/latest)** and download `joanas-games.apk`.
+1. On the phone, open **https://pedrog-git.github.io/joanas-games/** and tap **Download for Android**.
 2. Open the download. Android asks you to allow installs from your browser the first time. Allow it, then tap **Install**.
 3. After that, the app works fully offline. Progress is saved on the phone.
 
@@ -50,3 +50,7 @@ GitHub Actions builds the APK. A few minutes later the update appears on the pho
 
 Release APKs are signed with a key that lives **outside** this repo, in `../JoanasGames-signing/`, and in the repo secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD` and `KEY_ALIAS`.
 Keep a backup of it. If the key is lost, updates can't be installed over the existing app.
+
+## Download page
+
+`docs/` is the download page, served by GitHub Pages at https://pedrog-git.github.io/joanas-games/. Its button always points to the newest release.
