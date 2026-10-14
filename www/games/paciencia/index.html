@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0e3d2b">
+<title>Paciência da Joana</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<header id="top">
+  <div class="pill"><span id="time">0:00</span><i></i><span id="moves">0 jogadas</span></div>
+  <div class="pill soft" id="label">Normal</div>
+  <button class="round" id="btn-settings" aria-label="Definições">
+    <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+  </button>
+</header>
+
+<button id="finish" hidden>Terminar</button>
+<div id="toast" hidden></div>
+
+<footer id="bar">
+  <button id="btn-new"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg><span>Novo</span></button>
+  <button id="btn-hint"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" /></svg><span>Dica</span></button>
+  <button id="btn-undo"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M4 12h10a6 6 0 0 1 0 12" transform="translate(0 -3)" /></svg><span>Desfazer</span></button>
+</footer>
+
+<div id="backdrop" hidden></div>
+
+<section class="sheet" id="sheet-new" hidden>
+  <h2>Novo jogo</h2>
+  <p class="note">Todos os jogos têm solução.</p>
+  <div class="grid3">
+    <button data-diff="facil">Fácil</button>
+    <button data-diff="normal">Normal</button>
+    <button data-diff="dificil">Difícil</button>
+  </div>
+  <button class="wide" id="btn-daily">Jogo do dia</button>
+  <button class="wide ghost" id="btn-restart">Recomeçar este jogo</button>
+  <button class="wide ghost" data-close>Voltar</button>
+</section>
+
+<section class="sheet" id="sheet-settings" hidden>
+  <h2>Definições</h2>
+  <div class="row"><span>Cartas a tirar</span>
+    <div class="seg" id="seg-draw"><button data-v="1">1</button><button data-v="3">3</button></div></div>
+  <div class="row"><span>Tema</span>
+    <div class="seg" id="seg-theme"><button data-v="verde">Verde</button><button data-v="azul">Azul</button><button data-v="bordo">Bordô</button></div></div>
+  <div class="row"><span>Som</span><button class="switch" id="sw-sound" role="switch"></button></div>
+  <div class="row"><span>Vibração</span><button class="switch" id="sw-haptic" role="switch"></button></div>
+  <div class="row"><span>Mão esquerda</span><button class="switch" id="sw-left" role="switch"></button></div>
+  <h3>Estatísticas <small id="stats-mode"></small></h3>
+  <div class="stats" id="stats"></div>
+  <a class="wide ghost" href="../../index.html">← Todos os jogos</a>
+  <button class="wide ghost" data-close>Fechar</button>
+</section>
+
+<section class="sheet center" id="win" hidden>
+  <h2>Boa, Joana!</h2>
+  <p class="note" id="win-note"></p>
+  <div class="stats" id="win-stats"></div>
+  <button class="wide" id="btn-again">Novo jogo</button>
+</section>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

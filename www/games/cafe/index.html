@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#e85d75">
+<link rel="icon" href="icon-192.png">
+<title>Café da Joana</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #7ec850; overscroll-behavior: none; touch-action: none;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #fff; }
+  canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .hud { position: fixed; left: 0; right: 0; top: 0; padding: calc(8px + env(safe-area-inset-top)) 10px 0; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; z-index: 5; }
+  .pill { background: rgba(35,28,30,.72); border-radius: 999px; padding: 6px 14px 6px 8px; font-weight: 800; font-size: 20px; display: flex; align-items: center; gap: 8px; min-width: 96px; margin-bottom: 6px; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
+  .pill .ic { width: 30px; height: 22px; border-radius: 4px; background: #43a047; border: 2px solid #2e7d32; position: relative; flex: none; }
+  .pill .ic::after { content: ""; position: absolute; inset: 4px 9px; border-radius: 50%; background: #a5d6a7; }
+  .pill .bag { width: 26px; height: 24px; border-radius: 5px 5px 8px 8px; background: #d9a066; border: 2px solid #8a5a2b; flex: none; }
+  .pill.full { background: rgba(198,40,40,.85); }
+  .goal { background: rgba(35,28,30,.72); border-radius: 14px; padding: 7px 11px 9px; max-width: 46vw; width: max-content; font-size: 13px; line-height: 1.25; }
+  .goal b { display: block; font-size: 13.5px; }
+  .goal span { display: block; font-weight: 600; opacity: .9; font-size: 12px; }
+  .goal i { display: block; height: 6px; border-radius: 3px; background: rgba(255,255,255,.25); margin-top: 5px; overflow: hidden; }
+  .goal u { display: block; height: 100%; width: 0; background: #ffd54f; border-radius: 3px; transition: width .3s; }
+  #fade { position: fixed; inset: 0; background: #fff7ef; opacity: 0; pointer-events: none; z-index: 8; }
+  .btns { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: auto; }
+  .btn { border: 0; border-radius: 14px; background: #ffb300; color: #3b2a1a; font-weight: 800; font-size: 16px; padding: 10px 14px; box-shadow: 0 4px 0 #c67f00; font-family: inherit; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #c67f00; }
+  .btn.round { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; background: rgba(35,28,30,.72); box-shadow: none; color: #fff; border-radius: 50%; }
+  .btn.round svg { width: 24px; height: 24px; }
+  .btn.badge { position: relative; }
+  .btn.badge.can::after { content: ""; position: absolute; top: -4px; right: -4px; width: 14px; height: 14px; border-radius: 50%; background: #e53935; border: 2px solid #fff; }
+  #hint { position: fixed; left: 50%; top: calc(104px + env(safe-area-inset-top)); transform: translateX(-50%); background: rgba(35,28,30,.78); padding: 9px 16px; border-radius: 14px; font-weight: 700; font-size: 16px; text-align: center; max-width: 84vw; z-index: 4; pointer-events: none; display: none; }
+  #toast { position: fixed; left: 50%; bottom: 22%; transform: translateX(-50%); background: #fff; color: #3b2a1a; padding: 10px 18px; border-radius: 16px; font-weight: 800; font-size: 17px; text-align: center; max-width: 86vw; z-index: 6; pointer-events: none; opacity: 0; transition: opacity .25s; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+  #toast.show { opacity: 1; }
+  #joy { position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: rgba(255,255,255,.22); border: 3px solid rgba(255,255,255,.75); display: none; z-index: 3; pointer-events: none; }
+  #knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(255,255,255,.85); }
+  #drag { position: fixed; left: 0; right: 0; bottom: 14%; text-align: center; font-weight: 900; font-size: 22px; letter-spacing: 1px; text-shadow: 0 2px 0 rgba(0,0,0,.45); pointer-events: none; z-index: 3; display: none; }
+  .overlay { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(60,30,40,.45); padding: 18px; }
+  .card { background: #fff7ef; color: #3b2a1a; border-radius: 24px; padding: 22px 20px; width: min(420px, 100%); max-height: 88vh; overflow: auto; box-shadow: 0 14px 40px rgba(0,0,0,.35); touch-action: pan-y; }
+  #title .card { text-align: center; }
+  #title h1 { margin: 4px 0 6px; font-size: 40px; line-height: 1.05; color: #e85d75; }
+  #title p { margin: 0 0 18px; font-size: 16px; font-weight: 600; color: #7a5b48; }
+  #title .btn { font-size: 24px; padding: 14px 44px; }
+  h2 { margin: 0 0 12px; font-size: 24px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 2px solid #f1e0d0; }
+  .row .t { flex: 1; min-width: 0; }
+  .row .t b { display: block; font-size: 17px; }
+  .row .t span { font-size: 13px; color: #7a5b48; font-weight: 600; }
+  .row .btn { min-width: 96px; font-size: 16px; }
+  .row .btn[disabled] { background: #d7ccc8; box-shadow: 0 4px 0 #a1887f; color: #6d5a52; }
+  .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; gap: 10px; }
+  a.link { display: inline-block; }
+  .link { background: none; border: 0; color: #b23a4d; font-weight: 700; font-size: 14px; text-decoration: underline; font-family: inherit; padding: 8px 0; }
+  .stats { font-size: 13px; font-weight: 700; color: #7a5b48; margin-top: 10px; }
+  .hidden { display: none !important; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #e85d75; z-index: 20; font-weight: 800; font-size: 22px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="hud hidden" id="hud">
+  <div>
+    <div class="pill"><span class="ic"></span><span id="cash">0</span></div>
+    <div class="pill" id="carryPill"><span class="bag"></span><span id="carry">0/6</span></div>
+    <div class="pill hidden" id="boost" style="background:#7e57c2;font-size:13px;padding:6px 12px;min-width:0;width:max-content"></div>
+    <div class="goal hidden" id="goal"><b id="goalT"></b><span id="goalP"></span><i><u id="goalBar"></u></i></div>
+  </div>
+  <div class="btns">
+    <button class="btn badge" id="bUp">Melhorias</button>
+    <button class="btn hidden" id="bAd" style="background:#7e57c2;box-shadow:0 4px 0 #4d2c91;color:#fff;font-size:14px;padding:8px 12px">Anúncio<br><small style="font-weight:600">ganha um prémio</small></button>
+    <button class="btn round" id="bSnd" aria-label="Som"></button>
+    <button class="btn round" id="bFs" aria-label="Ecrã inteiro">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+  </div>
+</div>
+<div id="fade"></div>
+<div id="hint"></div>
+<div id="toast"></div>
+<div id="drag">ARRASTA PARA MOVER</div>
+<div id="joy"><div id="knob"></div></div>
+
+<div class="overlay hidden" id="title">
+  <div class="card">
+    <h1 id="tName">Café da Joana</h1>
+    <p id="tSub"></p>
+    <button class="btn" id="bPlay">Jogar</button>
+    <br><a class="link" href="../../index.html">← Todos os jogos</a>
+  </div>
+</div>
+
+<div class="overlay hidden" id="upg">
+  <div class="card">
+    <h2>Melhorias</h2>
+    <div id="upList"></div>
+    <div class="stats" id="stats"></div>
+    <div class="foot">
+      <span><button class="link" id="bGfx" style="color:#5a6f8f">Gráficos</button><br><button class="link" id="bReset">Recomeçar jogo</button><br><a class="link" href="../../index.html" style="color:#5a6f8f">← Todos os jogos</a></span>
+      <button class="btn" id="bClose">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="confirm">
+  <div class="card" style="text-align:center">
+    <h2>Apagar todo o progresso?</h2>
+    <div class="foot" style="justify-content:center">
+      <button class="btn" id="bNo">Não</button>
+      <button class="btn" id="bYes" style="background:#ef5350;box-shadow:0 4px 0 #b71c1c;color:#fff">Sim, apagar</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading">A carregar...</div>
+<script type="module" src="game.js"></script>
+</body>
+</html>
