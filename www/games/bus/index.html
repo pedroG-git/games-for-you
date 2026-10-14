@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#f3e6c9">
+  <title>Bus da Joana</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../shared/fonts.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <header id="hud">
+    <div class="pill" id="lvl">Level 1</div>
+    <div class="pill small" id="left">0 customers</div>
+    <button id="home" class="round" aria-label="Menu">🏠</button>
+    <button id="mute" class="round" aria-label="Sound on/off">🔊</button>
+  </header>
+
+  <footer id="bar">
+    <button id="bSlot" class="boost slot"><span class="ico">🅿️</span><span class="lbl">Extra spot</span><span class="badge" id="nSlot">2</span></button>
+    <button id="bShuffle" class="boost shuf"><span class="ico">🔀</span><span class="lbl">Shuffle line</span><span class="badge" id="nShuffle">2</span></button>
+  </footer>
+
+  <section id="title" class="screen show">
+    <div class="sign">
+      <div class="awning"></div>
+      <h1>Bus da<br>Joana</h1>
+      <p class="tag">Burgers to go. Customers to move.</p>
+    </div>
+    <div class="howto">
+      Tap a bus to drive it out (follow the arrow).<br>
+      Customers hop on buses of their colour.<br>
+      Don't let the parking lot fill up!
+    </div>
+    <button id="play" class="big">Play</button>
+    <p class="sub" id="titleLvl"></p>
+    <button id="restart" class="link">Start over from level 1</button>
+    <a href="../../index.html" class="link back">← All games</a>
+  </section>
+
+  <section id="win" class="screen">
+    <div class="card">
+      <h2 id="winT">Level 1 complete!</h2>
+      <div class="bubble"><p id="qText"></p></div>
+      <p class="who" id="qWho"></p>
+      <p class="ep" id="qEp"></p>
+      <button id="next" class="big">Next level</button>
+    </div>
+  </section>
+
+  <section id="lose" class="screen">
+    <div class="card">
+      <h2>Parking lot full!</h2>
+      <p class="sub dark">No bus for the next customer.</p>
+      <button id="lSlot" class="big alt">🅿️ Use an extra spot (<span>0</span>)</button>
+      <button id="lShuffle" class="big alt">🔀 Shuffle the line (<span>0</span>)</button>
+      <button id="retry" class="big">Retry level</button>
+    </div>
+  </section>
+
+  <div id="toast"></div>
+
+  <script src="js/rules.js"></script>
+  <script src="js/levelgen.js"></script>
+  <script src="js/puns.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

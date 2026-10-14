@@ -1,0 +1,19 @@
+{
+  "name": "joanas-games",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Joana's Games - offline Android game collection",
+  "scripts": {
+    "version-file": "node scripts/write-version.js",
+    "sync": "node scripts/write-version.js && cap sync android",
+    "serve": "node scripts/write-version.js && node scripts/serve.js",
+    "test": "node tools/test-levelgen.js 30"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}
