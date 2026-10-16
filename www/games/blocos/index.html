@@ -10,14 +10,42 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="app">
+<div id="menu" class="screen" hidden>
+  <header class="bar">
+    <button class="round" id="m-home" aria-label="Home">🏠</button>
+    <span></span>
+    <button class="round b-set" aria-label="Settings">⚙️</button>
+  </header>
+  <h1 id="logo"><span>Blocos</span><small>da Joana</small></h1>
+  <div id="menu-cats"></div>
+  <button class="mode-btn" id="m-classic"><b>Classic</b><small>👑 <span id="m-best">0</span></small></button>
+  <button class="mode-btn adv" id="m-adv"><b>Adventures</b><small>⭐ <span id="m-stars">0</span></small></button>
+</div>
+
+<div id="map" class="screen" hidden>
+  <header class="bar">
+    <button class="round" id="map-back" aria-label="Back">↩</button>
+    <h2>Adventures</h2>
+    <button class="round b-set" aria-label="Settings">⚙️</button>
+  </header>
+  <nav id="tabs">
+    <button data-mode="time">⏱<small>Time Attack</small></button>
+    <button data-mode="moves">👣<small>Moves</small></button>
+    <button data-mode="relaxed">∞<small>Relaxed</small></button>
+  </nav>
+  <div id="map-scroll"><div id="map-path"></div></div>
+</div>
+
+<div id="app" class="screen">
   <header id="top">
     <button class="round" id="b-home" aria-label="Home">🏠</button>
     <div id="best"><span>👑</span><b id="best-n">0</b></div>
-    <button class="round" id="b-set" aria-label="Settings">⚙️</button>
+    <div id="chip" hidden></div>
+    <button class="round b-set" aria-label="Settings">⚙️</button>
   </header>
 
   <div id="score">0</div>
+  <div id="limit" hidden><span id="limit-t"></span><div id="tbar"><i></i></div></div>
   <div id="combo" hidden></div>
 
   <div id="boardwrap">
@@ -48,11 +76,40 @@
 <div id="over" hidden>
   <div class="box">
     <h2 id="over-title">No more space!</h2>
-    <p class="lbl">Score</p>
+    <p class="lbl" id="over-lbl">Score</p>
     <p id="over-score">0</p>
-    <p class="lbl">👑 Best <b id="over-best">0</b></p>
+    <p class="lbl" id="over-sub">👑 Best <b id="over-best">0</b></p>
     <button class="big" id="b-again">Play again</button>
     <button class="ghostbtn" id="b-over-undo">↶ Undo last move</button>
+    <button class="ghostbtn" id="b-over-map" hidden>🗺️ Map</button>
+  </div>
+</div>
+
+<div id="lvl" class="modal" hidden>
+  <div class="box">
+    <h2 id="lvl-title">Level 1</h2>
+    <p class="lbl" id="lvl-world"></p>
+    <div id="lvl-board"></div>
+    <div id="diffs">
+      <button data-d="1"><b>Easy</b><span class="st"></span></button>
+      <button data-d="2"><b>Normal</b><span class="st"></span></button>
+      <button data-d="3"><b>Hard</b><span class="st"></span></button>
+    </div>
+    <p id="lvl-info"></p>
+    <button class="big" id="lvl-play">Play</button>
+    <button class="ghostbtn" id="lvl-cont" hidden>▶ Continue</button>
+    <button class="ghostbtn" id="lvl-close">Close</button>
+  </div>
+</div>
+
+<div id="win" class="modal" hidden>
+  <div class="box">
+    <h2 id="win-title">Level complete!</h2>
+    <div id="win-stars"><i>★</i><i>★</i><i>★</i></div>
+    <p class="lbl" id="win-msg"></p>
+    <button class="big" id="win-next">Next level ▶</button>
+    <button class="ghostbtn" id="win-retry">Play again</button>
+    <button class="ghostbtn" id="win-map">🗺️ Map</button>
   </div>
 </div>
 

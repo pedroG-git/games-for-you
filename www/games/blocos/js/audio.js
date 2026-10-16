@@ -49,6 +49,9 @@ export const play = {
   undo() { tone(700, 0.18, 0.1, 'sine', 0, 0.5); },
   over() { [67, 63, 60, 55].forEach((n, i) => tone(note(n), 0.4, 0.14, 'triangle', i * 0.18)); buzz(60); },
   best() { [72, 76, 79, 84, 88, 91, 96].forEach((n, i) => { tone(note(n), 0.4, 0.13, 'triangle', i * 0.08); tone(note(n + 12), 0.3, 0.04, 'sine', i * 0.08); }); },
+  crack() { tone(1400, 0.05, 0.08, 'square', 0, 0.4); tone(180, 0.12, 0.15, 'triangle', 0, 0.5); },
+  tick() { tone(1200, 0.04, 0.06, 'square'); },
+  locked() { tone(200, 0.12, 0.12, 'square', 0, 0.8); buzz(15); },
   tap() { tone(660, 0.06, 0.12, 'triangle', 0, 1.4); },
 };
 

@@ -1,36 +1,103 @@
 // Blocos da Joana — Block Blast-style puzzle: drag pieces onto an 8×8 board, fill rows/columns to clear them.
-import { N, COLORS, SHAPES, fits, fitsAnywhere, dealTray } from './pieces.js';
+// Classic = endless high-score game. Adventures = endless levels where pre-placed blocks must be cleared.
+import { N, SHAPES, STONE, CRACKED, isTarget, colorOf, fits, fitsAnywhere, dealTray, fullLines, lineCells, clearLines } from './pieces.js';
 import { play, settings, unlock, setMusic } from './audio.js';
 import { catSVG } from './cats.js';
+import { DIFFS, worldOf, levelInfo } from './levels.js';
+import { renderMap } from './map.js';
 
 const $ = (id) => document.getElementById(id);
 const SAVE = 'blocos-save', BEST = 'blocos-best', SET = 'blocos-settings';
+const RUN = 'blocos-adv-run', PROG = 'blocos-adv', SCREEN = 'blocos-screen';
 const GAP = 2, PAD = 6;
 
 // ---------------------------------------------------------------- state
-let S = null;
+let S = null; // current game (classic or adventure level)
 let best = Number(localStorage.getItem(BEST)) || 0;
-let shown = 0; // score currently displayed (counts up)
+let shown = 0; // number currently displayed in the big counter (counts up/down)
+let screen = 'menu';
+
+const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
+const valid = (g) => g && Array.isArray(g.grid) && g.grid.length === N * N;
+
+let prog = load(PROG);
+if (!prog || !prog.time) prog = { mode: 'moves', time: {}, moves: {}, relaxed: {} };
+const saveProg = () => store(PROG, prog);
+const unlockedIn = (mode) => Math.max(0, ...Object.keys(prog[mode]).map(Number)) + 1;
+const totalStars = () => ['time', 'moves', 'relaxed'].reduce((s, m) => s + Object.values(prog[m]).reduce((a, b) => a + b, 0), 0);
 
 function newGame() {
   const grid = Array(N * N).fill(0);
   S = {
     grid, tray: dealTray(grid), score: 0, combo: 0, miss: 0,
     undo: null, undoReady: true, pending: null, over: false,
-    startBest: best, beat: false,
+    startBest: best, beat: false, adv: null,
   };
   shown = 0;
   save();
 }
 
-function save() { try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch (e) { /* ignore */ } }
-function load() {
-  try { S = JSON.parse(localStorage.getItem(SAVE)); } catch (e) { S = null; }
-  if (!S || !Array.isArray(S.grid) || S.grid.length !== N * N) newGame();
-  shown = S.score;
-}
+function save() { if (S) store(S.adv ? RUN : SAVE, S); }
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SET)) || {}); } catch (e) { /* ignore */ }
 const saveSettings = () => localStorage.setItem(SET, JSON.stringify(settings));
+const help = () => (S.adv ? DIFFS[S.adv.diff].help : 0);
+
+// ---------------------------------------------------------------- screens
+function show(name) {
+  screen = name;
+  for (const id of ['menu', 'map', 'app']) $(id).hidden = id !== name;
+  for (const id of ['over', 'win', 'lvl']) $(id).hidden = true;
+  localStorage.setItem(SCREEN, name === 'app' ? (S.adv ? 'adv' : 'classic') : name);
+  $('b-restart').textContent = S && S.adv ? 'Restart level' : 'Restart game';
+  $('b-restart').hidden = name !== 'app';
+}
+
+function openMenu() {
+  $('m-best').textContent = best;
+  $('m-stars').textContent = totalStars();
+  $('menu-cats').innerHTML = `<div>${catSVG('meme')}</div><div>${catSVG('mimi')}</div>`;
+  show('menu');
+}
+
+function openClassic() {
+  S = load(SAVE);
+  if (!valid(S) || S.adv) newGame();
+  shown = S.score;
+  startBoard();
+}
+
+function openMap() {
+  show('map');
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.mode === prog.mode));
+  renderMap($('map-scroll'), $('map-path'), prog[prog.mode], unlockedIn(prog.mode), openLevel);
+}
+
+function startLevel(mode, n, diff) {
+  const info = levelInfo(mode, n, diff);
+  const grid = info.grid.slice();
+  prog.mode = mode; saveProg();
+  S = {
+    grid, tray: null, score: 0, combo: 0, miss: 0,
+    undo: null, undoReady: true, pending: null, over: false, won: false, why: '',
+    adv: {
+      mode, n, diff, left: info.total, total: info.total, started: false,
+      moves: mode === 'moves' ? info.moves : null, time: mode === 'time' ? info.time : null, timeTotal: info.time,
+    },
+  };
+  S.tray = dealTray(grid, Math.random, help());
+  shown = info.total;
+  save();
+  startBoard();
+}
+
+function startBoard() {
+  $('board').classList.remove('dead');
+  show('app');
+  layout();
+  renderAll(true);
+  if (S.over) gameOver(true);
+}
 
 // ---------------------------------------------------------------- layout
 let cell = 40;
@@ -39,7 +106,7 @@ for (let i = 0; i < N * N; i++) { const d = document.createElement('div'); d.cla
 
 function layout() {
   const w = Math.min(window.innerWidth - 24, 520);
-  const h = window.innerHeight - 250;
+  const h = window.innerHeight - (S && S.adv && S.adv.mode !== 'relaxed' ? 280 : 250);
   cell = Math.floor(Math.max(24, Math.min(56, (w - PAD * 2 - GAP * 7) / 8, (h - GAP * 7) / 11)));
   document.documentElement.style.setProperty('--cell', cell + 'px');
   document.documentElement.style.setProperty('--gap', GAP + 'px');
@@ -47,11 +114,16 @@ function layout() {
 }
 
 // ---------------------------------------------------------------- render
+function cellClass(v) {
+  if (!v) return 'c';
+  if (v >= STONE) return v === CRACKED ? 'c b st cr' : 'c b st';
+  return isTarget(v) ? 'c b t' : 'c b';
+}
 function paint(i, v) {
   const d = cells[i];
-  d.className = v ? 'c b' : 'c';
+  d.className = cellClass(v);
   d.style.removeProperty('--hk');
-  if (v) d.style.setProperty('--k', COLORS[v - 1]); else d.style.removeProperty('--k');
+  if (v) d.style.setProperty('--k', colorOf(v)); else d.style.removeProperty('--k');
 }
 function renderBoard() { S.grid.forEach((v, i) => paint(i, v)); }
 
@@ -64,7 +136,7 @@ function pieceEl(p, size) {
   for (const [r, c] of sh.cells) {
     const b = document.createElement('div');
     b.className = 'b';
-    b.style.setProperty('--k', COLORS[p.k]);
+    b.style.setProperty('--k', colorOf(p.k + 1));
     b.style.gridRow = r + 1; b.style.gridColumn = c + 1;
     el.appendChild(b);
   }
@@ -84,23 +156,46 @@ function renderTray(deal = false) {
   });
 }
 
+const stars = (k, of = 3) => '★'.repeat(k) + '☆'.repeat(of - k);
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function renderLimit() {
+  const a = S.adv, el = $('limit');
+  el.hidden = !a || a.mode === 'relaxed';
+  if (el.hidden) return;
+  el.classList.toggle('timed', a.mode === 'time');
+  if (a.mode === 'moves') {
+    $('limit-t').textContent = `👣 ${a.moves} ${a.moves === 1 ? 'move' : 'moves'}`;
+    el.classList.toggle('low', a.moves <= 3);
+  } else {
+    $('limit-t').textContent = `⏱ ${clock(Math.ceil(a.time))}${a.started ? '' : ' · starts on first move'}`;
+    $('tbar').firstChild.style.width = (100 * a.time / a.timeTotal) + '%';
+    el.classList.toggle('low', a.time <= 10);
+  }
+}
+
 function renderHud() {
+  const a = S.adv;
+  $('best').hidden = !!a;
+  $('chip').hidden = !a;
+  if (a) $('chip').innerHTML = `Level ${a.n} <span>${stars(a.diff)}</span>`;
   $('best-n').textContent = best;
+  $('score').classList.toggle('goal', !!a);
   const c = $('combo');
   c.hidden = S.combo < 2;
   c.textContent = `Combo x${S.combo}`;
-  const u = $('b-undo');
-  u.disabled = !(S.undo && S.undoReady) || S.over;
+  $('b-undo').disabled = !(S.undo && S.undoReady) || S.over || S.won;
+  renderLimit();
 }
 
 let countTimer = null;
 function renderScore() {
   clearInterval(countTimer);
-  const el = $('score');
-  if (shown === S.score) { el.textContent = shown; return; }
+  const el = $('score'), target = S.adv ? S.adv.left : S.score;
+  if (shown === target) { el.textContent = shown; return; }
   el.classList.add('bump');
   setTimeout(() => el.classList.remove('bump'), 140);
-  const from = shown, to = S.score, t0 = performance.now();
+  const from = shown, to = target, t0 = performance.now();
   countTimer = setInterval(() => {
     const k = Math.min(1, (performance.now() - t0) / 450);
     shown = Math.round(from + (to - from) * k);
@@ -112,57 +207,47 @@ function renderScore() {
 function renderAll(deal = false) { renderBoard(); renderTray(deal); renderHud(); renderScore(); }
 
 // ---------------------------------------------------------------- rules
-function fullLines(grid) {
-  const rows = [], cols = [];
-  for (let r = 0; r < N; r++) { let f = true; for (let c = 0; c < N; c++) if (!grid[r * N + c]) { f = false; break; } if (f) rows.push(r); }
-  for (let c = 0; c < N; c++) { let f = true; for (let r = 0; r < N; r++) if (!grid[r * N + c]) { f = false; break; } if (f) cols.push(c); }
-  return { rows, cols };
-}
-function lineCells({ rows, cols }) {
-  const set = new Set();
-  for (const r of rows) for (let c = 0; c < N; c++) set.add(r * N + c);
-  for (const c of cols) for (let r = 0; r < N; r++) set.add(r * N + c);
-  return set;
-}
-
 const WORDS = ['', 'Nice!', 'Good!', 'Great!', 'Excellent!', 'Amazing!', 'Unbelievable!'];
 
 function place(i, row, col) {
-  const p = S.tray[i], sh = SHAPES[p.s];
-  S.undo = { grid: S.grid.slice(), tray: S.tray.slice(), score: S.score, combo: S.combo, miss: S.miss, dealt: false };
+  const p = S.tray[i], sh = SHAPES[p.s], a = S.adv;
+  S.undo = {
+    grid: S.grid.slice(), tray: S.tray.slice(), score: S.score, combo: S.combo, miss: S.miss, dealt: false,
+    left: a && a.left, moves: a && a.moves,
+  };
 
   for (const [r, c] of sh.cells) S.grid[(row + r) * N + col + c] = p.k + 1;
   S.tray[i] = null;
   S.score += sh.cells.length;
+  if (a && a.moves !== null) a.moves--;
 
-  const lines = fullLines(S.grid);
-  const L = lines.rows.length + lines.cols.length;
+  const res = clearLines(S.grid), L = res.L;
   const cx = col + sh.wd / 2, cy = row + sh.h / 2;
   let gained = sh.cells.length;
   play.place();
 
   if (L) {
-    const gone = [...lineCells(lines)];
-    const colors = gone.map((j) => S.grid[j]);
-    gone.forEach((j) => { S.grid[j] = 0; });
     S.combo += 1; S.miss = 0;
     let pts = 10 * L * (L + 1) / 2 * S.combo;
     const allClear = S.grid.every((v) => !v);
     if (allClear) pts += 300;
     S.score += pts; gained += pts;
+    if (a) a.left -= res.hit;
 
-    blast(gone, colors, cx, cy);
+    blast(res.gone, res.vals, cx, cy);
+    if (res.cracked.length) crack(res.cracked);
     play.clear(L, S.combo);
     if (L >= 2) shake();
-    if (L >= 2 || S.combo >= 2) praise(allClear ? 'All Clear!' : WORDS[Math.min(L, 6)], S.combo >= 2 ? `Combo x${S.combo}` : '');
-    if (allClear) { play.allClear(); cat('mimi', 'Mew?! (Where did all the blocks go?!)', true); }
+    const won = a && a.left <= 0;
+    if (!won && (L >= 2 || S.combo >= 2)) praise(allClear ? 'All Clear!' : WORDS[Math.min(L, 6)], S.combo >= 2 ? `Combo x${S.combo}` : '');
+    if (won) { /* the win popup does the cheering */ } else if (allClear) { play.allClear(); cat('mimi', 'Mew?! (Where did all the blocks go?!)', true); }
     else if (L >= 3 || S.combo >= 4) cat(nextCat(), null);
   } else if (++S.miss >= 3) {
     S.combo = 0;
   }
-  points(gained, cx, cy);
+  if (!a) points(gained, cx, cy);
 
-  if (S.score > best) {
+  if (!a && S.score > best) {
     best = S.score;
     localStorage.setItem(BEST, best);
     if (!S.beat && S.startBest > 0) {
@@ -171,11 +256,17 @@ function place(i, row, col) {
     }
   }
 
+  if (a && a.left <= 0) {
+    win();
+    renderAll();
+    return;
+  }
+
   let deal = false;
   if (S.tray.every((t) => !t)) {
     deal = true;
     S.undo.dealt = true;
-    if (S.pending) { S.tray = S.pending; S.pending = null; } else { S.tray = dealTray(S.grid); S.undoReady = true; }
+    if (S.pending) { S.tray = S.pending; S.pending = null; } else { S.tray = dealTray(S.grid, Math.random, help()); S.undoReady = true; }
     setTimeout(() => play.deal(), 150);
   }
   checkOver();
@@ -184,12 +275,12 @@ function place(i, row, col) {
 }
 
 function undo() {
-  if (!S.undo || !S.undoReady) return;
+  if (!S.undo || !S.undoReady || S.won || S.why === 'time') return;
   const u = S.undo;
   if (u.dealt) S.pending = S.tray.slice();
   Object.assign(S, { grid: u.grid, tray: u.tray, score: u.score, combo: u.combo, miss: u.miss });
-  S.undo = null; S.undoReady = false; S.over = false;
-  shown = S.score;
+  if (S.adv) { S.adv.left = u.left; S.adv.moves = u.moves; shown = u.left; } else shown = S.score;
+  S.undo = null; S.undoReady = false; S.over = false; S.why = '';
   $('board').classList.remove('dead');
   $('over').hidden = true;
   play.undo();
@@ -199,11 +290,14 @@ function undo() {
 
 function checkOver() {
   const left = S.tray.filter(Boolean);
-  if (left.length && left.every((p) => !fitsAnywhere(S.grid, p.s))) {
-    S.over = true;
-    setTimeout(gameOver, 500);
-  }
+  if (left.length && left.every((p) => !fitsAnywhere(S.grid, p.s))) S.why = 'space';
+  else if (S.adv && S.adv.moves !== null && S.adv.moves <= 0) S.why = 'moves';
+  else return;
+  S.over = true;
+  setTimeout(gameOver, 500);
 }
+
+const OVER_TITLE = { space: 'No more space!', moves: 'Out of moves!', time: "Time's up!" };
 
 function gameOver(instant = false) {
   if (!S.over) return;
@@ -211,32 +305,103 @@ function gameOver(instant = false) {
   $('board').classList.add('dead');
   if (!instant) play.over();
   setTimeout(() => {
-    if (!S.over) return;
-    $('over-title').textContent = S.beat ? 'New Best!' : 'No more space!';
-    $('over-score').textContent = S.score;
-    $('over-best').textContent = best;
-    $('b-over-undo').hidden = !(S.undo && S.undoReady);
+    if (!S.over || screen !== 'app') return;
+    const a = S.adv;
+    if (a) {
+      $('over-title').textContent = OVER_TITLE[S.why] || OVER_TITLE.space;
+      $('over-lbl').textContent = 'Blocks left';
+      $('over-score').textContent = a.left;
+      $('over-sub').textContent = `Level ${a.n} · ${DIFFS[a.diff].name}`;
+      $('b-again').textContent = 'Try again';
+    } else {
+      $('over-title').textContent = S.beat ? 'New Best!' : 'No more space!';
+      $('over-lbl').textContent = 'Score';
+      $('over-score').textContent = S.score;
+      $('over-sub').innerHTML = `👑 Best <b id="over-best">${best}</b>`;
+      $('b-again').textContent = 'Play again';
+    }
+    $('b-over-map').hidden = !a;
+    $('b-over-undo').hidden = !(S.undo && S.undoReady) || S.why === 'time';
     $('over').hidden = false;
   }, instant ? 0 : 1100);
 }
 
+const WIN_LINES = [
+  ['meme', 'Mrrp. (I knew you could do it. I was never worried.)'],
+  ['mimi', 'Mew mew! (Next one! Next one!)'],
+  ['meme', 'Mrrrow. (Fine work, human. Treat?)'],
+  ['mimi', 'Mrrp! (You cleared it ALL!)'],
+];
+
+function win() {
+  const a = S.adv;
+  S.won = true;
+  const had = prog[a.mode][a.n] || 0;
+  if (a.diff > had) { prog[a.mode][a.n] = a.diff; saveProg(); }
+  localStorage.removeItem(RUN);
+  setTimeout(() => {
+    praise('Level Clear!', '');
+    play.best();
+    const [who, line] = WIN_LINES[Math.floor(Math.random() * WIN_LINES.length)];
+    cat(who, line, true);
+  }, 350);
+  setTimeout(() => {
+    if (screen !== 'app' || !S.won) return;
+    $('win-title').textContent = `Level ${a.n} complete!`;
+    const got = Math.max(had, a.diff);
+    [...$('win-stars').children].forEach((s, i) => {
+      s.className = i < got ? 'on' : '';
+      s.style.animationDelay = 250 + i * 250 + 'ms';
+      if (i < got) setTimeout(() => play.tick(), 250 + i * 250);
+    });
+    $('win-msg').textContent = a.diff === 3 ? 'All 3 stars. Purrfect!'
+      : a.diff > had ? `Beat it on ${DIFFS[a.diff + 1].name} for ${stars(a.diff + 1)}`
+        : `You already have ${stars(had)} here`;
+    $('win').hidden = false;
+  }, 1600);
+}
+
+// Time Attack clock. Starts on the first pick-up; pauses in the background, in settings and on other screens.
+let lastT = performance.now(), lastSec = 0;
+setInterval(() => {
+  const now = performance.now(), dt = (now - lastT) / 1000;
+  lastT = now;
+  const a = S && S.adv;
+  if (!a || a.time === null || !a.started || S.over || S.won || screen !== 'app' || document.hidden || !$('settings').hidden) return;
+  a.time = Math.max(0, a.time - dt);
+  const sec = Math.ceil(a.time);
+  if (sec !== lastSec && sec <= 10 && sec > 0) play.tick();
+  lastSec = sec;
+  if (a.time <= 0) { drop(); S.over = true; S.why = 'time'; save(); gameOver(); }
+  renderLimit();
+}, 200);
+
 // ---------------------------------------------------------------- effects
 const blastLayer = $('blast');
-function blast(gone, colors, cx, cy) {
+function blast(gone, vals, cx, cy) {
   const rect = board.getBoundingClientRect();
   gone.forEach((j, n) => {
-    const r = Math.floor(j / N), c = j % N;
+    const r = Math.floor(j / N), c = j % N, color = colorOf(vals[n]);
     const d = document.createElement('div');
     d.className = 'pop b';
-    d.style.setProperty('--k', COLORS[colors[n] - 1]);
+    d.style.setProperty('--k', color);
     d.style.left = PAD + c * (cell + GAP) + 'px';
     d.style.top = PAD + r * (cell + GAP) + 'px';
     const delay = Math.hypot(r + 0.5 - cy, c + 0.5 - cx) * 28;
     d.style.animationDelay = delay + 'ms';
     blastLayer.appendChild(d);
     setTimeout(() => d.remove(), delay + 450);
-    setTimeout(() => burst(rect.left + PAD + c * (cell + GAP) + cell / 2, rect.top + PAD + r * (cell + GAP) + cell / 2, COLORS[colors[n] - 1]), delay + 120);
+    setTimeout(() => burst(rect.left + PAD + c * (cell + GAP) + cell / 2, rect.top + PAD + r * (cell + GAP) + cell / 2, color, isTarget(vals[n]) ? 12 : 7), delay + 120);
   });
+}
+
+function crack(list) {
+  const rect = board.getBoundingClientRect();
+  setTimeout(() => play.crack(), 120);
+  for (const j of list) {
+    const r = Math.floor(j / N), c = j % N;
+    burst(rect.left + PAD + c * (cell + GAP) + cell / 2, rect.top + PAD + r * (cell + GAP) + cell / 2, '#c9cddb', 5);
+  }
 }
 
 function shake() {
@@ -273,8 +438,8 @@ function sizeCanvas() {
   cv.width = window.innerWidth * dpr; cv.height = window.innerHeight * dpr;
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-function burst(x, y, color) {
-  for (let i = 0; i < 7; i++) {
+function burst(x, y, color, count = 7) {
+  for (let i = 0; i < count; i++) {
     const a = Math.random() * Math.PI * 2, v = 2 + Math.random() * 5;
     parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, life: 1, s: cell * (0.12 + Math.random() * 0.16), color, rot: Math.random() * 6 });
   }
@@ -327,7 +492,7 @@ function clearPreview() {
 
 function preview(row, col) {
   clearPreview();
-  const p = S.tray[drag.i], sh = SHAPES[p.s], color = COLORS[p.k];
+  const p = S.tray[drag.i], sh = SHAPES[p.s], color = colorOf(p.k + 1);
   drag.ok = fits(S.grid, p.s, row, col);
   drag.row = row; drag.col = col;
   if (!drag.ok) return;
@@ -360,8 +525,9 @@ function moveFloat(x, y) {
 slots.forEach((slot, i) => {
   slot.addEventListener('pointerdown', (e) => {
     unlock();
-    if (drag || S.over || !S.tray[i]) return;
+    if (drag || S.over || S.won || !S.tray[i]) return;
     const p = S.tray[i];
+    if (S.adv && S.adv.time !== null && !S.adv.started) { S.adv.started = true; lastT = performance.now(); renderLimit(); }
     float.className = '';
     float.innerHTML = '';
     float.appendChild(pieceEl(p, 'var(--cell)'));
@@ -382,7 +548,7 @@ function endDrag(e) {
   const d = drag;
   clearPreview();
   drag = null;
-  if (d.ok) {
+  if (d.ok && !S.over) {
     float.style.display = 'none';
     place(d.i, d.row, d.col);
     return;
@@ -397,24 +563,85 @@ function endDrag(e) {
 window.addEventListener('pointerup', endDrag);
 window.addEventListener('pointercancel', endDrag);
 
+// Time ran out (or she left) mid-drag: put the piece back.
+function drop() {
+  if (!drag) return;
+  clearPreview();
+  slots[drag.i].classList.remove('dragging');
+  float.style.display = 'none';
+  drag = null;
+}
+
+// ---------------------------------------------------------------- level popup
+let pick = null; // { mode, n, diff }
+const lvlCells = [];
+for (let i = 0; i < N * N; i++) { const d = document.createElement('div'); $('lvl-board').appendChild(d); lvlCells.push(d); }
+
+function openLevel(n) {
+  const mode = prog.mode, had = prog[mode][n] || 0;
+  pick = { mode, n, diff: Math.min(3, had + 1) };
+  $('lvl-title').textContent = `Level ${n}`;
+  $('lvl-world').textContent = `${worldOf(n).name} · ${{ time: '⏱ Time Attack', moves: '👣 Moves', relaxed: '∞ Relaxed' }[mode]}`;
+  document.querySelectorAll('#diffs button').forEach((b) => {
+    const d = Number(b.dataset.d);
+    b.querySelector('.st').innerHTML = [1, 2, 3].slice(0, d).map(() => `<i class="${had >= d ? 'on' : ''}">★</i>`).join('');
+  });
+  const run = load(RUN);
+  const cont = valid(run) && run.adv && run.adv.mode === mode && run.adv.n === n && !run.over && !run.won;
+  $('lvl-cont').hidden = !cont;
+  if (cont) $('lvl-cont').textContent = `▶ Continue (${DIFFS[run.adv.diff].name})`;
+  $('lvl').hidden = false;
+  play.tap();
+  pickDiff(pick.diff);
+}
+
+function pickDiff(d) {
+  pick.diff = d;
+  document.querySelectorAll('#diffs button').forEach((b) => b.classList.toggle('on', Number(b.dataset.d) === d));
+  const info = levelInfo(pick.mode, pick.n, d);
+  info.grid.forEach((v, i) => {
+    lvlCells[i].className = v ? cellClass(v).slice(2) : '';
+    if (v) lvlCells[i].style.setProperty('--k', colorOf(v)); else lvlCells[i].style.removeProperty('--k');
+  });
+  const stones = info.grid.filter((v) => v === STONE).length;
+  const limit = pick.mode === 'moves' ? `👣 ${info.moves} moves` : pick.mode === 'time' ? `⏱ ${clock(info.time)}` : '∞ No limit';
+  $('lvl-info').innerHTML = `${limit} · 🎯 ${info.total} blocks${stones ? `<br><small>🪨 ${stones} stone${stones > 1 ? 's' : ''}: clear twice</small>` : ''}`;
+}
+
+document.querySelectorAll('#diffs button').forEach((b) => b.addEventListener('click', () => { play.tap(); pickDiff(Number(b.dataset.d)); }));
+$('lvl-play').addEventListener('click', () => { unlock(); play.tap(); startLevel(pick.mode, pick.n, pick.diff); });
+$('lvl-cont').addEventListener('click', () => { play.tap(); S = load(RUN); shown = S.adv.left; startBoard(); });
+$('lvl-close').addEventListener('click', () => { play.tap(); $('lvl').hidden = true; });
+
 // ---------------------------------------------------------------- buttons
-$('b-home').addEventListener('click', () => { save(); location.href = '../../index.html'; });
+$('m-home').addEventListener('click', () => { location.href = '../../index.html'; });
+$('m-classic').addEventListener('click', () => { unlock(); play.tap(); openClassic(); });
+$('m-adv').addEventListener('click', () => { unlock(); play.tap(); openMap(); });
+$('map-back').addEventListener('click', () => { play.tap(); openMenu(); });
+document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => {
+  play.tap(); prog.mode = b.dataset.mode; saveProg(); openMap();
+}));
+
+$('b-home').addEventListener('click', () => { drop(); if (!S.won) save(); if (S.adv) openMap(); else openMenu(); });
 $('b-undo').addEventListener('click', undo);
 $('b-over-undo').addEventListener('click', undo);
-$('b-again').addEventListener('click', () => {
+$('b-over-map').addEventListener('click', () => { play.tap(); $('over').hidden = true; openMap(); });
+function again() {
   play.tap();
-  $('over').hidden = true;
-  $('board').classList.remove('dead');
-  newGame();
-  renderAll(true);
-});
+  if (S.adv) startLevel(S.adv.mode, S.adv.n, S.adv.diff);
+  else { newGame(); startBoard(); }
+}
+$('b-again').addEventListener('click', again);
+$('win-retry').addEventListener('click', again);
+$('win-map').addEventListener('click', () => { play.tap(); openMap(); });
+$('win-next').addEventListener('click', () => { const n = S.adv.n + 1; openMap(); openLevel(n); });
 
 const sw = { 's-sfx': 'sfx', 's-music': 'music', 's-vib': 'vib' };
-$('b-set').addEventListener('click', () => {
+document.querySelectorAll('.b-set').forEach((b) => b.addEventListener('click', () => {
   unlock(); play.tap();
   for (const [id, k] of Object.entries(sw)) $(id).checked = settings[k];
   $('settings').hidden = false;
-});
+}));
 for (const [id, k] of Object.entries(sw)) {
   $(id).addEventListener('change', (e) => {
     if (k === 'music') setMusic(e.target.checked); else settings[k] = e.target.checked;
@@ -422,18 +649,15 @@ for (const [id, k] of Object.entries(sw)) {
   });
 }
 $('b-close').addEventListener('click', () => { play.tap(); $('settings').hidden = true; });
-$('b-restart').addEventListener('click', () => {
-  $('settings').hidden = true; $('over').hidden = true;
-  $('board').classList.remove('dead');
-  newGame();
-  renderAll(true);
-});
+$('b-restart').addEventListener('click', () => { $('settings').hidden = true; again(); });
 document.addEventListener('pointerdown', unlock, { once: true });
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && S && !S.won) save(); });
 
-// ---------------------------------------------------------------- start
+// ---------------------------------------------------------------- start (back where she left off)
 window.addEventListener('resize', layout);
 layout();
-load();
-renderAll(true);
-if (S.over) gameOver(true);
+const last = localStorage.getItem(SCREEN), run = load(RUN);
+if (last === 'classic') openClassic();
+else if (last === 'adv' && valid(run) && run.adv && !run.won) { S = run; shown = S.adv.left; startBoard(); }
+else if (last === 'map' || last === 'adv') openMap();
+else openMenu();
