@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#d9483b">
-  <title>Joana's Games</title>
-  <meta name="description" content="Download Joana's Games for Android.">
+  <title>Games for you</title>
+  <meta name="description" content="Download Games for you for Android.">
   <link rel="icon" href="icon.png">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap">
   <style>
@@ -39,19 +39,19 @@
   <header></header>
   <main>
     <img class="icon" src="icon.png" alt="">
-    <h1>Joana's Games</h1>
-    <p class="tag">Little games for Joana. Play them anywhere, even offline.</p>
+    <h1>Games for you</h1>
+    <p class="tag">Little games, made for you. Play them anywhere, even offline.</p>
 
-    <a class="download" id="dl" href="https://github.com/pedroG-git/joanas-games/releases/latest/download/joanas-games.apk">
+    <a class="download" id="dl" href="https://github.com/pedroG-git/games-for-you/releases/latest/download/games-for-you.apk">
       Download for Android
-      <small id="ver">joanas-games.apk</small>
+      <small id="ver">games-for-you.apk</small>
     </a>
 
     <section class="card">
       <h2>How to install</h2>
       <ol>
         <li>Tap <b>Download for Android</b> on your phone.</li>
-        <li>Open the downloaded file, <b>joanas-games.apk</b>.</li>
+        <li>Open the downloaded file, <b>games-for-you.apk</b>.</li>
         <li>The first time, Android asks to allow installing apps from your browser. Tap <b>Settings</b>, turn it on, then go back.</li>
         <li>Tap <b>Install</b>. Done! 🍔</li>
       </ol>
@@ -65,21 +65,23 @@
     <section class="card">
       <h2>Games inside</h2>
       <ul class="games">
-        <li>🚌 Bus da Joana</li>
-        <li>🃏 Paciência da Joana</li>
-        <li>☕ Café da Joana</li>
+        <li>🚌 Bus</li>
+        <li>🃏 Paciência</li>
+        <li>☕ Café</li>
+        <li>🌸 Flower Garden</li>
+        <li>🧱 Blocos</li>
       </ul>
     </section>
 
-    <footer>A fan project made with love. Not affiliated with Bob's Burgers. · <a href="https://github.com/pedroG-git/joanas-games">Source</a></footer>
+    <footer>A fan project made with love. Not affiliated with Bob's Burgers. · <a href="https://github.com/pedroG-git/games-for-you">Source</a></footer>
   </main>
   <script>
     // show the current version under the button
-    fetch('https://api.github.com/repos/pedroG-git/joanas-games/releases/latest')
+    fetch('https://api.github.com/repos/pedroG-git/games-for-you/releases/latest')
       .then((r) => (r.ok ? r.json() : null))
       .then((rel) => {
         if (!rel) return;
-        const apk = (rel.assets || []).find((a) => a.name === 'joanas-games.apk');
+        const apk = (rel.assets || []).find((a) => a.name === 'games-for-you.apk');
         const mb = apk ? ` · ${(apk.size / 1048576).toFixed(1)} MB` : '';
         document.getElementById('ver').textContent = `Version ${rel.tag_name.replace(/^v/, '')}${mb}`;
       })

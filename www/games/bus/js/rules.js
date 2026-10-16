@@ -1,4 +1,4 @@
-// Bus da Joana - game rules (pure functions over a plain JSON state; works in the browser and in Node)
+// Bus - game rules (pure functions over a plain JSON state; works in the browser and in Node)
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.Rules = factory();

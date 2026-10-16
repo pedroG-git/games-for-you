@@ -40,7 +40,7 @@ const PICS = [
   ['..p.p..', '.ppppp.', '..pyp..', '.ppppp.', '..p.p..', '...g...', '..ggg..'], // flower
   ['..rrr..', '.rryrr.', 'rrrrrrr', '...o...', '..ooo..'], // mushroom
   ['...g...', '..ggg..', '.ggggg.', '...g...', '...g...', '...g...'], // arrow
-  ['..bbbbb', '.....b.', '.....b.', '.....b.', '.b...b.', '..bbb..'], // J for Joana
+  ['..bbbbb', '.....b.', '.....b.', '.....b.', '.b...b.', '..bbb..'], // J
   ['...g...', '..ggg..', '.ggggg.', '..ggg..', '.ggggg.', '...o...', '...o...'], // tree
   ['yyy', '.y.'], // T
   ['cc..cc', 'cc..cc', '......', 'cc..cc', 'cc..cc'], // four squares

@@ -1,7 +1,7 @@
 // Home screen: game tiles + "new version" check against GitHub Releases
 (() => {
-  const REPO = 'pedroG-git/joanas-games';
-  const APK = 'joanas-games.apk';
+  const REPO = 'pedroG-git/games-for-you';
+  const APK = 'games-for-you.apk';
   const $ = (id) => document.getElementById(id);
   const current = window.APP_VERSION || '0.0.0';
 

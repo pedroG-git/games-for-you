@@ -19,4 +19,4 @@ http
       res.end(buf);
     });
   })
-  .listen(PORT, () => console.log(`Joana's Games on http://localhost:${PORT}`));
+  .listen(PORT, () => console.log(`Games for you on http://localhost:${PORT}`));

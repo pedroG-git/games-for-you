@@ -1,8 +1,8 @@
 {
-  "name": "joanas-games",
+  "name": "games-for-you",
   "version": "1.4.0",
   "private": true,
-  "description": "Joana's Games - offline Android game collection",
+  "description": "Games for you - offline Android game collection",
   "scripts": {
     "version-file": "node scripts/write-version.js",
     "sync": "node scripts/write-version.js && cap sync android",

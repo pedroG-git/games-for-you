@@ -33,7 +33,7 @@ export const xpNeed = (lvl) => 12 + lvl * 10;
 
 // People. `face` is an emoji or 'meme' / 'mimi' (drawn cats).
 export const PEOPLE = {
-  joana: { name: 'Joana', face: '👩' },
+  me: { name: 'You', face: '👩' },
   pedro: { name: 'Pedro', face: '👨' },
   meme: { name: 'Meme', face: 'meme' },
   mimi: { name: 'Mimi', face: 'mimi' },
@@ -60,11 +60,11 @@ export const ORDER_CHATTER = {
 // Renovation areas. Each task costs stars and plays a little story scene.
 export const AREAS = [
   {
-    name: "Joana's Flower Shop",
+    name: 'The Flower Shop',
     tasks: [
       { name: 'Pull the weeds', cost: 3, story: [
         ['pedro', 'Done! I pulled ALL the weeds! 💪'],
-        ['joana', 'Pedro… those were my tulip bulbs.'],
+        ['me', 'Pedro… those were my tulip bulbs.'],
         ['pedro', '…Most of the weeds, then.'],
       ] },
       { name: 'Wash the window', cost: 4, story: [
@@ -73,50 +73,50 @@ export const AREAS = [
       ] },
       { name: 'Fix the door', cost: 5, story: [
         ['pedro', 'I fixed the door! It opens both ways now.'],
-        ['joana', 'Is that… a feature?'],
+        ['me', 'Is that… a feature?'],
         ['pedro', 'It is now.'],
       ] },
       { name: 'Make a cozy cat corner', cost: 6, unlockCats: true, story: [
-        ['joana', 'Meme! Mimi! Come see your new corner!'],
+        ['me', 'Meme! Mimi! Come see your new corner!'],
         ['meme', 'Mrrrow. (I am the princess of this shop now. Bring snacks.)'],
         ['mimi', 'Mew mew! (I know who stole the tulips. I tell no one. Not for free.)'],
-        ['joana', 'Pedro, I think Mimi wants treats.'],
+        ['me', 'Pedro, I think Mimi wants treats.'],
         ['pedro', 'She always wants treats.'],
-        ['joana', 'A Cat Basket appeared on the board! Merge kitty moods for happy customers. 😻'],
+        ['me', 'A Cat Basket appeared on the board! Merge kitty moods for happy customers. 😻'],
       ] },
       { name: 'Paint the shop sign', cost: 7, story: [
         ['rosa', 'Postcard for you! Not that I read it.'],
         ['rosa', 'Your aunt says hi, the weather is nice, and she\'s jealous of your sign.'],
-        ['joana', '…Thanks, Rosa.'],
+        ['me', '…Thanks, Rosa.'],
       ] },
       { name: 'Build the flower stand', cost: 8, story: [
         ['basil', 'Hmph. Basil Thornbury, next door. My roses won Best in Show eleven years running.'],
         ['basil', 'So don\'t get any ideas, young lady.'],
-        ['joana', 'Nice to meet you too, Mr. Basil!'],
+        ['me', 'Nice to meet you too, Mr. Basil!'],
         ['mimi', 'Mew. (He smells like tulips. Suspicious.)'],
       ] },
       { name: 'Hang the flower baskets', cost: 9, story: [
-        ['petunia', 'Joana! Big news! Basil was seen at MIDNIGHT with a FLASHLIGHT!'],
-        ['joana', 'Maybe he was looking for his glasses?'],
+        ['petunia', 'Big news! Basil was seen at MIDNIGHT with a FLASHLIGHT!'],
+        ['me', 'Maybe he was looking for his glasses?'],
         ['petunia', 'At midnight?! In YOUR garden?! I\'ll find out. I always find out.'],
       ] },
       { name: 'Fix the old bench', cost: 10, story: [
         ['pedro', 'Look, I fixed the bench! And I\'m sitting on it! And it holds!'],
-        ['joana', 'Wow! Okay, now get up.'],
+        ['me', 'Wow! Okay, now get up.'],
         ['pedro', 'I\'m not moving. Just in case.'],
       ] },
       { name: 'Plant the window boxes', cost: 11, story: [
-        ['joana', 'Mimi… why do you have a tulip petal in your mouth?'],
+        ['me', 'Mimi… why do you have a tulip petal in your mouth?'],
         ['mimi', 'Mew. (No comment.)'],
         ['meme', 'Mrrp. (She has no comment. I also have no comment.)'],
       ] },
       { name: 'Grand reopening!', cost: 12, areaDone: true, story: [
         ['petunia', 'The flower shop is OPEN! Biggest news since Basil\'s mustache incident!'],
         ['leo', 'Yay! Flowers! Can I pet the cats?'],
-        ['joana', 'We did it! But the tulips keep disappearing…'],
-        ['joana', 'And Meme keeps sneaking off behind the shop.'],
+        ['me', 'We did it! But the tulips keep disappearing…'],
+        ['me', 'And Meme keeps sneaking off behind the shop.'],
         ['pedro', 'Behind the shop? There\'s only that old locked gate…'],
-        ['joana', 'Grandma\'s old gate! Let\'s see what\'s back there! 🗝️'],
+        ['me', 'Grandma\'s old gate! Let\'s see what\'s back there! 🗝️'],
       ] },
     ],
   },
@@ -124,19 +124,19 @@ export const AREAS = [
     name: 'The Secret Garden',
     tasks: [
       { name: 'Open the old gate', cost: 6, story: [
-        ['joana', 'Grandma had a whole secret garden back here! 😮'],
+        ['me', 'Grandma had a whole secret garden back here! 😮'],
         ['meme', 'Mrrrow. (Welcome to MY garden.)'],
         ['pedro', 'How did Meme even get in? The gate was locked!'],
         ['mimi', 'Mew. (Cats have ways.)'],
       ] },
       { name: 'Clear the brambles', cost: 7, story: [
         ['pedro', 'I was attacked by a bush. Tell my story.'],
-        ['joana', 'It\'s a tiny scratch, Pedro.'],
+        ['me', 'It\'s a tiny scratch, Pedro.'],
         ['pedro', 'Tell it BRAVELY.'],
       ] },
       { name: 'Lay the stone path', cost: 8, story: [
-        ['joana', 'Look — little paw prints in the mud…'],
-        ['joana', '…and big boot prints right next to them!'],
+        ['me', 'Look — little paw prints in the mud…'],
+        ['me', '…and big boot prints right next to them!'],
         ['mimi', 'Mew mew. (You are getting warmer.)'],
       ] },
       { name: 'Restore the fountain', cost: 9, story: [
@@ -145,32 +145,32 @@ export const AREAS = [
         ['meme', 'Mrrp. (Free water. Acceptable.)'],
       ] },
       { name: 'Build the greenhouse', cost: 10, story: [
-        ['joana', 'Pedro, come quick! The greenhouse is FULL of tulips!'],
+        ['me', 'Pedro, come quick! The greenhouse is FULL of tulips!'],
         ['pedro', 'The missing tulips! All tied with little pink ribbons…?'],
-        ['joana', 'Who steals tulips just to tie ribbons on them?'],
+        ['me', 'Who steals tulips just to tie ribbons on them?'],
         ['mimi', 'Mew. (Romantic thieves.)'],
       ] },
       { name: 'Plant the rose arch', cost: 11, story: [
         ['basil', 'Ahem. Lovely… roses. Not as good as mine. Anyway. Goodbye.'],
-        ['joana', 'Mr. Basil, why are you so red?'],
+        ['me', 'Mr. Basil, why are you so red?'],
         ['basil', 'It\'s… sunburn! Hmph!'],
       ] },
       { name: 'Hang the fairy lights', cost: 12, story: [
-        ['joana', 'Shh! Tonight we hide and catch the tulip thief.'],
+        ['me', 'Shh! Tonight we hide and catch the tulip thief.'],
         ['pedro', 'I brought snacks for the stakeout. 🍪'],
-        ['joana', 'Look! Someone is coming through the gate! And… the cats are leading him?!'],
+        ['me', 'Look! Someone is coming through the gate! And… the cats are leading him?!'],
         ['basil', 'Oh no. Oh no no no. I can explain!'],
       ] },
       { name: 'Set up the tea table', cost: 13, story: [
         ['basil', 'Fine! I took the tulips. I only grow roses, and Petunia… loves tulips.'],
         ['basil', 'I want to give her one hundred tulips. And ask her something important.'],
-        ['joana', 'And the cats?'],
+        ['me', 'And the cats?'],
         ['basil', 'They showed me the way in. I paid them in sardines.'],
         ['meme', 'Mrrp. (A princess has expenses.)'],
       ] },
       { name: 'Build the gazebo', cost: 14, story: [
         ['pedro', 'I built a whole gazebo. By myself.'],
-        ['joana', 'And it\'s… standing?!'],
+        ['me', 'And it\'s… standing?!'],
         ['pedro', 'I\'m as surprised as you are.'],
         ['basil', 'Young man, that is a fine gazebo. Perfect for a… special question.'],
       ] },
@@ -182,19 +182,19 @@ export const AREAS = [
         ['pedro', 'The best crying, buddy.'],
         ['mimi', 'Mew. (I knew all along. You\'re welcome.)'],
         ['meme', 'Mrrrow. (Party is acceptable. Where is the cake?)'],
-        ['joana', 'The garden is finished… but the customers keep coming! Let\'s keep growing! 🌸'],
+        ['me', 'The garden is finished… but the customers keep coming! Let\'s keep growing! 🌸'],
       ] },
     ],
   },
 ];
 
 export const INTRO = [
-  ['joana', 'Grandma\'s old flower shop… it\'s all mine now! 🌸'],
+  ['me', 'Grandma\'s old flower shop… it\'s all mine now! 🌸'],
   ['pedro', 'It\'s… very overgrown. Is that a shopping cart in the roses?'],
   ['petunia', 'Yoo-hoo! Petunia, from next door. I know EVERYTHING that happens on this street!'],
   ['petunia', 'Did you hear? Someone has been stealing tulips at night! 👀'],
-  ['joana', 'A tulip thief?! Pedro, let\'s get this shop blooming again — and find out who it is!'],
-  ['joana', 'Tap the 🪴 Flower Pot to grow things. Drag two of the same together to merge them!'],
+  ['me', 'A tulip thief?! Pedro, let\'s get this shop blooming again — and find out who it is!'],
+  ['me', 'Tap the 🪴 Flower Pot to grow things. Drag two of the same together to merge them!'],
 ];
 
 // 7-day daily reward cycle.

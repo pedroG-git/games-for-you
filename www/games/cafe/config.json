@@ -1,7 +1,7 @@
 {
-  "cafeName": "Café da Joana",
+  "cafeName": "Café",
   "tagline": "Pastelaria 100% vegana",
-  "player": { "name": "Joana", "hair": "#5b3a21", "dress": "#e85d75", "skin": "#f2c9a0", "style": "pony" },
+  "player": { "hair": "#5b3a21", "dress": "#e85d75", "skin": "#f2c9a0", "style": "pony" },
   "helper": { "name": "Pedro", "hair": "#2b2118", "shirt": "#3b7dd8", "skin": "#e8b98c", "style": "short" },
   "cats": [
     { "name": "Meme", "color": "#8d8d93", "patch": "#ffffff", "stripes": true },

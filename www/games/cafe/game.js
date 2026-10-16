@@ -40,9 +40,9 @@ const UPS = [
 const upShown = (u) => !u.needsHelper || S.helpers > 0;
 
 let CFG = {
-  cafeName: 'Café da Joana',
+  cafeName: 'Café',
   tagline: 'Pastelaria 100% vegana',
-  player: { name: 'Joana', hair: '#5b3a21', dress: '#e85d75', skin: '#f2c9a0', style: 'pony' },
+  player: { hair: '#5b3a21', dress: '#e85d75', skin: '#f2c9a0', style: 'pony' },
   helper: { name: 'Pedro', hair: '#2b2118', shirt: '#3b7dd8', skin: '#e8b98c', style: 'short' },
   cats: [
     { name: 'Meme', color: '#8d8d93', patch: '#ffffff', stripes: true },
@@ -434,7 +434,7 @@ function refreshPads() {
     want.push(['help' + S.helpers, 0, -1.9, HELPER_COST[S.helpers], first ? 'Contratar\n' + CFG.helper.name : 'Ajudante', -1, () => {
       S.helpers++;
       addHelper(S.helpers - 1, 0, true);
-      toast(first ? CFG.helper.name + ' chegou para ajudar a ' + CFG.player.name + '!' : 'Novo ajudante contratado!');
+      toast(first ? CFG.helper.name + ' chegou para ajudar!' : 'Novo ajudante contratado!');
     }]);
   }
   if (!S.sala && S.built >= 5) want.push(['sala', -1.8, 0.9, SALA_COST, 'Esplanada', 8, () => {
@@ -770,13 +770,13 @@ const customers = [];
 const bagGeo = new B().rbox('#d9a066', 0.34, 0.4, 0.22, 0.46, 0.66, 0.1).box('#b98850', 0.2, 0.12, 0.03, 0.46, 0.9, 0.1).geometry();
 const NATS = ['pt', 'pt', 'pt', 'pt', 'fr', 'fr', 'de', 'de', 'uk', 'uk', 'es', 'es'];
 function linesFor(nat) {
-  const J = CFG.player.name, P = CFG.helper.name, cat = pick(CFG.cats).name;
+  const P = CFG.helper.name, cat = pick(CFG.cats).name;
   switch (nat) {
-    case 'fr': return [`Merci, ${J} !`, 'Oh là là, délicieux !', 'Sans beurre ?! Impossible... et pourtant !', "C'est végane ? Incroyable !", "Un de plus, s'il vous plaît.", `${cat} m'a jugé. Je reviens demain.`, 'Presque trop bon pour être vrai.'];
-    case 'de': return [`Danke, ${J}!`, 'Sehr lecker!', 'Ohne Butter? Unglaublich!', 'Das nehme ich gleich zweimal.', 'Kaffee und Kuchen, perfekt!', `${cat} ist hier die Chefin, oder?`, 'Vegan? Schmeckt man gar nicht!'];
-    case 'uk': return [`Thanks, ${J}!`, 'Lovely!', 'Proper tea. Brilliant.', 'No milk in the tea? Rather good, actually.', 'Sorry, could I have one more?', `${cat} is clearly the manager.`, "Vegan? You're joking. It's delicious."];
-    case 'es': return [`¡Gracias, ${J}!`, '¡Qué rico!', '¿Vegano? ¡No me lo creo!', `¡Olé, ${J}!`, 'Otro más, por favor.', `Aquí manda ${cat}, ¿verdad?`, '¡Esto está de muerte!'];
-    default: return [`Obrigado, ${J}!`, `Obrigada, ${J}!`, 'Que delícia!', 'Isto é vegan? Não acredito!', 'É de comer e chorar por mais!', 'Mais uma nata e rebento!', `A ${cat} é que é a gerente?`, `A ${cat} cobrou-me uma festinha.`, 'Volto amanhã. E depois de amanhã.', 'Melhor que o da minha avó. Não lhe digam!', 'Era só um café... levo seis bolos.', `O ${P} que lave a loiça!`, 'Sem ovos? Como é que isto é tão bom?', 'Hoje a dieta fica à porta.', 'Hmm, que cheirinho!'];
+    case 'fr': return ['Merci !', 'Oh là là, délicieux !', 'Sans beurre ?! Impossible... et pourtant !', "C'est végane ? Incroyable !", "Un de plus, s'il vous plaît.", `${cat} m'a jugé. Je reviens demain.`, 'Presque trop bon pour être vrai.'];
+    case 'de': return ['Danke!', 'Sehr lecker!', 'Ohne Butter? Unglaublich!', 'Das nehme ich gleich zweimal.', 'Kaffee und Kuchen, perfekt!', `${cat} ist hier die Chefin, oder?`, 'Vegan? Schmeckt man gar nicht!'];
+    case 'uk': return ['Thanks!', 'Lovely!', 'Proper tea. Brilliant.', 'No milk in the tea? Rather good, actually.', 'Sorry, could I have one more?', `${cat} is clearly the manager.`, "Vegan? You're joking. It's delicious."];
+    case 'es': return ['¡Gracias!', '¡Qué rico!', '¿Vegano? ¡No me lo creo!', '¡Olé!', 'Otro más, por favor.', `Aquí manda ${cat}, ¿verdad?`, '¡Esto está de muerte!'];
+    default: return ['Obrigado!', 'Obrigada!', 'Que delícia!', 'Isto é vegan? Não acredito!', 'É de comer e chorar por mais!', 'Mais uma nata e rebento!', `A ${cat} é que é a gerente?`, `A ${cat} cobrou-me uma festinha.`, 'Volto amanhã. E depois de amanhã.', 'Melhor que o da minha avó. Não lhe digam!', 'Era só um café... levo seis bolos.', `O ${P} que lave a loiça!`, 'Sem ovos? Como é que isto é tão bom?', 'Hoje a dieta fica à porta.', 'Hmm, que cheirinho!'];
   }
 }
 const speak = (c) => say(pick(linesFor(c.nat)), c.x, 3.4, c.z, '#fff59d');
@@ -949,9 +949,9 @@ function helperSync(h) {
   h.tag.position.y = 2.5 + Math.max(0, h.carry * hh - 1.2);
 }
 function pedroJokes() {
-  const J = CFG.player.name, cat = pick(CFG.cats).name;
+  const cat = pick(CFG.cats).name;
   return [
-    `${J}, és a melhor!`, `Amo-te, ${J}!`, 'Sou padeiro por amor... e pela massa.',
+    'És a melhor!', 'Amo-te!', 'Sou padeiro por amor... e pela massa.',
     'Tentei contar uma piada sobre pão, mas era seca.', 'A minha piada sobre fermento ainda está a crescer.',
     'O pão caiu ao chão. Ficou pão-ralisado.', 'O que diz um croissant ao outro? Estás em forma!',
     'O que disse o zero ao oito? Belo cinto!', 'Qual é o animal mais antigo? A zebra: ainda é a preto e branco.',
@@ -1447,10 +1447,10 @@ function buildCats() {
   });
 }
 function catLines(c) {
-  const J = CFG.player.name, P = CFG.helper.name, other = (CFG.cats.find((o) => o !== c.o) || c.o).name;
+  const P = CFG.helper.name, other = (CFG.cats.find((o) => o !== c.o) || c.o).name;
   return c.state === 'sleep'
     ? ['Zzz...', 'Zzz... atum... zzz', 'Não incomodar. Estou a supervisionar.', 'Zzz... 5 da manhã... correr... zzz']
-    : ['Miau. (Tradução: comida.)', 'Este balcão é meu.', 'Não sou gorda, sou fofa.', 'Se cabe, eu sento.', 'Festinhas. Agora.', 'Deitei um copo abaixo. De nada.', `A ${J} é minha.`, `${P}, a taça está meio vazia!`, 'Trabalhar? Eu supervisiono.', 'Caixa de cartão > cama cara.', 'Miau? Miau.', `A ${other} roubou-me o lugar.`, 'Vi um pássaro! Era uma folha.', 'Abre a porta. Fecha. Abre outra vez.', 'A gerente sou eu. Perguntas?', `${P}, isso é para mim? Não? Miau.`, 'Estou a fazer dieta. Mentira.', 'O caixote do lixo é o meu buffet.', 'Subi ao telhado. Agora não sei descer.'];
+    : ['Miau. (Tradução: comida.)', 'Este balcão é meu.', 'Não sou gorda, sou fofa.', 'Se cabe, eu sento.', 'Festinhas. Agora.', 'Deitei um copo abaixo. De nada.', 'Este café é meu.', `${P}, a taça está meio vazia!`, 'Trabalhar? Eu supervisiono.', 'Caixa de cartão > cama cara.', 'Miau? Miau.', `A ${other} roubou-me o lugar.`, 'Vi um pássaro! Era uma folha.', 'Abre a porta. Fecha. Abre outra vez.', 'A gerente sou eu. Perguntas?', `${P}, isso é para mim? Não? Miau.`, 'Estou a fazer dieta. Mentira.', 'O caixote do lixo é o meu buffet.', 'Subi ao telhado. Agora não sei descer.'];
 }
 function updateCats(dt) {
   let ext = 3.5;

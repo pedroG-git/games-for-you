@@ -1,8 +1,10 @@
-// Bus da Joana - client: drawing, input, animation and saving. All game logic lives in rules.js / levelgen.js.
+// Bus - client: drawing, input, animation and saving. All game logic lives in rules.js / levelgen.js.
 (() => {
   'use strict';
 
-  const SAVE_KEY = 'busdajoana-save';
+  const SAVE_KEY = 'bus-save';
+  // One-time move of saves made under the old key.
+  try { const old = localStorage.getItem('busdajoana-save'); if (old !== null && localStorage.getItem(SAVE_KEY) === null) localStorage.setItem(SAVE_KEY, old); localStorage.removeItem('busdajoana-save'); } catch (e) { /* storage blocked */ }
   const COLORS = ['#e4572e', '#3e7cb1', '#f2c14e', '#5aa84b', '#8e6bbf', '#f28c28', '#2bb3a3', '#ee7bb0'];
   const LIGHT = COLORS.map((c) => shade(c, 0.3));
   const INK = '#3b2f2a';
@@ -234,13 +236,13 @@
     c.stroke();
     let fs = shh * 0.72;
     c.font = `${fs}px ${TITLE_FONT}`;
-    while (fs > 10 && c.measureText('Bus da Joana').width > bw - 34) c.font = `${(fs -= 1)}px ${TITLE_FONT}`;
+    while (fs > 10 && c.measureText('Bus').width > bw - 34) c.font = `${(fs -= 1)}px ${TITLE_FONT}`;
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.fillStyle = INK;
-    c.fillText('Bus da Joana', bx + bw / 2 + 1.5, sy + shh * 0.56 + 1.5);
+    c.fillText('Bus', bx + bw / 2 + 1.5, sy + shh * 0.56 + 1.5);
     c.fillStyle = '#c8423b';
-    c.fillText('Bus da Joana', bx + bw / 2, sy + shh * 0.56);
+    c.fillText('Bus', bx + bw / 2, sy + shh * 0.56);
     // awning with scallops
     const ay = by + h * 0.44, ah = h * 0.13, stripes = Math.max(7, Math.round(bw / 26)), stw = bw / stripes;
     for (let i = 0; i < stripes; i++) {

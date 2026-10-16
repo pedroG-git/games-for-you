@@ -1,4 +1,4 @@
-// Blocos da Joana — Block Blast-style puzzle: drag pieces onto an 8×8 board, fill rows/columns to clear them.
+// Blocos — Block Blast-style puzzle: drag pieces onto an 8×8 board, fill rows/columns to clear them.
 // Classic = endless high-score game. Adventures = endless levels where pre-placed blocks must be cleared.
 import { N, SHAPES, STONE, CRACKED, isTarget, colorOf, fits, fitsAnywhere, dealTray, fullLines, lineCells, clearLines } from './pieces.js';
 import { play, settings, unlock, setMusic } from './audio.js';

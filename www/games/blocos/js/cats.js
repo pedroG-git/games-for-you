@@ -1,4 +1,4 @@
-// Meme (white, with crown) and Mimi (Siamese) — same drawings as in Joana's Garden.
+// Meme (white, with crown) and Mimi (Siamese) — same drawings as in Flower Garden.
 let uid = 0;
 
 // Inner cat drawing in a 0..100 box (no <svg> wrapper), so scenes can nest it.

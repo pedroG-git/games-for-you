@@ -119,7 +119,7 @@ function shop(done, fresh) {
     [`<rect x="140" y="88" width="80" height="20" rx="2" fill="#b8a895" stroke="#8f8170" stroke-width="2"/>
       <path d="M168 88 L172 96 L166 101 L171 108" stroke="#6f6355" stroke-width="1.5" fill="none"/>`,
      `<rect x="134" y="86" width="92" height="23" rx="5" fill="#fff6e8" stroke="#e86a92" stroke-width="2"/>
-      <text x="180" y="98" font-size="11.5" font-weight="800" fill="#e05582" text-anchor="middle" dominant-baseline="central" font-family="Georgia, serif">Joana's Garden</text>`],
+      <text x="180" y="98" font-size="11.5" font-weight="800" fill="#e05582" text-anchor="middle" dominant-baseline="central" font-family="Georgia, serif">Flower Garden</text>`],
     // 5 flower stand
     [`${emo(36, 210, 26, '📦')}${emo(66, 214, 22, '📦')}`,
      `<rect x="16" y="196" width="72" height="10" rx="2" fill="#c98f5a"/><rect x="20" y="206" width="6" height="30" fill="#a8723f"/><rect x="78" y="206" width="6" height="30" fill="#a8723f"/>

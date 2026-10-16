@@ -1,4 +1,4 @@
-// Bus da Joana - endless level generator; every level is built from a known solution and verified with Rules
+// Bus - endless level generator; every level is built from a known solution and verified with Rules
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./rules.js'));
   else root.LevelGen = factory(root.Rules);

@@ -1,4 +1,4 @@
-// Joana's Garden — merge-2 game: board, orders, generators, garden renovation and story.
+// Flower Garden — merge-2 game: board, orders, generators, garden renovation and story.
 import {
   W, H, CHAINS, MAX_ITEM, GENS, MAX_GEN, GEN_ODDS, ENERGY_MAX, ENERGY_SECS, LEVEL_GIFTS, xpNeed,
   PEOPLE, CUSTOMERS, CAT_CUSTOMERS, ORDER_CHATTER, AREAS, INTRO, DAILY, startBoard,
@@ -6,7 +6,9 @@ import {
 import { play, unlock, settings as audio, setMusic } from './audio.js';
 import { face, scene } from './art.js';
 
-const KEY = 'joanas-garden-v1';
+const KEY = 'flower-garden-v1';
+// One-time move of saves made under the old key.
+try { const old = localStorage.getItem('joanas-garden-v1'); if (old !== null && localStorage.getItem(KEY) === null) localStorage.setItem(KEY, old); localStorage.removeItem('joanas-garden-v1'); } catch (e) { /* storage blocked */ }
 const $ = (id) => document.getElementById(id);
 const rnd = (n) => Math.floor(Math.random() * n);
 const pick = (a) => a[rnd(a.length)];
@@ -549,7 +551,7 @@ function addXP(n) {
 function levelModal(lv, rewards) {
   confetti(100);
   play.levelUp();
-  openSheet(`<div class="big">🎉</div><h2>Level ${lv}!</h2><p class="note">You're blooming, Joana! 🌸</p>
+  openSheet(`<div class="big">🎉</div><h2>Level ${lv}!</h2><p class="note">You're blooming! 🌸</p>
     <div class="rewards">${rewards.map((r) => `<div>${r}</div>`).join('')}</div>
     <button class="wide" data-close>Yay!</button>`, null, true);
 }
@@ -579,7 +581,7 @@ function renderHUD() {
 function renderInfo() {
   const el = $('info'), o = sel >= 0 ? S.board[sel] : null;
   if (!o) {
-    el.innerHTML = `<span class="ibig">🌸</span><div class="itext"><b>Joana's Garden</b><span>Tap a generator to grow things. Drag two of the same together to merge!</span></div>`;
+    el.innerHTML = `<span class="ibig">🌸</span><div class="itext"><b>Flower Garden</b><span>Tap a generator to grow things. Drag two of the same together to merge!</span></div>`;
     return;
   }
   const big = `<span class="ibig">${emojiOf(o)}</span>`;
@@ -718,7 +720,7 @@ function openSettings(confirming = false) {
     <div class="row"><span>🎵 Music</span><button class="switch${S.music ? ' on' : ''}" id="s-music"></button></div>
     <div class="row"><span>🔊 Sound effects</span><button class="switch${S.sfx ? ' on' : ''}" id="s-sfx"></button></div>
     <button class="wide ghost danger" id="s-reset">${confirming ? 'Tap again to confirm — everything resets!' : 'Reset progress'}</button>
-    <p class="note small">Joana's Garden · made with love 🌸</p>`, (sh) => {
+    <p class="note small">Flower Garden · made with love 🌸</p>`, (sh) => {
     sh.querySelector('#s-music').addEventListener('click', () => { S.music = !S.music; setMusic(S.music); save(); openSettings(); });
     sh.querySelector('#s-sfx').addEventListener('click', () => { S.sfx = !S.sfx; audio.sfx = S.sfx; play.tap(); save(); openSettings(); });
     sh.querySelector('#s-reset').addEventListener('click', () => {
@@ -847,7 +849,7 @@ function finale() {
   confetti(180); play.levelUp();
   setTimeout(() => confetti(120), 900);
   openSheet(`<div class="big">💐🎉😻</div><h2>The End… or is it?</h2>
-    <p class="note">The Secret Garden is finished, the tulip thief is caught, and Basil & Petunia are engaged!<br>But customers keep coming — keep merging, Joana! 🌸</p>
+    <p class="note">The Secret Garden is finished, the tulip thief is caught, and Basil & Petunia are engaged!<br>But customers keep coming — keep merging! 🌸</p>
     <div class="rewards"><div>💎 +20</div><div>🎁 New generator</div></div><button class="wide" data-close>Keep merging!</button>`, null, true);
 }
 

@@ -1,4 +1,4 @@
-// Paciência da Joana - Klondike solitaire rendered with Three.js.
+// Paciência - Klondike solitaire rendered with Three.js.
 import * as THREE from '../../../shared/vendor/three/three.module.js';
 import * as E from './engine.js';
 import { CW, CH, CR, THEMES, faceTexture, backTexture, feltTexture, slotTexture, shadowTexture, roundedRectGeometry } from './cards.js';
@@ -10,7 +10,9 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const easeOut = t => 1 - Math.pow(1 - t, 3);
 
 // ---------------------------------------------------------------- save data
-const LS_KEY = 'paciencia-joana-v1';
+const LS_KEY = 'paciencia-v1';
+// One-time move of saves made under the old key.
+try { const old = localStorage.getItem('paciencia-joana-v1'); if (old !== null && localStorage.getItem(LS_KEY) === null) localStorage.setItem(LS_KEY, old); localStorage.removeItem('paciencia-joana-v1'); } catch (e) { /* storage blocked */ }
 const blankStats = () => ({ played: 0, won: 0, streak: 0, best: 0, time: 0, moves: 0 });
 const DEFAULTS = {
   settings: { draw: 1, theme: 'verde', sound: true, haptic: true, left: false, diff: 'normal' },

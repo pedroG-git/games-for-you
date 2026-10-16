@@ -1,10 +1,10 @@
 // Burger of the Day: original pun names, one per level (chosen deterministically by level number)
 window.PUNS = [
-  'Joana Be Loved Burger',
-  'Joana Dance With Somebody Burger',
-  'Joana Hold Your Hand Burger',
+  'I Will Always Love Bleu Burger',
+  'Shake It Kale Burger',
+  'Lettuce Hold Your Hand Burger',
   'Joan of Arugula Burger',
-  'Bun Voyage, Joana Burger',
+  'Bun Voyage Burger',
   'Gouda Night Moon Burger',
   'Swiss Me Goodnight Burger',
   'Brie Kind, Rewind Burger',
