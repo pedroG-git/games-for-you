@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2f4aa8">
+<title>Blocos da Joana</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../shared/fonts.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <button class="round" id="b-home" aria-label="Home">🏠</button>
+    <div id="best"><span>👑</span><b id="best-n">0</b></div>
+    <button class="round" id="b-set" aria-label="Settings">⚙️</button>
+  </header>
+
+  <div id="score">0</div>
+  <div id="combo" hidden></div>
+
+  <div id="boardwrap">
+    <div id="board"></div>
+    <div id="blast"></div>
+  </div>
+
+  <div id="tray">
+    <div class="slot" data-i="0"></div>
+    <div class="slot" data-i="1"></div>
+    <div class="slot" data-i="2"></div>
+  </div>
+
+  <footer id="bottom">
+    <button id="b-undo" aria-label="Undo"><span>↶</span><small>Undo</small><i id="undo-n">1</i></button>
+  </footer>
+</div>
+
+<div id="float"></div>
+<canvas id="fx"></canvas>
+<div id="praise"></div>
+
+<div id="cat" hidden>
+  <div id="cat-face"></div>
+  <div id="cat-say"></div>
+</div>
+
+<div id="over" hidden>
+  <div class="box">
+    <h2 id="over-title">No more space!</h2>
+    <p class="lbl">Score</p>
+    <p id="over-score">0</p>
+    <p class="lbl">👑 Best <b id="over-best">0</b></p>
+    <button class="big" id="b-again">Play again</button>
+    <button class="ghostbtn" id="b-over-undo">↶ Undo last move</button>
+  </div>
+</div>
+
+<div id="settings" hidden>
+  <div class="box">
+    <h2>Settings</h2>
+    <label><span>🔊 Sounds</span><input type="checkbox" id="s-sfx"></label>
+    <label><span>🎵 Music</span><input type="checkbox" id="s-music"></label>
+    <label><span>📳 Vibration</span><input type="checkbox" id="s-vib"></label>
+    <button class="ghostbtn" id="b-restart">Restart game</button>
+    <button class="big" id="b-close">Done</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
