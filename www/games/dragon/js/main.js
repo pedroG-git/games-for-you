@@ -246,7 +246,7 @@ function render(instant) {
       if (el.dataset.k && t.t === 'box') { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); play.box(); boxBits(r, c); }
       el.dataset.k = key;
       el.innerHTML = tileArt(t);
-      el.classList.toggle('box', t.t === 'box');
+      el.classList.toggle('crate', t.t === 'box');
       el.classList.toggle('special', E.isSpecial(t));
     }
     el.classList.toggle('sel', G.sel === i);
