@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#3a1a6b">
+<title>Dragon Match</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../shared/fonts.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Fortress (home screen) -->
+<div id="home" class="screen">
+  <header class="bar">
+    <button class="round" id="h-hub" aria-label="All games">🏠</button>
+    <div class="pill" id="h-stars"><svg viewBox="0 0 100 100"><use href="#star"/></svg><b>0</b></div>
+    <button class="round b-set" aria-label="Settings">⚙️</button>
+  </header>
+  <h1 id="logo">Dragon <span>Match</span></h1>
+  <div id="area-name"></div>
+  <div id="scene"></div>
+  <div id="area-prog"><i></i><span></span></div>
+  <button class="wide" id="h-tasks">🔨 Build <i id="h-badge" hidden></i></button>
+  <button class="big" id="h-play">Level 1</button>
+</div>
+
+<!-- Level -->
+<div id="game" class="screen" hidden>
+  <header id="hud">
+    <button class="round small" id="g-back" aria-label="Back">↩</button>
+    <div id="moves"><small>Moves</small><b id="moves-n">0</b></div>
+    <div id="goals"></div>
+    <button class="round small b-set" aria-label="Settings">⚙️</button>
+  </header>
+  <div id="boardwrap">
+    <div id="board"><div id="cells"></div><div id="icel"></div><div id="tiles"></div><div id="fxl"></div></div>
+  </div>
+  <footer id="tools">
+    <button data-tool="hammer"><svg viewBox="0 0 100 100"><use href="#hammer"/></svg><i></i></button>
+    <button data-tool="arrow"><svg viewBox="0 0 100 100"><use href="#arrow"/></svg><i></i></button>
+    <button data-tool="cannon"><svg viewBox="0 0 100 100"><use href="#cannon"/></svg><i></i></button>
+    <button data-tool="shuffle"><svg viewBox="0 0 100 100"><use href="#mix"/></svg><i></i></button>
+  </footer>
+  <div id="tool-tip" hidden></div>
+</div>
+
+<canvas id="sparks"></canvas>
+<div id="flyers"></div>
+<div id="praise"></div>
+<div id="say" hidden><b></b><span></span></div>
+
+<!-- Before a level -->
+<div id="m-start" class="modal" hidden>
+  <div class="box">
+    <h2 id="st-title">Level 1</h2>
+    <p class="tag" id="st-tag" hidden>Hard level</p>
+    <p class="lbl">Goals</p>
+    <div id="st-goals" class="goalrow"></div>
+    <p class="lbl">Boosters</p>
+    <div id="st-boost">
+      <button data-b="rocket"><svg viewBox="0 0 100 100"><use href="#rocket"/></svg><i></i></button>
+      <button data-b="bomb"><svg viewBox="0 0 100 100"><use href="#bomb"/></svg><i></i></button>
+      <button data-b="light"><svg viewBox="0 0 100 100"><use href="#light"/></svg><i></i></button>
+    </div>
+    <button class="big" id="st-play">Play</button>
+    <button class="ghostbtn" id="st-close">Close</button>
+  </div>
+</div>
+
+<div id="m-win" class="modal" hidden>
+  <div class="box">
+    <h2>Well done!</h2>
+    <div id="win-star"><svg viewBox="0 0 100 100"><use href="#star"/></svg><b id="win-n">+1</b></div>
+    <p class="lbl" id="win-gift"></p>
+    <button class="big" id="win-ok">Continue</button>
+  </div>
+</div>
+
+<div id="m-lose" class="modal" hidden>
+  <div class="box">
+    <h2>Out of moves!</h2>
+    <div id="lose-goals" class="goalrow"></div>
+    <button class="big" id="lose-more">+5 moves</button>
+    <button class="big alt" id="lose-retry">Try again</button>
+    <button class="ghostbtn" id="lose-home">Fortress</button>
+  </div>
+</div>
+
+<div id="m-quit" class="modal" hidden>
+  <div class="box">
+    <h2>Leave level?</h2>
+    <p class="lbl">You will have to start this level again.</p>
+    <button class="big" id="q-stay">Keep playing</button>
+    <button class="ghostbtn" id="q-leave">Leave</button>
+  </div>
+</div>
+
+<div id="m-tasks" class="modal" hidden>
+  <div class="box">
+    <h2 id="t-title">Tasks</h2>
+    <div id="t-list"></div>
+    <button class="ghostbtn" id="t-close">Close</button>
+  </div>
+</div>
+
+<div id="m-set" class="modal" hidden>
+  <div class="box">
+    <h2>Settings</h2>
+    <label><span>🔊 Sounds</span><input type="checkbox" id="s-sfx"></label>
+    <label><span>🎵 Music</span><input type="checkbox" id="s-music"></label>
+    <label><span>📳 Vibration</span><input type="checkbox" id="s-vib"></label>
+    <button class="big" id="s-close">Done</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

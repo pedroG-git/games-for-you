@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx=".5" cy=".3" r=".8"><stop offset="0" stop-color="#9a5ae0"/><stop offset=".55" stop-color="#4a1f8a"/><stop offset="1" stop-color="#1a0a33"/></radialGradient>
+    <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb35a"/><stop offset="1" stop-color="#d8442a"/></linearGradient>
+    <linearGradient id="ru" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a9c"/><stop offset=".5" stop-color="#ff2d55"/><stop offset="1" stop-color="#a3002a"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <circle cx="420" cy="96" r="5" fill="#fff" opacity=".7"/><circle cx="90" cy="130" r="4" fill="#fff" opacity=".6"/><circle cx="380" cy="420" r="4" fill="#fff" opacity=".5"/>
+  <!-- wings -->
+  <path d="M200 270Q110 120 40 150Q80 190 66 240Q110 228 120 280Q160 250 200 300Z" fill="url(#wg)" stroke="#7a1f00" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M312 270Q402 120 472 150Q432 190 446 240Q402 228 392 280Q352 250 312 300Z" fill="url(#wg)" stroke="#7a1f00" stroke-width="10" stroke-linejoin="round"/>
+  <!-- ruby -->
+  <polygon points="256,110 360,150 404,256 360,362 256,402 152,362 108,256 152,150" fill="url(#ru)" stroke="#7a0020" stroke-width="12"/>
+  <polygon points="256,180 312,203 336,256 312,309 256,332 200,309 176,256 200,203" fill="#ff5c78" opacity=".8"/>
+  <path d="M256 110V180M360 150L312 203M404 256H336M360 362L312 309M256 402V332M152 362L200 309M108 256H176M152 150L200 203" stroke="#ffd0d8" stroke-width="6" opacity=".55"/>
+  <ellipse cx="208" cy="180" rx="44" ry="20" fill="#fff" opacity=".55" transform="rotate(-25 208 180)"/>
+  <path d="M400 330L412 300L424 330L454 342L424 354L412 384L400 354L370 342Z" fill="#ffe9a8"/>
+</svg>
