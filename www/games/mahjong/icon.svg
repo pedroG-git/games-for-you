@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx=".5" cy=".3" r=".85"><stop offset="0" stop-color="#3f8f68"/><stop offset=".6" stop-color="#1c5a3e"/><stop offset="1" stop-color="#0b2a1c"/></radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffef8"/><stop offset=".7" stop-color="#f4ecd6"/><stop offset="1" stop-color="#e6d9b8"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+  <g transform="translate(96 120) rotate(-10)">
+    <rect x="14" y="14" width="170" height="230" rx="22" fill="#1f5a3c"/>
+    <rect x="7" y="7" width="170" height="230" rx="22" fill="#d6c49a"/>
+    <rect width="170" height="230" rx="22" fill="url(#face)"/>
+    <g fill="#1f4e9c"><circle cx="50" cy="60" r="26"/><circle cx="120" cy="60" r="26"/><circle cx="50" cy="170" r="26"/><circle cx="120" cy="170" r="26"/></g>
+    <g fill="#fffaf0"><circle cx="50" cy="60" r="18"/><circle cx="120" cy="60" r="18"/><circle cx="50" cy="170" r="18"/><circle cx="120" cy="170" r="18"/></g>
+    <g fill="#c62828"><circle cx="50" cy="60" r="11"/><circle cx="120" cy="60" r="11"/><circle cx="50" cy="170" r="11"/><circle cx="120" cy="170" r="11"/><circle cx="85" cy="115" r="22"/></g>
+  </g>
+  <g transform="translate(250 130) rotate(10)">
+    <rect x="14" y="14" width="170" height="230" rx="22" fill="#1f5a3c"/>
+    <rect x="7" y="7" width="170" height="230" rx="22" fill="#d6c49a"/>
+    <rect width="170" height="230" rx="22" fill="url(#face)"/>
+    <rect x="70" y="40" width="30" height="150" rx="6" fill="#c62828"/>
+    <rect x="30" y="80" width="110" height="70" rx="12" fill="none" stroke="#c62828" stroke-width="18"/>
+  </g>
+  <g fill="#ffd23a"><path d="M256 400l14 30 33 4-24 22 6 33-29-16-29 16 6-33-24-22 33-4z"/></g>
+</svg>

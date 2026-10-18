@@ -5,5 +5,6 @@ window.GAMES = [
   { name: 'Café', path: 'games/cafe/index.html', icon: 'games/cafe/icon-512.png', color: '#e85d75' },
   { name: 'Flower Garden', path: 'games/garden/index.html', icon: 'games/garden/icon.svg', color: '#7cc08a' },
   { name: 'Blocos', path: 'games/blocos/index.html', icon: 'games/blocos/icon.svg', color: '#2f4aa8' },
+  { name: 'Mahjong', path: 'games/mahjong/index.html', icon: 'games/mahjong/icon.svg', color: '#1c5a3e' },
   { name: 'Dragon Match', path: 'games/dragon/index.html', icon: 'games/dragon/icon.svg', color: '#4a1f8a' },
 ];

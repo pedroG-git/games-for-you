@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#163c2c">
+<title>Mahjong</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../shared/fonts.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Journey (home screen) -->
+<div id="home" class="screen">
+  <header class="bar">
+    <button class="round" id="h-hub" aria-label="All games">🏠</button>
+    <div class="pill" id="h-coins">🪙 <b>0</b></div>
+    <button class="round b-set" aria-label="Settings">⚙️</button>
+  </header>
+  <h1 id="logo">Mahjong <span>Journey</span></h1>
+  <div id="ch-name"></div>
+  <div id="scene"></div>
+  <div id="ch-prog"><i></i><span></span></div>
+  <div id="modes">
+    <button class="mode" id="h-daily"><span>📅</span>Daily<i id="h-dbadge" hidden></i></button>
+    <button class="mode" id="h-classic"><span>🀄</span>Classic</button>
+    <button class="mode" id="h-album"><span>📮</span>Album</button>
+  </div>
+  <button class="big" id="h-play">Level 1</button>
+</div>
+
+<!-- A board -->
+<div id="game" class="screen" hidden>
+  <header id="hud">
+    <button class="round small" id="g-back" aria-label="Back">↩</button>
+    <div id="info">
+      <div id="g-title"></div>
+      <div id="g-stats"><span id="g-left"></span><span id="g-pairs"></span><span id="g-time" hidden></span></div>
+    </div>
+    <button class="round small b-set" aria-label="Settings">⚙️</button>
+  </header>
+  <div id="combo" hidden><b></b><i><s></s></i></div>
+  <div id="boardwrap"><div id="board"></div></div>
+  <footer id="tools">
+    <button id="t-undo"><span>↶</span><small>Undo</small></button>
+    <button id="t-hint"><span>💡</span><small>Hint</small><i></i></button>
+    <button id="t-shuffle"><span>🔀</span><small>Shuffle</small><i></i></button>
+  </footer>
+</div>
+
+<canvas id="sparks"></canvas>
+<div id="praise"></div>
+<div id="say" hidden><b></b><span></span><div class="acts"></div></div>
+
+<div id="m-win" class="modal" hidden>
+  <div class="box">
+    <h2 id="win-title">Well done!</h2>
+    <div id="win-stars"><span>★</span><span>★</span><span>★</span></div>
+    <div id="win-lines"></div>
+    <button class="big" id="win-next">Next level</button>
+    <button class="ghostbtn" id="win-home">Journey</button>
+  </div>
+</div>
+
+<div id="m-stuck" class="modal" hidden>
+  <div class="box">
+    <h2>No more pairs</h2>
+    <p class="lbl">No free tiles match. Shuffle the tiles left — the new board can always be cleared.</p>
+    <button class="big" id="stuck-shuffle">🔀 Shuffle</button>
+    <button class="big alt" id="stuck-undo">↶ Undo</button>
+  </div>
+</div>
+
+<div id="m-post" class="modal" hidden>
+  <div class="box">
+    <h2>New postcard!</h2>
+    <div id="post-card" class="card"></div>
+    <p class="lbl" id="post-text"></p>
+    <button class="big" id="post-ok">Continue</button>
+  </div>
+</div>
+
+<div id="m-daily" class="modal" hidden>
+  <div class="box">
+    <h2>Daily Challenge</h2>
+    <div id="d-streak"></div>
+    <div id="d-month"></div>
+    <div id="d-cal"></div>
+    <button class="big" id="d-play">Play today</button>
+    <button class="ghostbtn" id="d-close">Close</button>
+  </div>
+</div>
+
+<div id="m-classic" class="modal" hidden>
+  <div class="box">
+    <h2>Classic</h2>
+    <p class="lbl">Pick a board. Every deal is new and can always be cleared.</p>
+    <div id="c-list"></div>
+    <button class="ghostbtn" id="c-close">Close</button>
+  </div>
+</div>
+
+<div id="m-album" class="modal" hidden>
+  <div class="box">
+    <h2>Postcards</h2>
+    <p class="lbl" id="a-sum"></p>
+    <div id="a-grid"></div>
+    <button class="ghostbtn" id="a-close">Close</button>
+  </div>
+</div>
+
+<div id="m-shop" class="modal" hidden>
+  <div class="box">
+    <h2 id="shop-title">Get hints</h2>
+    <p class="lbl" id="shop-text"></p>
+    <button class="big" id="shop-buy">Buy</button>
+    <button class="ghostbtn" id="shop-close">Not now</button>
+  </div>
+</div>
+
+<div id="m-set" class="modal" hidden>
+  <div class="box">
+    <h2>Settings</h2>
+    <label><span>🔊 Sounds</span><input type="checkbox" id="s-sfx"></label>
+    <label><span>🎵 Music</span><input type="checkbox" id="s-music"></label>
+    <label><span>📳 Vibration</span><input type="checkbox" id="s-vib"></label>
+    <label><span>🌗 Darken locked tiles</span><input type="checkbox" id="s-dim"></label>
+    <label><span>🧭 Warn when stuck ahead</span><input type="checkbox" id="s-warn"></label>
+    <div class="seg"><span>Tiles</span><button data-style="classic">🀄 Classic</button><button data-style="pics">🍎 Pictures</button></div>
+    <button class="big" id="s-close">Done</button>
+    <button class="ghostbtn" id="s-help">How to play</button>
+  </div>
+</div>
+
+<div id="m-help" class="modal" hidden>
+  <div class="box help">
+    <h2>How to play</h2>
+    <p>Tap two <b>equal</b> tiles to take them away. Clear the whole board to win.</p>
+    <p>Only <b>free</b> tiles can be taken: nothing lies on top, and the left <i>or</i> right side is open. Locked tiles look a bit darker.</p>
+    <p>Any <b>flower</b> matches any flower, and any <b>season</b> matches any season.</p>
+    <p>Some tiles exist four times. Taking the wrong two can block you later — think ahead!</p>
+    <p><b>Fair play:</b> every board can be cleared. Undo is free, hints never lead you into a dead end, and a shuffle always gives a board you can finish.</p>
+    <p>Quick matches in a row build a <b>combo</b> for extra points. Golden tiles give coins.</p>
+    <button class="big" id="help-ok">Got it</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
