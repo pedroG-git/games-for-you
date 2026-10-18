@@ -24,23 +24,36 @@
   }
 
   let downloadUrl = '';
+  // Latest version: GitHub Pages first (no rate limit), GitHub API as a fallback.
+  async function latest() {
+    try {
+      const r = await fetch(`https://pedrog-git.github.io/games-for-you/version.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (r.ok) {
+        const { version } = await r.json();
+        if (version) return { version, url: `https://github.com/${REPO}/releases/download/v${version}/${APK}` };
+      }
+    } catch {}
+    const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const rel = await r.json();
+    const asset = (rel.assets || []).find((x) => x.name === APK);
+    return { version: rel.tag_name, url: asset ? asset.browser_download_url : rel.html_url };
+  }
+
   async function check(manual) {
     if (manual) $('check').textContent = 'Checking…';
     try {
-      const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { cache: 'no-store' });
-      if (!r.ok) throw new Error(r.status);
-      const rel = await r.json();
-      if (newer(rel.tag_name, current)) {
-        const asset = (rel.assets || []).find((x) => x.name === APK);
-        downloadUrl = asset ? asset.browser_download_url : rel.html_url;
-        $('updateText').textContent = `Version ${String(rel.tag_name).replace(/^v/, '')} is ready!`;
+      const rel = await latest();
+      if (newer(rel.version, current)) {
+        downloadUrl = rel.url;
+        $('updateText').textContent = `Version ${String(rel.version).replace(/^v/, '')} is ready!`;
         $('update').hidden = false;
         if (manual) $('check').textContent = 'Check for updates';
       } else if (manual) {
         $('check').textContent = 'You have the newest version';
       }
     } catch {
-      if (manual) $('check').textContent = 'No internet? Try again later';
+      if (manual) $('check').textContent = navigator.onLine === false ? 'No internet? Try again later' : 'Could not check. Try again later';
     }
   }
 
