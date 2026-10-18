@@ -148,3 +148,6 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
   transition: opacity .2s, transform .2s;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* the title / win / lose screens have their own 🏠 */
+body:has(.screen.show) #hud .gfy-home { visibility: hidden; }

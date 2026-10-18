@@ -610,7 +610,6 @@ for (const b of document.querySelectorAll('.seg button')) b.addEventListener('cl
 $('s-close').addEventListener('click', () => closeModal('m-set'));
 $('s-help').addEventListener('click', () => { closeModal('m-set'); openModal('m-help'); });
 $('help-ok').addEventListener('click', () => closeModal('m-help'));
-$('h-hub').addEventListener('click', () => { location.href = '../../index.html'; });
 $('h-play').addEventListener('click', () => startGame('journey', P.level));
 
 openHome();

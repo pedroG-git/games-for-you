@@ -651,7 +651,6 @@ function loseFlow() {
 }
 
 // ---------------------------------------------------------------- buttons
-$('h-hub').addEventListener('click', () => { location.href = '../../index.html'; });
 $('h-play').addEventListener('click', () => { unlock(); play.tap(); openStart(); });
 $('h-tasks').addEventListener('click', () => { unlock(); play.tap(); openTasks(); });
 $('t-close').addEventListener('click', () => closeModal('m-tasks'));

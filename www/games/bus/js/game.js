@@ -944,13 +944,6 @@
     settleT = 0;
     if (n === 1 && save.wins === 0) toast('Tap a bus to drive it out. Customers hop on buses of their colour!', 4000);
   });
-  $('home').addEventListener('click', () => {
-    if (screen !== 'play') return;
-    saveNow();
-    $('titleLvl').textContent = `Level ${n}`;
-    showScreen('title');
-    screen = 'title';
-  });
   let restartArmed = 0;
   $('restart').addEventListener('click', () => {
     const btn = $('restart');

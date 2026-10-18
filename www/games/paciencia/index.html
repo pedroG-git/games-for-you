@@ -7,11 +7,15 @@
 <title>Paciência</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../../shared/nav.css">
+<script src="../../shared/nav.js"></script>
+<script>GFY.back([['#sheet-settings', '#sheet-settings [data-close]'], ['#sheet-new', '#sheet-new [data-close]']]);</script>
 </head>
 <body>
 <canvas id="c"></canvas>
 
 <header id="top">
+  <button class="gfy-home" aria-label="Todos os jogos"></button>
   <div class="pill"><span id="time">0:00</span><i></i><span id="moves">0 jogadas</span></div>
   <div class="pill soft" id="label">Normal</div>
   <button class="round" id="btn-settings" aria-label="Definições">
@@ -54,7 +58,6 @@
   <div class="row"><span>Mão esquerda</span><button class="switch" id="sw-left" role="switch"></button></div>
   <h3>Estatísticas <small id="stats-mode"></small></h3>
   <div class="stats" id="stats"></div>
-  <a class="wide ghost" href="../../index.html">← Todos os jogos</a>
   <button class="wide ghost" data-close>Fechar</button>
 </section>
 

@@ -854,7 +854,6 @@ function finale() {
 }
 
 // ---------------------------------------------------------------- nav + HUD buttons
-$('n-home').addEventListener('click', () => { saveNow(); location.href = '../../index.html'; });
 $('n-store').addEventListener('click', openStorage);
 $('n-garden').addEventListener('click', openGarden);
 $('n-shop').addEventListener('click', openShop);

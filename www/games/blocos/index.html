@@ -8,11 +8,14 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../shared/fonts.css">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../../shared/nav.css">
+<script src="../../shared/nav.js"></script>
+<script>GFY.back([['#settings', '#b-close'], ['#lvl', '#lvl-close'], ['#win', '#win-map'], ['#app', '#b-home'], ['#map', '#map-back']]);</script>
 </head>
 <body>
 <div id="menu" class="screen" hidden>
   <header class="bar">
-    <button class="round" id="m-home" aria-label="Home">🏠</button>
+    <button class="gfy-home" aria-label="All games"></button>
     <span></span>
     <button class="round b-set" aria-label="Settings">⚙️</button>
   </header>
@@ -38,7 +41,7 @@
 
 <div id="app" class="screen">
   <header id="top">
-    <button class="round" id="b-home" aria-label="Home">🏠</button>
+    <button class="round" id="b-home" aria-label="Back">↩</button>
     <div id="best"><span>👑</span><b id="best-n">0</b></div>
     <div id="chip" hidden></div>
     <button class="round b-set" aria-label="Settings">⚙️</button>

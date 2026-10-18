@@ -614,7 +614,6 @@ $('lvl-cont').addEventListener('click', () => { play.tap(); S = load(RUN); shown
 $('lvl-close').addEventListener('click', () => { play.tap(); $('lvl').hidden = true; });
 
 // ---------------------------------------------------------------- buttons
-$('m-home').addEventListener('click', () => { location.href = '../../index.html'; });
 $('m-classic').addEventListener('click', () => { unlock(); play.tap(); openClassic(); });
 $('m-adv').addEventListener('click', () => { unlock(); play.tap(); openMap(); });
 $('map-back').addEventListener('click', () => { play.tap(); openMenu(); });

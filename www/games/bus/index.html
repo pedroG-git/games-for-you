@@ -8,14 +8,16 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../../shared/fonts.css">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="../../shared/nav.css">
+  <script src="../../shared/nav.js"></script>
 </head>
 <body>
   <canvas id="c"></canvas>
 
   <header id="hud">
+    <button class="gfy-home" aria-label="All games"></button>
     <div class="pill" id="lvl">Level 1</div>
     <div class="pill small" id="left">0 customers</div>
-    <button id="home" class="round" aria-label="Menu">🏠</button>
     <button id="mute" class="round" aria-label="Sound on/off">🔊</button>
   </header>
 
@@ -38,7 +40,7 @@
     <button id="play" class="big">Play</button>
     <p class="sub" id="titleLvl"></p>
     <button id="restart" class="link">Start over from level 1</button>
-    <a href="../../index.html" class="link back">← All games</a>
+    <button class="gfy-home corner" aria-label="All games"></button>
   </section>
 
   <section id="win" class="screen">

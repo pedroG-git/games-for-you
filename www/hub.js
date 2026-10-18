@@ -5,15 +5,39 @@
   const $ = (id) => document.getElementById(id);
   const current = window.APP_VERSION || '0.0.0';
 
-  for (const g of window.GAMES) {
+  // replace(), so the back gesture never steps back into a game that was already left
+  const open = (e) => { e.preventDefault(); location.replace(e.currentTarget.href); };
+
+  window.GAMES.forEach((g, i) => {
     const a = document.createElement('a');
     a.className = 'tile';
     a.href = g.path;
     a.style.setProperty('--c', g.color);
-    a.innerHTML = `<img src="${g.icon}" alt=""><span></span>`;
-    a.querySelector('span').textContent = g.name;
+    a.style.setProperty('--i', i);
+    a.innerHTML = '<img alt=""><b></b><small></small>';
+    a.querySelector('img').src = g.icon;
+    a.querySelector('b').textContent = g.name;
+    a.querySelector('small').textContent = g.tag || '';
+    a.addEventListener('click', open);
     $('games').append(a);
+  });
+
+  // "Keep playing": the game opened last (remembered by shared/nav.js)
+  let lastGame = '';
+  try { lastGame = localStorage.getItem('gfy-last') || ''; } catch {}
+  const last = window.GAMES.find((g) => g.path.split('/')[1] === lastGame);
+  if (last) {
+    const a = $('last');
+    a.href = last.path;
+    a.style.setProperty('--c', last.color);
+    a.querySelector('img').src = last.icon;
+    a.querySelector('b').textContent = last.name;
+    a.addEventListener('click', open);
+    a.hidden = false;
   }
+
+  const h = new Date().getHours();
+  $('hello').textContent = h < 5 ? 'Good night!' : h < 12 ? 'Good morning!' : h < 19 ? 'Good afternoon!' : 'Good evening!';
   $('version').textContent = `Version ${current}`;
 
   const parse = (v) => String(v).replace(/^v/, '').split('.').map((x) => parseInt(x, 10) || 0);

@@ -54,15 +54,19 @@
   .link { background: none; border: 0; color: #b23a4d; font-weight: 700; font-size: 14px; text-decoration: underline; font-family: inherit; padding: 8px 0; }
   .stats { font-size: 13px; font-weight: 700; color: #7a5b48; margin-top: 10px; }
   .hidden { display: none !important; }
+  .homerow { display: flex; gap: 8px; align-items: flex-start; }
   #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #e85d75; z-index: 20; font-weight: 800; font-size: 22px; }
 </style>
+<link rel="stylesheet" href="../../shared/nav.css">
+<script src="../../shared/nav.js"></script>
+<script>GFY.back([['#confirm', '#bNo'], ['#upg', '#bClose']]);</script>
 </head>
 <body>
 <canvas id="c"></canvas>
 
 <div class="hud hidden" id="hud">
   <div>
-    <div class="pill"><span class="ic"></span><span id="cash">0</span></div>
+    <div class="homerow"><button class="gfy-home" aria-label="Todos os jogos"></button><div class="pill"><span class="ic"></span><span id="cash">0</span></div></div>
     <div class="pill" id="carryPill"><span class="bag"></span><span id="carry">0/6</span></div>
     <div class="pill hidden" id="boost" style="background:#7e57c2;font-size:13px;padding:6px 12px;min-width:0;width:max-content"></div>
     <div class="goal hidden" id="goal"><b id="goalT"></b><span id="goalP"></span><i><u id="goalBar"></u></i></div>
@@ -87,7 +91,7 @@
     <h1 id="tName">Café</h1>
     <p id="tSub"></p>
     <button class="btn" id="bPlay">Jogar</button>
-    <br><a class="link" href="../../index.html">← Todos os jogos</a>
+    <button class="gfy-home corner" aria-label="Todos os jogos"></button>
   </div>
 </div>
 
@@ -97,7 +101,7 @@
     <div id="upList"></div>
     <div class="stats" id="stats"></div>
     <div class="foot">
-      <span><button class="link" id="bGfx" style="color:#5a6f8f">Gráficos</button><br><button class="link" id="bReset">Recomeçar jogo</button><br><a class="link" href="../../index.html" style="color:#5a6f8f">← Todos os jogos</a></span>
+      <span><button class="link" id="bGfx" style="color:#5a6f8f">Gráficos</button><br><button class="link" id="bReset">Recomeçar jogo</button></span>
       <button class="btn" id="bClose">Fechar</button>
     </div>
   </div>
