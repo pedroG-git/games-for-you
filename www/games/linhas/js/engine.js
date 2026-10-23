@@ -6,14 +6,17 @@ export const SHAPES = ['circle', 'triangle', 'square', 'diamond', 'star', 'cross
 export const DAY = 20;        // game seconds per day; a week is 7 days
 export const CAPACITY = 6;    // station queue limit (interchange: 12); a train car holds 6
 const SPEED = 95;             // train speed, world units per second
-const DWELL = 0.6;            // seconds a train waits at each stop
+const DWELL = 0.6;            // seconds a train waits at each stop, besides passengers getting on and off
+const BOARD = 0.08;           // seconds for each passenger getting on or off
+const ACCEL = 220;            // world units/s² at normal speed: trains pull away and brake rather than jolt
+const CREEP = 0.15;           // slowest moving speed, as a share of full speed
 const TRANSFER = 1000;        // routing cost of changing lines (vs 1 per stop)
 const SLACK = 3;              // passengers also take a route up to this many stops longer than the best
 const MIN_GAP = 90;           // minimum distance between stations
 export const MAX_CARS = 3;
 // Difficulty: seconds between new passengers at each station (from PAX_START down to PAX_MIN, one second less
 // every PAX_RAMP seconds), and how long a station may stay overcrowded before the game ends.
-const PAX_START = 15.5, PAX_MIN = 5, PAX_RAMP = 120; // 15.5: stations take turns (see spawnPax), which is fairer and so a little easier
+const PAX_START = 17, PAX_MIN = 5, PAX_RAMP = 120; // 17: passengers take turns at stations (see spawnPax) and board one by one (see boardStep)
 const OVERFLOW = 50, RECOVER = 40;
 const EXPRESS = 1.4;           // express lines run this much faster
 // Rush hour (mornings and evenings) brings 1.6× the passengers; the rest of the day is a bit calmer, so a day
@@ -382,18 +385,23 @@ function nearestStation(s, x, y, ids) {
   return best;
 }
 
+// A train at a stop lets passengers off and on one at a time (each takes BOARD seconds), so a crowded platform
+// visibly empties shape by shape; anyone who turns up while the doors are open still gets on.
 function arrive(s, L, tr, events) {
-  const line = s.lines[L], n = line.stations.length, st = s.stations[line.stations[tr.i]];
-  let ni = tr.i + tr.dir;
-  if (line.loop) ni = (ni + n) % n;
-  else if (ni < 0 || ni >= n) { tr.dir = -tr.dir; ni = tr.i + tr.dir; }
-  const next = line.stations[ni], r = routing(s);
-  let moved = 0, delivered = 0;
-  // Unload: deliver, or step off to change lines. Riders with no way left to their shape (the line was changed)
-  // step off too, instead of riding round for ever and taking up room.
-  const keep = [];
-  for (const k of tr.pax) {
-    if (k === st.shape) { delivered++; continue; }
+  const line = s.lines[L], n = line.stations.length;
+  if (!line.loop && (tr.i + tr.dir < 0 || tr.i + tr.dir >= n)) tr.dir = -tr.dir; // end of the line: turn round
+  tr.stop = true; tr.held = false; tr.moves = 0;
+  tr.dwell = DWELL / 2;
+  events.push({ type: 'stop', line: L, id: line.stations[tr.i], n: wantsOff(s, L, tr) >= 0 || wantsOn(s, L, tr) >= 0 ? 1 : 0 });
+}
+
+// Which rider steps off here: delivered, or changing to a better line. Riders with no way left to their shape
+// (the line was changed) step off too, instead of riding round for ever and taking up room.
+function wantsOff(s, L, tr) {
+  const line = s.lines[L], st = s.stations[line.stations[tr.i]], r = routing(s);
+  for (let j = 0; j < tr.pax.length; j++) {
+    const k = tr.pax[j];
+    if (k === st.shape) return j;
     let off;
     if (line.loop) {
       const here = exitCost(s, r, k, st.id, L);
@@ -405,37 +413,60 @@ function arrive(s, L, tr, events) {
       for (const nb of r.nbrs[L].get(st.id) || []) ride = Math.min(ride, cost(r, k, nb, L) + 1);
       off = ride > cur || !Number.isFinite(cur);
     }
-    if (off) { st.queue.push(k); moved++; } else keep.push(k);
+    if (off) return j;
   }
-  tr.pax = keep;
-  if (delivered) {
-    s.score += delivered; moved += delivered;
-    line.carried = (line.carried || 0) + delivered;
-    events.push({ type: 'deliver', id: st.id, x: st.x, y: st.y, n: delivered });
-  }
-  // Board: passengers whose best path is this line in this direction.
-  const room = tr.cars * CAPACITY;
-  const stay = [];
-  for (const k of st.queue) {
-    const c = cost(r, k, st.id, L);
+  return -1;
+}
+
+// Which waiting passenger boards next (first come, first served): one whose best path is this line in this direction.
+function wantsOn(s, L, tr) {
+  const line = s.lines[L], n = line.stations.length, st = s.stations[line.stations[tr.i]], r = routing(s);
+  if (tr.pax.length >= tr.cars * CAPACITY) return -1;
+  const next = line.stations[line.loop ? (tr.i + tr.dir + n) % n : tr.i + tr.dir];
+  for (let j = 0; j < st.queue.length; j++) {
+    const k = st.queue[j], c = cost(r, k, st.id, L);
     // This line must be heading the right way, and be no more than SLACK stops (and no extra change) worse than the best.
     const b = bestAt(r, k, st.id);
-    const good = Number.isFinite(c) && c <= b + SLACK && Math.floor(c / TRANSFER) === Math.floor(b / TRANSFER);
+    if (!(Number.isFinite(c) && c <= b + SLACK && Math.floor(c / TRANSFER) === Math.floor(b / TRANSFER))) continue;
     let way;
     if (line.loop) {
       // The long way round is fine when no train on the loop runs the other way.
       const ahead = aheadCost(s, r, k, L, tr.i, tr.dir), back = line.trains.some((t) => t.dir === -tr.dir);
       way = Math.floor(ahead / TRANSFER) === Math.floor(c / TRANSFER) && (ahead <= b + SLACK || !back);
     } else way = cost(r, k, next, L) + 1 === c;
-    if (tr.pax.length < room && good && way) {
-      tr.pax.push(k); moved++;
-    } else stay.push(k);
+    if (way) return j;
   }
-  st.queue = stay;
-  events.push({ type: 'stop', line: L, id: st.id, n: moved });
-  tr.i = ni;
+  return -1;
+}
+
+// One passenger off or on; false when nobody is left to move and the train can go.
+function boardStep(s, L, tr, events) {
+  const line = s.lines[L], st = s.stations[line.stations[tr.i]];
+  if (tr.moves > 4 * MAX_CARS * CAPACITY) return false; // never dither at a stop for ever
+  const off = wantsOff(s, L, tr);
+  if (off >= 0) {
+    const k = tr.pax.splice(off, 1)[0];
+    if (k === st.shape) {
+      s.score++;
+      line.carried = (line.carried || 0) + 1;
+      events.push({ type: 'deliver', id: st.id, x: st.x, y: st.y, n: 1 });
+    } else st.queue.push(k);
+  } else {
+    const on = wantsOn(s, L, tr);
+    if (on < 0) return false;
+    tr.pax.push(st.queue.splice(on, 1)[0]);
+  }
+  tr.moves++;
   // Interchanges have bigger platforms: boarding there is twice as quick.
-  tr.dwell = (DWELL + Math.min(0.6, moved * 0.05)) * (st.interchange ? 0.5 : 1) + headway(s, L, tr);
+  tr.dwell = BOARD * (st.interchange ? 0.5 : 1);
+  return true;
+}
+
+function depart(s, L, tr) {
+  const line = s.lines[L], n = line.stations.length;
+  tr.stop = false;
+  tr.i = line.loop ? (tr.i + tr.dir + n) % n : tr.i + tr.dir;
+  tr.from = tr.d;
 }
 
 // Trains on a line drift together (the one behind finds the platforms empty, so it catches up) and then run as one.
@@ -462,25 +493,40 @@ function headway(s, L, tr) {
 function moveTrain(s, L, tr, dt, events) {
   const line = s.lines[L], g = geom(s, line);
   let left = dt;
-  for (let guard = 0; guard < 8 && left > 0; guard++) {
+  for (let guard = 0; guard < 40 && left > 1e-9; guard++) {
     if (tr.dwell > 0) {
       const w = Math.min(tr.dwell, left);
       tr.dwell -= w; left -= w;
       if (tr.dwell > 0) return;
       continue;
     }
-    const target = g.stopD[tr.i];
-    let togo;
-    if (line.loop && g.total > 0) {
-      togo = tr.dir > 0 ? (((target - tr.d) % g.total) + g.total) % g.total : (((tr.d - target) % g.total) + g.total) % g.total;
-    } else togo = Math.abs(target - tr.d);
-    let speed = trainSpeed(s, line);
-    if (cityOf(s).ferry) { const p = pointAt(g, tr.d); if (inWater(cityOf(s), p.x, p.y)) speed *= FERRY; }
-    const step = speed * left;
+    if (tr.stop) {
+      if (boardStep(s, L, tr, events)) continue;
+      // Doors close after a short pause, or a longer one when the train ahead is too close (see headway).
+      if (!tr.held) { tr.held = true; tr.dwell = DWELL / 2 + headway(s, L, tr); continue; }
+      depart(s, L, tr);
+    }
+    const target = g.stopD[tr.i], T = g.total;
+    let togo, since;
+    if (line.loop && T > 0) {
+      const fwd = (a, b) => (tr.dir > 0 ? (((b - a) % T) + T) % T : (((a - b) % T) + T) % T);
+      togo = fwd(tr.d, target);
+      since = tr.from == null ? Infinity : fwd(tr.from, tr.d);
+    } else {
+      togo = Math.abs(target - tr.d);
+      since = tr.from == null ? Infinity : Math.abs(tr.d - tr.from);
+    }
+    let top = trainSpeed(s, line);
+    if (cityOf(s).ferry) { const p = pointAt(g, tr.d); if (inWater(cityOf(s), p.x, p.y)) top *= FERRY; }
+    // Pull away from the last stop and brake into the next one (a short stop-to-stop hop never gets to full speed).
+    const a = ACCEL * top / SPEED;
+    const speed = Math.max(top * CREEP, Math.min(top, Math.sqrt(2 * a * since), Math.sqrt(2 * a * togo)));
+    const h = Math.min(left, 1 / 30), step = speed * h;
     if (step < togo) {
       tr.d += tr.dir * step;
-      if (line.loop) tr.d = ((tr.d % g.total) + g.total) % g.total;
-      return;
+      if (line.loop) tr.d = ((tr.d % T) + T) % T;
+      left -= h;
+      continue;
     }
     left -= togo / speed;
     tr.d = target;
@@ -505,6 +551,8 @@ function reproject(s, line, poses) {
     tr.d = project(g, p.x, p.y);
     const ns = nextStop(g, tr.d, tr.dir, line.loop);
     tr.i = ns.i; tr.dir = ns.dir;
+    // A train standing at a stop pulls away from where it is; one on the move keeps going.
+    tr.from = tr.stop ? tr.d : null; tr.stop = false;
   });
 }
 const posesOf = (s, L) => s.lines[L].trains.map((_, i) => trainPose(s, L, i));
@@ -696,7 +744,7 @@ export function addTrain(s, lineIdx, x, y) {
   const line = s.lines[lineIdx];
   if (!line || s.inv.trains <= 0) return false;
   const g = geom(s, line), d = project(g, x, y), ns = nextStop(g, d, line.loop ? loopDir(line) : 1, line.loop);
-  line.trains.push({ d, dir: ns.dir, cars: 1, pax: [], dwell: 0, i: ns.i });
+  line.trains.push({ d, dir: ns.dir, cars: 1, pax: [], dwell: 0, i: ns.i, from: d });
   s.inv.trains--;
   return true;
 }

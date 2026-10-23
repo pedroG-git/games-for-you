@@ -41,7 +41,7 @@ export const PUZZLES = [
   { id: 'p3', icon: '🌉', name: 'One crossing', city: 'london', seed: 12, goal: 450, weeks: 4, text: 'One tunnel under the Thames. 450 home in 4 weeks.', mods: { tunnels: 1, noTunnels: true } },
   { id: 'p4', icon: '👥', name: 'Rush city', city: 'tokyo', seed: 4, goal: 600, weeks: 4, text: 'A very busy Tokyo. 600 home in 4 weeks.', mods: { busy: 0.88 } },
   { id: 'p5', icon: '⚡', name: 'Express Métro', city: 'paris', seed: 21, goal: 750, weeks: 5, text: 'Two express lines, never more than 4 lines. 750 in 5 weeks.', mods: { express: 2, maxLines: 4 } },
-  { id: 'p6', icon: '⛴️', name: 'Harbour hop', city: 'hongkong', seed: 9, goal: 600, weeks: 5, text: 'Ferries only, at most 3 lines. 600 home in 5 weeks.', mods: { maxLines: 3 } },
+  { id: 'p6', icon: '⛴️', name: 'Harbour hop', city: 'hongkong', seed: 10, goal: 600, weeks: 5, text: 'Ferries only, at most 3 lines. 600 home in 5 weeks.', mods: { maxLines: 3 } },
   { id: 'p7', icon: '🕌', name: 'Two continents', city: 'istanbul', seed: 5, goal: 400, weeks: 5, text: 'Tunnels cost double. 400 home in 5 weeks.', mods: {} },
   { id: 'p8', icon: '🌷', name: 'Canal maze', city: 'amsterdam', seed: 22, goal: 600, weeks: 6, text: 'Bridges are precious. 600 home in 6 weeks.', mods: { tunnels: 5 } },
 ];

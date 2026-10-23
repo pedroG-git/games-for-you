@@ -186,6 +186,15 @@ const WEEKS = Number(process.argv[2]) || 6;
     const T = b.lines[0].trains.map((t) => t.d);
     const spread = b.lines[0].trains.every((t, i, a) => a.every((o) => o === t || Math.abs(o.d - t.d) > 30 || o.dir !== t.dir));
     if (!spread) fails.push(`headway: trains still bunched after 2 minutes (${T.map((d) => d.toFixed(0))})`);
+    // Boarding: a crowd gets on one by one, not all in the same instant.
+    const q = E.newGame({ city: 'lisboa', mode: 'normal', seed: 5 });
+    E.setLine(q, 0, [0, 1, 2]);
+    q.nextPax = q.nextStation = 1e9;
+    const k = q.stations[1].shape !== q.stations[0].shape ? q.stations[1].shape : q.stations[2].shape;
+    for (let i = 0; i < 5; i++) q.stations[0].queue.push(k);
+    const seen = new Set();
+    for (let i = 0; i < 150; i++) { E.step(q, 0.02); seen.add(q.stations[0].queue.length); }
+    if (q.stations[0].queue.length || seen.size < 5) fails.push(`boarding: queue went ${[...seen].join(' → ')}, want one at a time down to 0`);
   }
 
   // Challenges: every puzzle can be solved by the decent player on its fixed map, weekly challenges run, creative never ends.
