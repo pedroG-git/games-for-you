@@ -3,38 +3,57 @@ const grad = (id, stops, x2 = 0, y2 = 1) =>
   `<linearGradient id="${id}" x1="0" y1="0" x2="${x2}" y2="${y2}">${stops.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>`;
 const rgrad = (id, stops, cx = 0.4, cy = 0.35) =>
   `<radialGradient id="${id}" cx="${cx}" cy="${cy}" r="0.7">${stops.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</radialGradient>`;
-const shine = '<ellipse cx="36" cy="28" rx="14" ry="7" fill="#fff" opacity=".55" transform="rotate(-25 36 28)"/><circle cx="70" cy="70" r="3" fill="#fff" opacity=".5"/>';
 
 // Gems: ruby, sapphire, emerald, amber, amethyst, pearl (each its own shape, so colours aren't the only cue).
 export const GEM_COLORS = ['#ff3b5c', '#3d8bff', '#2ed47a', '#ffb627', '#b25cff', '#f4eef8'];
 export const GEM_NAMES = ['Ruby', 'Sapphire', 'Emerald', 'Amber', 'Amethyst', 'Pearl'];
+// A cut gem: facets between the outline and the table, each shaded by how much it faces the light (top-left).
+const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+const mixc = (a, b, t) => '#' + hex(a).map((v, i) => Math.round(v + (hex(b)[i] - v) * Math.max(0, Math.min(1, t))).toString(16).padStart(2, '0')).join('');
+const pts = (l) => l.map((p) => p.map((v) => +v.toFixed(1)).join(',')).join(' ');
+const spark = (x, y, r) => `<path d="M${x} ${y - r}Q${x + r * .18} ${y - r * .18} ${x + r} ${y}Q${x + r * .18} ${y + r * .18} ${x} ${y + r}Q${x - r * .18} ${y + r * .18} ${x - r} ${y}Q${x - r * .18} ${y - r * .18} ${x} ${y - r}Z" fill="#fff"/>`;
+function cut(i, outer, [cx, cy], k, [dark, mid, light], line) {
+  const inner = outer.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]);
+  const shade = (pa, pb) => {
+    const mx = (pa[0] + pb[0]) / 2 - cx, my = (pa[1] + pb[1]) / 2 - cy, l = Math.hypot(mx, my) || 1;
+    return (1 - (mx + my) / l / Math.SQRT2) / 2;
+  };
+  const col = (t) => (t > 0.5 ? mixc(mid, light, (t - 0.5) * 2.2) : mixc(dark, mid, t * 2));
+  let f = '';
+  outer.forEach((a, j) => {
+    const b = outer[(j + 1) % outer.length], c = inner[(j + 1) % outer.length], d = inner[j], t = shade(a, b);
+    f += `<polygon points="${pts([a, b, d])}" fill="${col(t + 0.07)}"/><polygon points="${pts([b, c, d])}" fill="${col(t - 0.07)}"/>`;
+  });
+  const [tx, ty] = inner.reduce(([x, y], p) => [Math.min(x, p[0]), Math.min(y, p[1])], [100, 100]);
+  return `${grad(`g${i}t`, [[0, light], [0.55, mid], [1, mixc(mid, dark, 0.35)]], 0.6, 1)}
+   <symbol id="gem${i}" viewBox="0 0 100 100">
+   <polygon points="${pts(outer)}" fill="${dark}" stroke="${line}" stroke-width="5" stroke-linejoin="round"/>${f}
+   <polygon points="${pts(inner)}" fill="url(#g${i}t)" stroke="${light}" stroke-opacity=".5" stroke-width="1.2"/>
+   <polygon points="${pts(outer)}" fill="none" stroke="${line}" stroke-width="3" stroke-linejoin="round"/>
+   ${spark(tx + (cx - tx) * 0.55, ty + (cy - ty) * 0.6, 9)}<circle cx="${cx + (cx - tx) * 0.7}" cy="${cy + (cy - ty) * 0.75}" r="2.5" fill="#fff" opacity=".7"/></symbol>`;
+}
+const ring = (n, r, rot, cx = 50, cy = 50) => Array.from({ length: n }, (_, j) => {
+  const a = rot + (j * 2 * Math.PI) / n;
+  return [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+});
 const gems = [
   // ruby: round brilliant
-  `${grad('g0a', [[0, '#ff8a9c'], [0.5, '#ff2d55'], [1, '#a3002a']])}
-   <symbol id="gem0" viewBox="0 0 100 100"><polygon points="50,6 81,18 94,50 81,82 50,94 19,82 6,50 19,18" fill="url(#g0a)" stroke="#7a0020" stroke-width="3"/>
-   <polygon points="50,26 67,33 74,50 67,67 50,74 33,67 26,50 33,33" fill="#ff5c78" opacity=".75"/>
-   <path d="M50 6L50 26M81 18L67 33M94 50L74 50M81 82L67 67M50 94L50 74M19 82L33 67M6 50L26 50M19 18L33 33" stroke="#ffd0d8" stroke-width="2" opacity=".5"/>${shine}</symbol>`,
+  cut(0, ring(8, 45, 0), [50, 50], 0.5, ['#7a001e', '#ff2d55', '#ffc2cc'], '#4e0013'),
   // sapphire: drop
-  `${grad('g1a', [[0, '#9cc8ff'], [0.5, '#2f7bff'], [1, '#0a2f8a']])}
-   <symbol id="gem1" viewBox="0 0 100 100"><path d="M50 5C62 26 84 44 84 64A34 32 0 0 1 16 64C16 44 38 26 50 5Z" fill="url(#g1a)" stroke="#06226b" stroke-width="3"/>
-   <path d="M50 30C57 42 68 52 68 63A18 17 0 0 1 32 63C32 52 43 42 50 30Z" fill="#5d9dff" opacity=".7"/>${shine}</symbol>`,
-  // emerald: step cut rectangle
-  `${grad('g2a', [[0, '#8dffc0'], [0.5, '#1fc46a'], [1, '#04673a']])}
-   <symbol id="gem2" viewBox="0 0 100 100"><polygon points="28,8 72,8 90,26 90,74 72,92 28,92 10,74 10,26" fill="url(#g2a)" stroke="#034d2b" stroke-width="3"/>
-   <polygon points="36,24 64,24 74,34 74,66 64,76 36,76 26,66 26,34" fill="#3fe08a" opacity=".7"/>
-   <path d="M28 8L36 24M72 8L64 24M90 26L74 34M90 74L74 66M72 92L64 76M28 92L36 76M10 74L26 66M10 26L26 34" stroke="#d6ffe8" stroke-width="2" opacity=".45"/>${shine}</symbol>`,
-  // amber: triangle (trillion)
-  `${grad('g3a', [[0, '#ffe58a'], [0.5, '#ffad14'], [1, '#b35c00']])}
-   <symbol id="gem3" viewBox="0 0 100 100"><path d="M50 8Q55 8 58 13L93 77Q96 86 86 88L14 88Q4 86 7 77L42 13Q45 8 50 8Z" fill="url(#g3a)" stroke="#8a4300" stroke-width="3"/>
-   <polygon points="50,34 72,74 28,74" fill="#ffd04d" opacity=".75"/>${shine}</symbol>`,
+  cut(1, [[50, 4], [63, 20], [77, 37], [87, 56], [84, 74], [72, 88], [50, 95], [28, 88], [16, 74], [13, 56], [23, 37], [37, 20]], [50, 62], 0.48, ['#08236e', '#2f7bff', '#c2dcff'], '#04164a'),
+  // emerald: step cut
+  cut(2, [[28, 7], [72, 7], [91, 26], [91, 74], [72, 93], [28, 93], [9, 74], [9, 26]], [50, 50], 0.58, ['#024a29', '#1fc46a', '#b4ffd6'], '#01361d'),
+  // amber: trillion
+  cut(3, [[44, 9], [56, 9], [95, 79], [89, 89], [11, 89], [5, 79]], [50, 63], 0.5, ['#8a4000', '#ffad14', '#fff3b8'], '#5e2b00'),
   // amethyst: kite
-  `${grad('g4a', [[0, '#e3b8ff'], [0.5, '#9d3bff'], [1, '#4a0f8a']])}
-   <symbol id="gem4" viewBox="0 0 100 100"><polygon points="50,4 88,40 50,96 12,40" fill="url(#g4a)" stroke="#3a0870" stroke-width="3" stroke-linejoin="round"/>
-   <polygon points="50,22 70,41 50,74 30,41" fill="#b86dff" opacity=".75"/><path d="M12 40L88 40M50 4L50 22" stroke="#f1dcff" stroke-width="2" opacity=".5"/>${shine}</symbol>`,
-  // pearl: sphere
-  `${rgrad('g5a', [[0, '#ffffff'], [0.55, '#f1e6f5'], [1, '#b7a3c4']])}
-   <symbol id="gem5" viewBox="0 0 100 100"><circle cx="50" cy="52" r="40" fill="url(#g5a)" stroke="#8c7a99" stroke-width="3"/>
-   <ellipse cx="50" cy="70" rx="26" ry="10" fill="#ffd9ec" opacity=".45"/>${shine}</symbol>`,
+  cut(4, [[50, 4], [69, 22], [89, 40], [69, 68], [50, 96], [31, 68], [11, 40], [31, 22]], [50, 44], 0.5, ['#350866', '#9d3bff', '#ecd2ff'], '#250448'),
+  // pearl: sphere with a soft rainbow sheen
+  `${rgrad('g5a', [[0, '#ffffff'], [0.5, '#f3eaf7'], [0.85, '#c9b6d6'], [1, '#9c86ad']], 0.38, 0.32)}
+   <linearGradient id="g5b" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#ff9ad5" stop-opacity=".55"/><stop offset=".5" stop-color="#9ae6ff" stop-opacity=".25"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+   <symbol id="gem5" viewBox="0 0 100 100"><circle cx="50" cy="51" r="42" fill="url(#g5a)" stroke="#6e5a80" stroke-width="4"/>
+   <circle cx="50" cy="51" r="40" fill="url(#g5b)"/>
+   <path d="M18 62A34 34 0 0 0 82 62A38 30 0 0 1 18 62Z" fill="#fff" opacity=".45"/>
+   <ellipse cx="36" cy="32" rx="13" ry="8" fill="#fff" transform="rotate(-30 36 32)"/>${spark(64, 26, 6)}</symbol>`,
 ];
 
 // Specials
