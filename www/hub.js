@@ -122,7 +122,7 @@
     a.querySelector('img').src = last.icon;
     a.querySelector('b').textContent = last.name;
     const lb = badgeOf(last), lp = progressOf(last);
-    a.querySelector('small').textContent = ['Keep playing', lp, lb && lb[0]].filter(Boolean).join(' · ');
+    a.querySelector('em').textContent = [lp, lb && lb.join(' ')].filter(Boolean).join(' · ');
     a.setAttribute('aria-label', ['Keep playing ' + last.name, lp, lb && lb[1]].filter(Boolean).join('. '));
     a.addEventListener('click', open);
     a.hidden = false;

@@ -72,6 +72,8 @@ h1 small { font-size: .62em; color: var(--red); vertical-align: .14em; }
 .last span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .last small { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; opacity: .65; }
 .last b { font-family: var(--title); font-weight: 400; font-size: 24px; line-height: 1.1; margin-top: 2px; }
+.last em { font-style: normal; font-size: 13px; font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.last em:empty { display: none; }
 .play {
   flex: none; width: 48px; height: 48px; border-radius: 50%;
   background: var(--red); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink);
@@ -82,7 +84,7 @@ h1 small { font-size: .62em; color: var(--red); vertical-align: .14em; }
 /* ---------------------------------------------------------------- game cards */
 main {
   flex: 1;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px 14px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, calc(50% - 7px)), 1fr)); gap: 18px 14px;
   padding: 22px 16px 10px; align-content: start;
 }
 .tile {
@@ -90,7 +92,8 @@ main {
   display: flex; flex-direction: column; align-items: center; text-align: center;
   padding: 18px 10px 14px; color: var(--cream);
   background: var(--c);
-  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--c) 65%, #fff) 0, var(--c) 70%);
+  /* light behind the icon, a soft shade at the foot so the words read on light colours too */
+  background: linear-gradient(transparent 45%, rgba(0, 0, 0, .2)), radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--c) 65%, #fff) 0, var(--c) 70%);
   border: 4px solid var(--ink); border-radius: 22px; box-shadow: 0 6px 0 var(--ink);
   animation: pop .4s cubic-bezier(.2, 1.4, .4, 1) both; animation-delay: calc(var(--i) * 45ms + 80ms);
 }
@@ -123,7 +126,7 @@ main {
   text-shadow: 2px 0 var(--ink), -2px 0 var(--ink), 0 2px var(--ink), 0 -2px var(--ink),
     1.5px 1.5px var(--ink), -1.5px 1.5px var(--ink), 1.5px -1.5px var(--ink), -1.5px -1.5px var(--ink), 0 4px var(--ink);
 }
-.tile small { position: relative; margin-top: 6px; font-size: 12.5px; font-weight: 700; line-height: 1.2; opacity: .92; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+.tile small { position: relative; margin-top: 6px; font-size: 12.5px; font-weight: 700; line-height: 1.2; text-shadow: 0 1px 0 rgba(0, 0, 0, .45), 0 0 6px rgba(0, 0, 0, .45); }
 /* how far you've got: a small sign at the foot of the card */
 .tile .progress {
   position: relative; margin-top: auto;
@@ -132,8 +135,15 @@ main {
 }
 .tile:has(.progress) small { margin-bottom: 10px; }
 
+/* keyboard / switch access: a clear ring on whatever is focused */
+a:focus-visible, button:focus-visible { outline: 4px solid var(--red); outline-offset: 4px; }
+
 @keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.92); } }
 @media (prefers-reduced-motion: reduce) { .tile, .last, .tile em { animation: none; } .leaving main, .leaving .last { transition: none; } }
+
+/* ---------------------------------------------------------------- big screens: content stays a comfortable width */
+#update, .last { margin-left: max(16px, calc(50% - 364px)); margin-right: max(16px, calc(50% - 364px)); }
+main { width: 100%; max-width: 760px; margin: 0 auto; }
 
 /* ---------------------------------------------------------------- footer */
 footer {
