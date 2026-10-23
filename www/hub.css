@@ -84,6 +84,16 @@ h1 small { font-size: .62em; color: var(--red); vertical-align: .14em; }
 }
 .play::after { content: ""; margin-left: 4px; border-style: solid; border-width: 10px 0 10px 16px; border-color: transparent transparent transparent var(--cream); }
 
+/* ---------------------------------------------------------------- "more games" heading: a label between two ink lines */
+#more {
+  display: flex; align-items: center; gap: 12px; width: 100%; max-width: 760px;
+  margin: 24px auto -8px; padding: 0 16px;
+  font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em;
+}
+#more[hidden] { display: none; }
+#more::before, #more::after { content: ""; flex: 1; height: 3px; border-radius: 3px; background: var(--ink); opacity: .18; }
+#more span { opacity: .65; }
+
 /* ---------------------------------------------------------------- game cards */
 main {
   flex: 1;
@@ -115,7 +125,7 @@ main {
 }
 @keyframes bob { 50% { transform: translateY(-3px); } }
 /* tapping a game: the list fades out just before the game opens */
-.leaving main, .leaving .last { transition: opacity .14s, transform .14s; opacity: 0; transform: scale(.97); }
+.leaving main, .leaving .last, .leaving #more { transition: opacity .14s, transform .14s; opacity: 0; transform: scale(.97); }
 .leaving .tile, .leaving .last { animation: none; }
 .tile img {
   position: relative; width: 86px; height: 86px; border-radius: 22px;

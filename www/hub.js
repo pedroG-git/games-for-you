@@ -76,11 +76,15 @@
   const badgeOf = (g) => { try { return (BADGES[folder(g)] || (() => ''))(); } catch { return ''; } };
   const progressOf = (g) => { try { return (PROGRESS[folder(g)] || (() => ''))(); } catch { return ''; } };
 
+  // "Keep playing": the game opened last (remembered by shared/nav.js)
+  let lastGame = '';
+  try { lastGame = localStorage.getItem('gfy-last') || ''; } catch {}
+  const last = window.GAMES.find((g) => g.path.split('/')[1] === lastGame);
   // Most recently played first; games never played keep their order below.
   const played = read('gfy-played') || {};
   const games = window.GAMES.map((g, i) => ({ g, i })).sort((a, b) => {
     return (+played[folder(b.g)] || 0) - (+played[folder(a.g)] || 0) || a.i - b.i;
-  }).map((o) => o.g);
+  }).map((o) => o.g).filter((g) => g !== last);
 
   games.forEach((g, i) => {
     const a = document.createElement('a');
@@ -111,10 +115,7 @@
     $('games').append(a);
   });
 
-  // "Keep playing": the game opened last (remembered by shared/nav.js)
-  let lastGame = '';
-  try { lastGame = localStorage.getItem('gfy-last') || ''; } catch {}
-  const last = window.GAMES.find((g) => g.path.split('/')[1] === lastGame);
+  // "Keep playing": the game opened last, shown big at the top (it is not repeated in the grid)
   if (last) {
     const a = $('last');
     a.href = last.path;
@@ -126,6 +127,7 @@
     a.setAttribute('aria-label', ['Keep playing ' + last.name, lp, lb && lb[1]].filter(Boolean).join('. '));
     a.addEventListener('click', open);
     a.hidden = false;
+    $('more').hidden = false;
   }
 
   const h = new Date().getHours();
