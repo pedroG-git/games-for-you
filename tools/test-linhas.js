@@ -141,6 +141,17 @@ const WEEKS = Number(process.argv[2]) || 6;
     if (trains() !== T || s.inv.tunnels !== tun) fails.push(`undo ${seed}: trains ${trains()}/${T}, tunnels ${s.inv.tunnels}/${tun}`);
   }
 
+  // Removing an express line gives the express back, and undo brings the line back express.
+  {
+    const s = E.newGame({ city: 'lisboa', mode: 'normal', seed: 5 });
+    E.setLine(s, 0, [0, 1, 2]); s.inv.express = 1; E.makeExpress(s, 0);
+    const snap = E.routesOf(s);
+    E.removeLine(s, 0);
+    if (s.inv.express !== 1) fails.push('express: removing an express line lost the express');
+    E.restoreRoutes(s, snap);
+    if (!s.lines[0].express || s.inv.express !== 0) fails.push('express: undo did not bring the express line back');
+  }
+
   // Moving trains: storing keeps the train count, every line keeps one train, carriages travel with the train.
   {
     const s = E.newGame({ city: 'lisboa', mode: 'normal', seed: 5 });

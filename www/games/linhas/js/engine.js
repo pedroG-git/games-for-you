@@ -641,13 +641,14 @@ export function removeLine(s, lineIdx) {
   });
   s.inv.trains += line.trains.length - 1;
   s.inv.tunnels += usage(s, line.stations, line.loop);
+  if (line.express) s.inv.express = (s.inv.express || 0) + 1; // the express goes back to the spares too
   s.lines.splice(lineIdx, 1);
   s.rev++;
 }
 
 // Undo support: the routes of all lines, and putting them back. Trains and passengers stay where they are.
 export function routesOf(s) {
-  return s.lines.map((l) => ({ color: l.color, stations: l.stations.slice(), loop: l.loop }));
+  return s.lines.map((l) => ({ color: l.color, stations: l.stations.slice(), loop: l.loop, express: !!l.express }));
 }
 export function restoreRoutes(s, snap) {
   const keep = new Set(snap.map((r) => r.color));
@@ -664,6 +665,7 @@ export function restoreRoutes(s, snap) {
       s.lines[i].color = r.color; // removeLine kept all but one train, setLine just gave it a new one
     } else setLine(s, i, r.stations);
     setLoop(s, i, r.loop);
+    if (r.express) makeExpress(s, i); // a removed express line comes back express (removing it gave the express back)
   }
   s.inv.lines = lines;
   s.inv.tunnels -= 1000;

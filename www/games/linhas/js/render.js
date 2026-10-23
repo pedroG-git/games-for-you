@@ -516,4 +516,24 @@ export function draw(S, ui, now) {
     c.fillText(f.text, s.x, s.y - 18 - t * 26);
   }
   c.globalAlpha = 1;
+
+  // zoomed in: a station filling up out of sight gets a marker at the screen edge, pointing to it
+  R.marks = [];
+  const x0 = 34, y0 = R.padT + 34, x1 = R.W - 34, y1 = R.H - R.padB - 34, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  for (const st of S.stations) {
+    if (!(st.overflow > 0)) continue;
+    const s = toScreen(st.x, st.y);
+    if (s.x > x0 - 20 && s.x < x1 + 20 && s.y > y0 - 20 && s.y < y1 + 20) continue;
+    const dx = s.x - cx, dy = s.y - cy, f = Math.min(Math.abs((dx > 0 ? x1 - cx : cx - x0) / dx || Infinity), Math.abs((dy > 0 ? y1 - cy : cy - y0) / dy || Infinity));
+    const mx = cx + dx * f, my = cy + dy * f, a = Math.atan2(dy, dx), hot = st.overflow > 0.5;
+    R.marks.push({ x: mx, y: my });
+    c.save(); c.translate(mx, my);
+    c.fillStyle = hot ? `rgba(214,51,51,${0.75 + 0.2 * Math.sin(now / 140)})` : T.ink;
+    c.save(); c.rotate(a); c.beginPath(); c.moveTo(25, 0); c.lineTo(13, -8); c.lineTo(13, 8); c.closePath(); c.fill(); c.restore();
+    c.beginPath(); c.arc(0, 0, 16, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 3;
+    c.beginPath(); c.arc(0, 0, 12, -Math.PI / 2, -Math.PI / 2 + st.overflow * Math.PI * 2); c.stroke();
+    c.fillStyle = '#fff'; shapePath(c, st.shape, 0, 0, 6); c.fill();
+    c.restore();
+  }
 }

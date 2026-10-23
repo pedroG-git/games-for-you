@@ -232,6 +232,8 @@ export function initInput(canvas, api) {
     const S = api.get();
     if (!S || api.blocked() || drag || pinch) return;
     const p = pos(e);
+    // A tap on the edge marker of a station filling up out of sight zooms back out to the whole map.
+    if ((R.marks || []).some((m) => Math.hypot(m.x - p.x, m.y - p.y) < 26)) { R.zoom = { k: 1, x: 0, y: 0 }; play.tap(); return; }
     if (ui.tool) { applyTool(S, p); return; }
     // With a line picked in the bar, tapping one of its stations takes that station off the line.
     if (ui.sel != null && S.lines[ui.sel]) {
