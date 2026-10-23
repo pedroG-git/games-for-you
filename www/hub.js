@@ -47,6 +47,8 @@
     return false;
   }
 
+  // Always the newest published APK, so an update never stops at an in-between version.
+  const LATEST = `https://github.com/${REPO}/releases/latest/download/${APK}`;
   let downloadUrl = '';
   // Latest version: GitHub Pages first (no rate limit), GitHub API as a fallback.
   async function latest() {
@@ -54,14 +56,14 @@
       const r = await fetch(`https://pedrog-git.github.io/games-for-you/version.json?t=${Date.now()}`, { cache: 'no-store' });
       if (r.ok) {
         const { version } = await r.json();
-        if (version) return { version, url: `https://github.com/${REPO}/releases/download/v${version}/${APK}` };
+        if (version) return { version, url: LATEST };
       }
     } catch {}
     const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     const rel = await r.json();
     const asset = (rel.assets || []).find((x) => x.name === APK);
-    return { version: rel.tag_name, url: asset ? asset.browser_download_url : rel.html_url };
+    return { version: rel.tag_name, url: asset ? LATEST : rel.html_url };
   }
 
   async function check(manual) {
@@ -85,4 +87,6 @@
   $('updateBtn').addEventListener('click', () => downloadUrl && (location.href = downloadUrl));
   $('check').addEventListener('click', () => check(true));
   check(false);
+  // The app can stay open in the background for days: check again whenever it comes back.
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && check(false));
 })();
