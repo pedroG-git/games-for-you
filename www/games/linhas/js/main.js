@@ -395,6 +395,7 @@ function updateHud() {
     const color = inUse ? S.lines[i].color : free[i - S.lines.length] || '#999';
     b.className = 'chip' + (inUse ? ' used' : i < S.inv.lines ? '' : ' locked') + (ui.sel === i ? ' sel' : '');
     b.style.setProperty('--k', Rn.paint(color));
+    if (inUse) b.dataset.n = i + 1; // same number as the badge at the line's ends
     b.onclick = () => {
       if (!inUse) { play.tap(); toast(i < S.inv.lines ? 'Drag between stations to draw a line' : 'Unlock more lines each week'); return; }
       play.tap(); ui.sel = ui.sel === i ? null : i; hudKey = '';

@@ -105,7 +105,10 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
   content: ''; width: 30px; height: 30px; border-radius: 50%; box-sizing: border-box;
   border: 5px solid var(--k); background: rgba(255,255,255,.6); transition: transform .15s;
 }
-.chip.used::before { background: var(--k); }
+.chip.used::before {
+  background: var(--k); content: attr(data-n); display: flex; align-items: center; justify-content: center;
+  color: #fff; font: 700 13px system-ui, sans-serif; text-shadow: 0 1px 2px rgba(0,0,0,.35);
+}
 .chip.locked::before { border-color: rgba(0,0,0,.14); background: rgba(0,0,0,.04); }
 .chip.sel::before { transform: scale(1.15); box-shadow: 0 0 0 3px #fff, 0 0 0 5px #222; }
 .chip:active::before { transform: scale(.9); }
@@ -224,7 +227,10 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 #game.night .round, #game.night #bar .round, #game.night .cnt { background: rgba(40,50,74,.92); color: #eef1f7; box-shadow: 0 2px 0 rgba(0,0,0,.35); }
 #game.night #spares .cnt:not(.empty) { background: #eef1f7; color: #1f2a44; }
 #game.night .chip::before { background: rgba(22,28,43,.6); }
-#game.night .chip.used::before { background: var(--k); }
+#game.night .chip.used::before {
+  background: var(--k); content: attr(data-n); display: flex; align-items: center; justify-content: center;
+  color: #fff; font: 700 13px system-ui, sans-serif; text-shadow: 0 1px 2px rgba(0,0,0,.35);
+}
 #game.night .chip.locked::before { border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.04); }
 #game.night .chip.sel::before { box-shadow: 0 0 0 3px #161c2b, 0 0 0 5px #eef1f7; }
 #game.night #hint { background: #eef1f7; }

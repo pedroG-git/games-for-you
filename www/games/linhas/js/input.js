@@ -25,21 +25,22 @@ export function initInput(canvas, api) {
     return out;
   }
 
-  // The line segment under p. Near stations it only counts when `ends` is set (dropping a train there is fine,
+  // The line under p, using the lanes as drawn (side-by-side lines each have their own), so the finger gets the line
+  // it actually touches. Near stations it only counts when `ends` is set (dropping a train there is fine,
   // but grabbing there should start a new line instead).
   function segmentAt(S, p, reach = 18, ends = false) {
     let best = null, bd = reach;
-    S.lines.forEach((L, li) => pairs(L).forEach(([a, b], k) => {
-      const A = st(S, a), B = st(S, b);
-      if (!A || !B) return;
-      const sa = toScreen(A.x, A.y), sb = toScreen(B.x, B.y);
-      if (!ends && (Math.hypot(p.x - sa.x, p.y - sa.y) < 22 || Math.hypot(p.x - sb.x, p.y - sb.y) < 22)) return;
-      const pts = E.segmentPoints(A, B).map((q) => toScreen(q.x, q.y));
-      for (let i = 0; i < pts.length - 1; i++) {
-        const d = distSeg(p, pts[i], pts[i + 1]);
+    S.lines.forEach((L, li) => {
+      const path = R.paths[li], pr = pairs(L);
+      if (!path) return;
+      for (let i = 0; i < path.pts.length - 1; i++) {
+        const k = path.ks[i], ab = pr[k];
+        if (!ab) continue;
+        if (!ends && ab.some((id) => { const q = st(S, id), s = toScreen(q.x, q.y); return Math.hypot(p.x - s.x, p.y - s.y) < 22; })) continue;
+        const d = distSeg(p, path.pts[i], path.pts[i + 1]);
         if (d < bd) { bd = d; best = { line: li, k }; }
       }
-    }));
+    });
     return best;
   }
 
@@ -208,6 +209,7 @@ export function initInput(canvas, api) {
         return;
       }
     }
+    const was = ui.sel;
     ui.sel = null;
 
     // A terminal station sits right next to its end cap: whichever is closer to the finger wins.
@@ -238,6 +240,7 @@ export function initInput(canvas, api) {
     }
     if (!drag) return;
     drag.before = E.routesOf(S);
+    drag.p0 = p; drag.was = was;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     drag.cursor = toWorld(p.x, p.y);
     play.tap();
@@ -248,6 +251,7 @@ export function initInput(canvas, api) {
     const S = api.get();
     if (!drag || !S) return;
     const p = pos(e);
+    if (!drag.moved && Math.hypot(p.x - drag.p0.x, p.y - drag.p0.y) > 10) drag.moved = true;
     drag.cursor = toWorld(p.x, p.y);
     const id = stationAt(S, p);
     if (drag.kind === 'reroute') {
@@ -274,6 +278,13 @@ export function initInput(canvas, api) {
     const S = api.get(), d = drag;
     drag = null; ui.preview = null;
     if (!S || !d) return;
+    // A tap on a line (or on the number at its end) picks it: the others fade so you can see where it goes.
+    if (!d.moved && d.kind !== 'new' && S.lines[d.line]) {
+      play.tap();
+      ui.sel = d.was === d.line ? null : d.line;
+      if (ui.sel != null) api.toast('Tap a station to take it off · 🗑 removes the line');
+      api.changed(); return;
+    }
     let r = null;
     if (d.kind === 'new') {
       if (d.ids.length < 2) return;

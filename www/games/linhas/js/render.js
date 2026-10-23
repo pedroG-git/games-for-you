@@ -7,7 +7,7 @@ export const SR = 11;     // station radius
 export const R = {
   canvas: null, ctx: null, W: 0, H: 0, dpr: 1,
   cam: null, scale: 1, ox: 0, oy: 0, padT: 80, padB: 96,
-  pops: {}, floats: [], caps: [], overId: -1,
+  pops: {}, floats: [], caps: [], paths: [], overId: -1,
 };
 
 // Look of the map: day or night, and line colours that colour-blind players can tell apart.
@@ -38,7 +38,7 @@ export function resize() {
 
 export function reset(state) {
   R.cam = { ...state.view };
-  R.pops = {}; R.floats = []; R.caps = []; R.overId = -1;
+  R.pops = {}; R.floats = []; R.caps = []; R.paths = []; R.overId = -1; laneCache = { key: '', runs: [] };
 }
 
 export const pop = (id, now) => { R.pops[id] = now; };
@@ -105,38 +105,85 @@ function linePairs(L) {
 }
 const pairKey = (a, b) => (a < b ? a + '-' + b : b + '-' + a);
 
-// Lines that share a stretch of track are drawn side by side: which lines use each stretch.
-function sharing(S) {
-  const share = new Map();
-  S.lines.forEach((L, li) => linePairs(L).forEach(([a, b]) => {
-    const k = pairKey(a, b);
-    if (!share.has(k)) share.set(k, []);
-    if (!share.get(k).includes(li)) share.get(k).push(li);
-  }));
-  return share;
-}
-// Screen offset of line li on the stretch a-b.
-function offsetFor(S, share, li, a, b) {
-  const list = share.get(pairKey(a, b));
-  if (!list || list.length < 2) return { x: 0, y: 0 };
-  const lo = S.stations[Math.min(a, b)], hi = S.stations[Math.max(a, b)];
-  const dx = hi.x - lo.x, dy = hi.y - lo.y, l = Math.hypot(dx, dy) || 1;
-  const o = (list.indexOf(li) - (list.length - 1) / 2) * (LW + 2);
-  return { x: (-dy / l) * o, y: (dx / l) * o };
-}
-function linePath(S, share, L, li) {
-  const out = [];
-  for (const [a, b] of linePairs(L)) {
-    const off = offsetFor(S, share, li, a, b);
-    for (const p of segmentPoints(S.stations[a], S.stations[b])) {
-      const q = toScreen(p.x, p.y);
-      out.push({ x: q.x + off.x, y: q.y + off.y });
+// Every line is cut into straight runs. Runs of different lines that lie on top of each other (same direction, same
+// track, overlapping) form a corridor, and every line in a corridor gets its own lane, so no line hides another.
+export const GAP = LW + 3; // px between the centres of side-by-side lines: leaves a visible gap
+let laneCache = { key: '', runs: [] };
+function lanes(S) {
+  const key = S.lines.map((l) => l.stations.join(',') + (l.loop ? 'o' : '')).join('|');
+  if (key === laneCache.key) return laneCache.runs;
+  const runs = [];
+  S.lines.forEach((L, li) => linePairs(L).forEach(([a, b], k) => {
+    const p = segmentPoints(S.stations[a], S.stations[b]);
+    for (let i = 0; i < p.length - 1; i++) {
+      const A = p[i], B = p[i + 1], len = Math.hypot(B.x - A.x, B.y - A.y);
+      if (len < 1e-6) continue;
+      let ux = (B.x - A.x) / len, uy = (B.y - A.y) / len;
+      if (ux < -1e-6 || (Math.abs(ux) <= 1e-6 && uy < 0)) { ux = -ux; uy = -uy; } // same direction for both ways
+      const t0 = A.x * ux + A.y * uy, t1 = B.x * ux + B.y * uy;
+      runs.push({ li, k, A, B, ux, uy, c: A.y * ux - A.x * uy, lo: Math.min(t0, t1), hi: Math.max(t0, t1), lane: 0 });
     }
+  }));
+  const up = runs.map((_, i) => i), find = (i) => (up[i] === i ? i : (up[i] = find(up[i])));
+  for (let i = 0; i < runs.length; i++) for (let j = i + 1; j < runs.length; j++) {
+    const r = runs[i], q = runs[j];
+    if (Math.abs(r.ux - q.ux) > 1e-3 || Math.abs(r.uy - q.uy) > 1e-3 || Math.abs(r.c - q.c) > 0.5) continue;
+    if (Math.min(r.hi, q.hi) - Math.max(r.lo, q.lo) > 0.5) up[find(i)] = find(j);
   }
-  return out;
+  const groups = new Map();
+  runs.forEach((r, i) => { const g = find(i); if (!groups.has(g)) groups.set(g, new Set()); groups.get(g).add(r.li); });
+  runs.forEach((r, i) => {
+    const list = [...groups.get(find(i))].sort((x, y) => x - y);
+    r.lane = (list.indexOf(r.li) - (list.length - 1) / 2) * GAP;
+  });
+  laneCache = { key, runs };
+  return runs;
+}
+// Where two consecutive lanes meet: the corner of the shifted runs (or both ends when they are parallel).
+function corner(p1, q1, p2, q2) {
+  const d1x = q1.x - p1.x, d1y = q1.y - p1.y, d2x = q2.x - p2.x, d2y = q2.y - p2.y;
+  const den = d1x * d2y - d1y * d2x;
+  if (Math.abs(den) < 1e-6) return null;
+  const t = ((p2.x - p1.x) * d2y - (p2.y - p1.y) * d2x) / den;
+  const x = { x: p1.x + d1x * t, y: p1.y + d1y * t };
+  return Math.hypot(x.x - q1.x, x.y - q1.y) < GAP * 4 ? x : null;
+}
+// The drawn path of line li in screen pixels, plus which station pair (k) each piece belongs to.
+function linePath(S, li) {
+  const runs = lanes(S).filter((r) => r.li === li), pts = [], ks = [];
+  const seg = runs.map((r) => {
+    const a = toScreen(r.A.x, r.A.y), b = toScreen(r.B.x, r.B.y), ox = -r.uy * r.lane, oy = r.ux * r.lane;
+    return { a: { x: a.x + ox, y: a.y + oy }, b: { x: b.x + ox, y: b.y + oy }, k: r.k };
+  });
+  seg.forEach((s, i) => {
+    if (i === 0) { pts.push(s.a); return; }
+    const p = seg[i - 1], x = corner(p.a, p.b, s.a, s.b);
+    if (x) { pts.push(x); ks.push(p.k); } else { pts.push(p.b); ks.push(p.k); pts.push(s.a); ks.push(s.k); }
+  });
+  if (seg.length) { pts.push(seg[seg.length - 1].b); ks.push(seg[seg.length - 1].k); }
+  if (S.lines[li].loop && seg.length > 2) { // close the loop at a proper corner
+    const l = seg[seg.length - 1], f = seg[0], x = corner(l.a, l.b, f.a, f.b);
+    if (x) { pts[0] = x; pts[pts.length - 1] = x; }
+  }
+  return { pts, ks };
+}
+// Lane shift of line li at world point w (for trains).
+function laneAt(S, li, w) {
+  let best = null, bd = Infinity;
+  for (const r of lanes(S)) {
+    if (r.li !== li) continue;
+    const d = distSeg(w, r.A, r.B);
+    if (d < bd) { bd = d; best = r; }
+  }
+  return best ? { x: -best.uy * best.lane, y: best.ux * best.lane } : { x: 0, y: 0 };
+}
+function distSeg(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, L = dx * dx + dy * dy;
+  const t = L ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / L)) : 0;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
-// Short T-stub past each terminal: grab it to extend the line. pts are in screen pixels.
+// Stub past each terminal, ending in a round badge with the line's number: grab it to extend the line.
 function endCap(c, li, end, pts, color) {
   const sp = end === 'start' ? pts[0] : pts[pts.length - 1];
   let q = null;
@@ -144,10 +191,12 @@ function endCap(c, li, end, pts, color) {
   for (const o of order) if (Math.hypot(o.x - sp.x, o.y - sp.y) > 0.5) { q = o; break; }
   let dx = 0, dy = -1;
   if (q) { const L = Math.hypot(sp.x - q.x, sp.y - q.y) || 1; dx = (sp.x - q.x) / L; dy = (sp.y - q.y) / L; }
-  const tip = { x: sp.x + dx * 26, y: sp.y + dy * 26 };
+  const tip = { x: sp.x + dx * 24, y: sp.y + dy * 24 };
   c.strokeStyle = color; c.lineWidth = LW;
   c.beginPath(); c.moveTo(sp.x, sp.y); c.lineTo(tip.x, tip.y); c.stroke();
-  c.beginPath(); c.moveTo(tip.x - dy * 9, tip.y + dx * 9); c.lineTo(tip.x + dy * 9, tip.y - dx * 9); c.stroke();
+  c.fillStyle = color; c.beginPath(); c.arc(tip.x, tip.y, 8.5, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#fff'; c.font = 'bold 11px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(String(li + 1), tip.x, tip.y + 0.5);
   R.caps.push({ line: li, end, x: tip.x, y: tip.y });
 }
 
@@ -170,17 +219,26 @@ export function draw(S, ui, now) {
   }
   if (water) c.fill(water);
 
-  // lines
+  // lines: each one sits on a casing in the map colour, so side-by-side lines keep a gap and crossings show
+  // which line is on top. One line in focus (picked, or being edited) makes the others step back.
   c.lineCap = 'round'; c.lineJoin = 'round';
   R.caps = [];
-  const share = sharing(S);
+  R.paths = S.lines.map((_, i) => linePath(S, i));
+  const P = ui.preview, focus = ui.sel != null && S.lines[ui.sel] ? ui.sel : P ? P.line : ui.carry && ui.carry.target && ui.carry.target.line;
+  const bgc = T.bg || city.bg;
   S.lines.forEach((L, i) => {
-    const pts = linePath(S, share, L, i);
-    const dim = ui.preview && ui.preview.line === i ? 0.25 : 1;
+    const pts = R.paths[i].pts;
+    const editing = P && P.line === i;
+    const a = editing ? 0.3 : focus == null ? 1 : focus === i ? 1 : focus === -1 ? 0.55 : 0.3;
+    strokeScreen(c, pts, bgc, LW + 4, a);
     if (ui.sel === i) strokeScreen(c, pts, T.halo, LW + 8, 0.9);
-    strokeScreen(c, pts, paint(L.color), LW, dim);
-    if (!L.loop && pts.length > 1 && dim === 1) { endCap(c, i, 'start', pts, paint(L.color)); endCap(c, i, 'end', pts, paint(L.color)); }
-    if (water && dim === 1) { // tunnel: where the line is under the river, it gets a pale core
+    strokeScreen(c, pts, paint(L.color), LW, a);
+    if (!L.loop && pts.length > 1 && !editing) {
+      c.globalAlpha = a;
+      endCap(c, i, 'start', pts, paint(L.color)); endCap(c, i, 'end', pts, paint(L.color));
+      c.globalAlpha = 1;
+    }
+    if (water && a === 1) { // tunnel: where the line is under the river, it gets a pale core
       c.save(); c.clip(water);
       strokeScreen(c, pts, T.core, LW - 4);
       c.restore();
@@ -196,13 +254,14 @@ export function draw(S, ui, now) {
 
   // preview of the line being drawn
   if (ui.preview) {
-    const P = ui.preview, pts = [];
+    const pts = [];
     for (let i = 0; i < P.pts.length; i++) {
       if (i === 0) { pts.push(P.pts[0]); continue; }
       const seg = segmentPoints(P.pts[i - 1], P.pts[i]);
       pts.push(...seg.slice(1));
     }
-    strokeWorld(c, pts, P.bad ? '#d33' : paint(P.color), LW, P.bad ? 0.8 : 0.85);
+    strokeWorld(c, pts, bgc, LW + 4);
+    strokeWorld(c, pts, P.bad ? '#d33' : paint(P.color), LW, P.bad ? 0.8 : 1);
   }
 
   // trains: one rounded car per carriage, a little wider than the line, passengers as white shapes
@@ -212,11 +271,7 @@ export function draw(S, ui, now) {
     let pose;
     try { pose = trainPose(S, li, ti); } catch (e) { return; }
     if (!pose) return;
-    const n = L.stations.length;
-    let prev = t.i - t.dir;
-    if (L.loop) prev = (prev + n) % n;
-    else prev = Math.max(0, Math.min(n - 1, prev));
-    const off = n > 1 && prev !== t.i ? offsetFor(S, share, li, L.stations[prev], L.stations[t.i]) : { x: 0, y: 0 };
+    const off = laneAt(S, li, pose);
     const s = toScreen(pose.x, pose.y);
     c.save(); c.translate(s.x + off.x, s.y + off.y); c.rotate(pose.angle || 0);
     const cars = Math.max(1, t.cars || 1);
@@ -278,7 +333,7 @@ export function draw(S, ui, now) {
   // a spare being dragged: its target lights up, and the item floats above the finger
   if (ui.carry || ui.tool === 'train' || ui.tool === 'carriage') {
     const k = ui.carry, tg = k && k.target, pulse = 0.5 + 0.3 * Math.sin(now / 150);
-    if (k && k.kind === 'train' && tg && tg.line != null) strokeScreen(c, linePath(S, share, S.lines[tg.line], tg.line), paint(S.lines[tg.line].color), LW + 10, pulse * 0.6);
+    if (k && k.kind === 'train' && tg && tg.line != null) strokeScreen(c, R.paths[tg.line].pts, paint(S.lines[tg.line].color), LW + 10, pulse * 0.6);
     if (k && k.kind === 'interchange' && tg) {
       const s = toScreen(S.stations[tg.station].x, S.stations[tg.station].y);
       c.strokeStyle = '#e4423f'; c.lineWidth = 4; c.beginPath(); c.arc(s.x, s.y, SR + 12, 0, Math.PI * 2); c.stroke();
