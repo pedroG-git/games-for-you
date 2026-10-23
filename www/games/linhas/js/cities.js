@@ -22,7 +22,7 @@ function lake(cx, cy, rx, ry, n = 22) {
   return p;
 }
 
-const COLORS = ['#e4423f', '#2f6fd6', '#f2b51d', '#2fa35b', '#8e4fc4', '#f0782d', '#2bb3c0'];
+export const COLORS = ['#e4423f', '#2f6fd6', '#f2b51d', '#2fa35b', '#8e4fc4', '#f0782d', '#2bb3c0'];
 
 export const CITIES = [
   {
@@ -94,3 +94,6 @@ export const CITIES = [
 
 // Stars for each city: passengers delivered in one game.
 export const GOALS = [300, 800, 1500];
+
+// Colour-blind friendly line colours (Okabe & Ito), in the same order as COLORS.
+export const CB_COLORS = ['#d55e00', '#0072b2', '#f0e442', '#009e73', '#cc79a7', '#e69f00', '#56b4e9'];

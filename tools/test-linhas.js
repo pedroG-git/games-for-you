@@ -139,6 +139,18 @@ const WEEKS = Number(process.argv[2]) || 6;
     if (trains() !== T || s.inv.tunnels !== tun) fails.push(`undo ${seed}: trains ${trains()}/${T}, tunnels ${s.inv.tunnels}/${tun}`);
   }
 
+  // Moving trains: storing keeps the train count, every line keeps one train, carriages travel with the train.
+  {
+    const s = E.newGame({ city: 'lisboa', mode: 'normal', seed: 5 });
+    E.setLine(s, 0, [0, 1, 2]); E.setLine(s, 1, [0, 2]);
+    s.inv.trains = 1; s.inv.carriages = 1;
+    E.addTrain(s, 0, s.stations[1].x, s.stations[1].y); E.addCarriage(s, 0, 1);
+    if (E.storeTrain(s, 1, 0)) fails.push('storeTrain: took the last train of a line');
+    if (!E.moveTrainTo(s, 0, 1, 1, s.stations[2].x, s.stations[2].y)) fails.push('moveTrainTo failed');
+    if (s.lines[1].trains.length !== 2 || s.lines[1].trains[1].cars !== 2) fails.push('moveTrainTo: train or carriage lost');
+    if (!E.storeTrain(s, 1, 1) || s.inv.trains !== 1 || s.inv.carriages !== 1) fails.push('storeTrain: spares not returned');
+  }
+
   const d = E.newGame({ mode: 'daily', seed: 20261023 });
   if (d.city !== CITIES[20261023 % CITIES.length].id) fails.push('daily: wrong city');
   if (fails.length) { console.error('FAIL\n' + fails.join('\n')); process.exit(1); }

@@ -21,22 +21,40 @@ const OPT = {
 
 const pref = load(K.set) || {};
 let mode = pref.mode === 'relaxed' ? 'relaxed' : 'normal';
-delete pref.mode;
-Object.assign(settings, pref);
-const saveSettings = () => store(K.set, { sfx: settings.sfx, music: settings.music, vib: settings.vib, mode });
+for (const k of ['sfx', 'music', 'vib']) if (typeof pref[k] === 'boolean') settings[k] = pref[k];
+const look = Rn.look;
+look.night = !!pref.night; look.cb = !!pref.cb;
+let autoPause = !!pref.autoPause;
+const saveSettings = () => store(K.set, { sfx: settings.sfx, music: settings.music, vib: settings.vib, mode, night: look.night, cb: look.cb, autoPause });
+const applyLook = () => { $('#game').classList.toggle('night', look.night); hudKey = ''; };
 
 let S = null, ended = false, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, toastT = 0, hudKey = '';
 let undo = [], best0 = 0, cheered = false, shownScore = -1;
 const ui = { preview: null, tool: null, sel: null, hint: null, carry: null };
-const tut = load(K.tut) || {};
+let tut = load(K.tut) || {};
 
 const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const cityOf = (id) => CITIES.find((c) => c.id === id) || CITIES[0];
 const bestKey = (st) => (st.mode === 'relaxed' ? st.city + '-relaxed' : st.city);
 const starsFor = (score) => GOALS.filter((g) => score >= g).length;
 const starRow = (n, fresh = 0) => GOALS.map((_, i) => (i < n ? `<b class="${i >= n - fresh ? 'new' : ''}" style="animation-delay:${0.25 + (i - n + fresh) * 0.18}s">★</b>` : '<i>★</i>')).join('');
+// Unlocking counts your best in a city in any mode (Normal, Relaxed or Daily).
+function cityBest(id, all = load(K.best) || {}) {
+  return Math.max(all[id] || 0, all[id + '-relaxed'] || 0, all[id + '-daily'] || 0);
+}
+const isLocked = (c, all) => !!c.unlock && cityBest(c.unlock.city, all) < c.unlock.score;
+// Bests are saved while you play, not only when a game ends, so leaving a game early still counts.
+function recordBest(st = S) {
+  if (!st || !(st.score > 0)) return;
+  if (st.mode === 'daily') {
+    const d = load(K.daily);
+    if (!(d && d.date === st.seed && d.score >= st.score)) store(K.daily, { date: st.seed, score: st.score });
+  }
+  const all = load(K.best) || {}, k = st.mode === 'daily' ? st.city + '-daily' : bestKey(st);
+  if ((all[k] || 0) < st.score) { all[k] = st.score; store(K.best, all); }
+}
 function bestSoFar(st) {
-  if (st.mode === 'daily') { const d = load(K.daily); return d && d.date === today() ? d.score : 0; }
+  if (st.mode === 'daily') { const d = load(K.daily); return d && d.date === st.seed ? d.score : 0; }
   return (load(K.best) || {})[bestKey(st)] || 0;
 }
 
@@ -49,11 +67,34 @@ function show(name) {
 }
 const modal = (id, on) => { $(id).hidden = !on; };
 
-function waterSvg(c) {
-  const paths = (c.waterPolys || []).map((p) => `<path d="M${p.map(([x, y]) => `${Math.round(x)} ${Math.round(y)}`).join('L')}Z"/>`).join('');
-  return `<svg viewBox="0 0 1000 1250" preserveAspectRatio="xMidYMid slice"><rect width="1000" height="1600" fill="${c.bg}"/><g fill="${c.water}" transform="translate(0,-175)">${paths}</g>`
-    + `<g fill="none" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"><path d="M180 300 L500 300 L700 500 L700 900" stroke="${c.colors[0]}"/><path d="M250 1000 L250 650 L800 650" stroke="${c.colors[1]}"/></g>`
-    + `<g fill="#fff" stroke="#222" stroke-width="22"><circle cx="180" cy="300" r="46"/><rect x="654" y="854" width="92" height="92"/><circle cx="250" cy="1000" r="46"/><path d="M500 250 L550 340 L450 340Z"/><circle cx="800" cy="650" r="46"/></g></svg>`;
+// Menu card: the city's water plus a little network grown by the game itself, so each city looks like itself.
+const previews = new Map();
+function citySvg(c) {
+  if (previews.has(c.id)) return previews.get(c.id);
+  const g = E.newGame({ city: c.id, mode: 'relaxed', seed: [...c.id].reduce((h, ch) => h * 31 + ch.charCodeAt(0), 7) >>> 0 });
+  for (let i = 0; i < 2000 && g.stations.length < 7; i++) E.step(g, 0.1);
+  const st = g.stations, near = (from, pool) => pool.sort((p, q) => Math.hypot(p.x - from.x, p.y - from.y) - Math.hypot(q.x - from.x, q.y - from.y))[0];
+  // Two lines: one through the first four stations in nearest-neighbour order, one through the rest and back to it.
+  const a = [st[0]], rest = st.slice(1, 4);
+  while (rest.length) { const n = near(a[a.length - 1], rest); a.push(n); rest.splice(rest.indexOf(n), 1); }
+  const b = st.slice(4);
+  if (b.length) b.push(near(b[b.length - 1], a.slice()));
+  const path = (ids) => ids.map((p, i) => (i ? E.segmentPoints(ids[i - 1], p).slice(1) : [p])).flat()
+    .map((p, i) => `${i ? 'L' : 'M'}${Math.round(p.x)} ${Math.round(p.y)}`).join('');
+  const shape = (p) => {
+    const x = Math.round(p.x), y = Math.round(p.y);
+    if (p.shape === 'triangle') return `<path d="M${x} ${y - 40}L${x + 38} ${y + 26}L${x - 38} ${y + 26}Z"/>`;
+    if (p.shape === 'square') return `<rect x="${x - 32}" y="${y - 32}" width="64" height="64"/>`;
+    if (p.shape === 'circle') return `<circle cx="${x}" cy="${y}" r="34"/>`;
+    return `<path d="M${x} ${y - 40}L${x + 40} ${y}L${x} ${y + 40}L${x - 40} ${y}Z"/>`;
+  };
+  const water = (c.waterPolys || []).map((p) => `<path d="M${p.map(([x, y]) => `${Math.round(x)} ${Math.round(y)}`).join('L')}Z"/>`).join('');
+  const svg = `<svg viewBox="100 260 800 1000" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1000" height="1600" fill="${c.bg}"/><g fill="${c.water}">${water}</g>`
+    + `<g fill="none" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"><path d="${path(a)}" stroke="${Rn.paint(c.colors[0])}"/>`
+    + (b.length > 1 ? `<path d="${path(b)}" stroke="${Rn.paint(c.colors[1])}"/>` : '') + '</g>'
+    + `<g fill="#fff" stroke="#222" stroke-width="16">${st.map(shape).join('')}</g></svg>`;
+  previews.set(c.id, svg);
+  return svg;
 }
 
 function renderMenu() {
@@ -61,12 +102,12 @@ function renderMenu() {
   const bestOf = (c) => best[mode === 'relaxed' ? c.id + '-relaxed' : c.id] || 0;
   $('#cities').innerHTML = '';
   for (const c of CITIES) {
-    const locked = c.unlock && (best[c.unlock.city] || 0) < c.unlock.score;
+    const locked = isLocked(c, best);
     const b = document.createElement('button');
     b.className = 'city' + (locked ? ' locked' : '');
-    b.innerHTML = waterSvg(c) + `<b>${c.name}</b><small>${c.sub || ''}</small><span class="best">👑 ${bestOf(c)}</span>`
+    b.innerHTML = citySvg(c) + `<b>${c.name}</b><small>${c.sub || ''}</small><span class="best">👑 ${bestOf(c)}</span>`
       + `<span class="stars">${starRow(starsFor(bestOf(c)))}</span>`
-      + (locked ? `<span class="lock">🔒 ${c.unlock.score} in ${cityOf(c.unlock.city).name}</span>` : '');
+      + (locked ? `<span class="lock">🔒 ${c.unlock.score} in ${cityOf(c.unlock.city).name}<br><small>best ${cityBest(c.unlock.city, best)}</small></span>` : '');
     b.onclick = () => {
       unlock();
       if (locked) { play.locked(); return; }
@@ -119,7 +160,7 @@ function begin() {
   if (S.over) gameOver(-1);
   save();
 }
-function save() { if (S && !S.over) store(K.run, S); }
+function save() { recordBest(); if (S && !S.over) store(K.run, S); }
 setInterval(() => { if (!$('#game').hidden) save(); }, 4000);
 
 function toast(msg) {
@@ -144,7 +185,10 @@ function handle(events, now) {
       Rn.float(ev.x, ev.y, '+' + (ev.n || 1), now);
       cheer(ev.n || 1);
       if (now - lastDeliver > 90) { play.deliver(); lastDeliver = now; }
-    } else if (ev.type === 'warn') play.warn();
+    } else if (ev.type === 'warn') {
+      play.warn();
+      if (autoPause && !paused) { setPaused(true); toast('A station is filling up'); }
+    }
     else if (ev.type === 'week') { play.week(); showUpgrade(); }
     else if (ev.type === 'over') { gameOver(ev.id); break; }
   }
@@ -157,6 +201,8 @@ function cheer(n) {
   const was = S.score - n;
   const star = GOALS.findIndex((g) => was < g && S.score >= g);
   if (star >= 0) { toast(`${'★'.repeat(star + 1)}  Star ${star + 1} of 3!`); play.star(); return; }
+  const opened = CITIES.find((c) => c.unlock && c.unlock.city === S.city && was < c.unlock.score && S.score >= c.unlock.score && cityBest(S.city) < c.unlock.score);
+  if (opened) { recordBest(); toast(`🔓 ${opened.name} unlocked!`); play.star(); return; }
   if (!cheered && best0 > 0 && was <= best0 && S.score > best0) { cheered = true; toast('👑 New best!'); play.best(); }
 }
 
@@ -174,6 +220,7 @@ function showUpgrade() {
     b.innerHTML = `<span>${ic()}</span><b>${name}</b><small>${sub}</small>`;
     b.onclick = () => {
       E.chooseUpgrade(S, key); play.pick();
+      (S.weeks = S.weeks || []).push(S.score - (S.wk0 || 0));
       S.wk0 = S.score;
       modal('#upgrade', false); hudKey = ''; save();
     };
@@ -188,23 +235,20 @@ function gameOver(id) {
   S.over = true;
   Rn.R.overId = id;
   localStorage.removeItem(K.run);
-  let best, isBest = false;
   const had = starsFor(best0);
-  if (S.mode === 'daily') {
-    const t = today(), d = load(K.daily);
-    best = d && d.date === t ? d.score : 0;
-    if (S.score > best) { best = S.score; isBest = true; store(K.daily, { date: t, score: best }); }
-  } else {
-    const all = load(K.best) || {};
-    best = all[bestKey(S)] || 0;
-    if (S.score > best) { best = S.score; isBest = true; all[bestKey(S)] = best; store(K.best, all); }
-  }
+  recordBest();
+  const best = Math.max(best0, S.score), isBest = S.score > best0;
   $('#over-title').textContent = id >= 0 ? 'Overcrowded!' : 'Last stop!';
   $('#over-score').textContent = S.score;
   $('#over-stats').textContent = `${cityOf(S.city).name} · week ${S.week + 1} · ${S.stations.length} stations`;
   $('#over-best').textContent = isBest && S.score > 0 ? '👑 New best!' : `👑 Best ${best}`;
   const stars = starsFor(S.score);
   $('#over-stars').innerHTML = starRow(stars, Math.max(0, stars - had));
+  // Passengers per week, the last (unfinished) week included.
+  const weeks = (S.weeks || []).concat(S.score - (S.wk0 || 0)).slice(-12), top = Math.max(1, ...weeks);
+  const first = (S.weeks || []).length + 1 - weeks.length + 1;
+  $('#over-chart').innerHTML = weeks.map((n, i) => `<div><b style="height:${Math.max(3, Math.round((n / top) * 100))}%"></b><small>${first + i}</small></div>`).join('');
+  $('#over-chart').hidden = weeks.length < 2;
   const next = GOALS.find((g) => S.score < g);
   $('#over-sub').textContent = next ? `Passengers home · next ★ at ${next}` : 'Passengers home';
   setTimeout(() => { if (S && S.over) modal('#over', true); }, id >= 0 ? 1400 : 0);
@@ -227,9 +271,24 @@ $('#b-pause').onclick = () => { play.tap(); setPaused(!paused); };
 $('#p-resume').onclick = () => { play.tap(); setPaused(false); };
 $('#p-close').onclick = () => { play.tap(); modal('#pause', false); };
 $('#f-resume').onclick = () => { play.tap(); setPaused(false); };
-$('#f-more').onclick = () => { play.tap(); modal('#pause', true); };
-$('#p-restart').onclick = () => { play.tap(); modal('#pause', false); start(S.city, S.mode, S.mode === 'daily' ? today() : (Math.random() * 1e9) | 0); };
-$('#p-end').onclick = () => { modal('#pause', false); setPaused(false); gameOver(-1); };
+$('#f-more').onclick = () => { play.tap(); disarm(); modal('#pause', true); };
+// Restart and End game throw the run away, so they ask for a second tap.
+let armed = null, armT = 0;
+function confirmTap(btn, label, go) {
+  if (armed === btn) { disarm(); go(); return; }
+  disarm(); play.tap();
+  armed = btn; btn.dataset.label = btn.textContent; btn.textContent = label; btn.classList.add('confirm');
+  armT = setTimeout(disarm, 3000);
+}
+function disarm() {
+  clearTimeout(armT);
+  if (armed) { armed.textContent = armed.dataset.label; armed.classList.remove('confirm'); }
+  armed = null;
+}
+$('#p-restart').onclick = (e) => confirmTap(e.currentTarget, 'Tap again to restart', () => {
+  play.tap(); modal('#pause', false); start(S.city, S.mode, S.mode === 'daily' ? today() : (Math.random() * 1e9) | 0);
+});
+$('#p-end').onclick = (e) => confirmTap(e.currentTarget, 'Tap again to end', () => { modal('#pause', false); setPaused(false); gameOver(-1); });
 $('#b-speed').onclick = () => {
   play.tap();
   speed = speed === 1 ? 2 : 1;
@@ -283,6 +342,7 @@ const HINTS = {
   extend: 'Drag the ⊢ end of a line onto a new station',
   remove: 'Tap a coloured dot below to pick a line, then 🗑 to remove it',
   train: 'Drag the new train from below onto a busy line',
+  move: 'Tip: drag a train to move it — or onto the bar to keep it',
 };
 let hintFor = null, hintT = 0;
 function updateHint() {
@@ -295,6 +355,7 @@ function updateHint() {
   const loose = S.stations.some((st) => !S.lines.some((l) => l.stations.includes(st.id)));
   if (!tut.draw) h = 'draw';
   else if (!tut.train && S.inv.trains > 0) h = 'train';
+  else if (!tut.move && S.week >= 2 && S.lines.some((l) => l.trains.length > 1)) h = 'move';
   else if (!tut.extend && loose && S.t > 8) h = 'extend';
   else if (!tut.remove && S.week >= 1 && S.lines.length >= S.inv.lines) h = 'remove';
   // The optional hints go away by themselves after a while, the first one stays until a line is drawn.
@@ -333,7 +394,7 @@ function updateHud() {
     const inUse = i < S.lines.length;
     const color = inUse ? S.lines[i].color : free[i - S.lines.length] || '#999';
     b.className = 'chip' + (inUse ? ' used' : i < S.inv.lines ? '' : ' locked') + (ui.sel === i ? ' sel' : '');
-    b.style.setProperty('--k', color);
+    b.style.setProperty('--k', Rn.paint(color));
     b.onclick = () => {
       if (!inUse) { play.tap(); toast(i < S.inv.lines ? 'Drag between stations to draw a line' : 'Unlock more lines each week'); return; }
       play.tap(); ui.sel = ui.sel === i ? null : i; hudKey = '';
@@ -378,11 +439,16 @@ function frame(now) {
 document.querySelectorAll('.b-set').forEach((b) => b.addEventListener('click', () => {
   unlock(); play.tap();
   $('#s-sfx').checked = settings.sfx; $('#s-music').checked = settings.music; $('#s-vib').checked = settings.vib;
+  $('#s-night').checked = look.night; $('#s-cb').checked = look.cb; $('#s-auto').checked = autoPause;
   modal('#settings', true);
 }));
 $('#s-sfx').onchange = (e) => { settings.sfx = e.target.checked; saveSettings(); };
 $('#s-music').onchange = (e) => { settings.music = e.target.checked; setMusic(settings.music); saveSettings(); };
 $('#s-vib').onchange = (e) => { settings.vib = e.target.checked; saveSettings(); };
+$('#s-night').onchange = (e) => { look.night = e.target.checked; applyLook(); saveSettings(); };
+$('#s-cb').onchange = (e) => { look.cb = e.target.checked; applyLook(); saveSettings(); previews.clear(); if (!$('#menu').hidden) renderMenu(); };
+$('#s-auto').onchange = (e) => { autoPause = e.target.checked; saveSettings(); };
+$('#s-hints').onclick = () => { play.tap(); tut = {}; store(K.tut, tut); toast('Tips will show again'); };
 $('#b-close').onclick = () => { play.tap(); modal('#settings', false); };
 
 // ---------------------------------------------------------------- boot
@@ -393,6 +459,8 @@ document.addEventListener('visibilitychange', () => {
 addEventListener('pagehide', save);
 
 Rn.init($('#cv'));
+applyLook();
+recordBest(load(K.run)); // a game left unfinished before bests were saved during play
 initInput($('#cv'), {
   get: () => S,
   ui,

@@ -1,5 +1,5 @@
 // Canvas drawing for Linhas. Sizes are in screen pixels so the map stays readable while the city grows.
-import { CITIES } from './cities.js';
+import { CITIES, COLORS, CB_COLORS } from './cities.js';
 import { trainPose, segmentPoints } from './engine.js';
 
 export const LW = 7;      // line width
@@ -9,6 +9,15 @@ export const R = {
   cam: null, scale: 1, ox: 0, oy: 0, padT: 80, padB: 96,
   pops: {}, floats: [], caps: [], overId: -1,
 };
+
+// Look of the map: day or night, and line colours that colour-blind players can tell apart.
+export const look = { night: false, cb: false };
+const THEMES = {
+  day: { station: '#fff', ink: '#222', pax: '#333', core: 'rgba(255,255,255,.75)', halo: '#fff', wedge: 'rgba(40,40,50,.22)', soft: 'rgba(31,42,68,.35)' },
+  night: { station: '#1c2232', ink: '#eef1f7', pax: '#d3d9e6', core: 'rgba(8,12,22,.55)', halo: '#0b0f1a', wedge: 'rgba(230,235,245,.25)', soft: 'rgba(238,241,247,.35)',
+    bg: '#161c2b', water: '#253a52' },
+};
+export const paint = (c) => (look.cb && COLORS.includes(c) ? CB_COLORS[COLORS.indexOf(c)] : c);
 
 export function init(canvas) {
   R.canvas = canvas;
@@ -145,15 +154,15 @@ function endCap(c, li, end, pts, color) {
 function easeBack(t) { const s = 1.7; t -= 1; return t * t * ((s + 1) * t + s) + 1; }
 
 export function draw(S, ui, now) {
-  const c = R.ctx, city = CITIES.find((k) => k.id === S.city) || CITIES[0];
+  const c = R.ctx, city = CITIES.find((k) => k.id === S.city) || CITIES[0], T = look.night ? THEMES.night : THEMES.day;
   if (!R.cam) R.cam = { ...S.view };
   for (const p of ['x', 'y', 'w', 'h']) R.cam[p] += (S.view[p] - R.cam[p]) * 0.04;
   fit();
   c.setTransform(R.dpr, 0, 0, R.dpr, 0, 0);
-  c.fillStyle = city.bg; c.fillRect(0, 0, R.W, R.H);
+  c.fillStyle = T.bg || city.bg; c.fillRect(0, 0, R.W, R.H);
 
   // water
-  c.fillStyle = city.water;
+  c.fillStyle = T.water || city.water;
   const water = (city.waterPolys || []).length ? new Path2D() : null;
   for (const poly of city.waterPolys || []) {
     poly.forEach(([x, y], i) => { const p = toScreen(x, y); i ? water.lineTo(p.x, p.y) : water.moveTo(p.x, p.y); });
@@ -168,12 +177,12 @@ export function draw(S, ui, now) {
   S.lines.forEach((L, i) => {
     const pts = linePath(S, share, L, i);
     const dim = ui.preview && ui.preview.line === i ? 0.25 : 1;
-    if (ui.sel === i) strokeScreen(c, pts, '#fff', LW + 8, 0.9);
-    strokeScreen(c, pts, L.color, LW, dim);
-    if (!L.loop && pts.length > 1 && dim === 1) { endCap(c, i, 'start', pts, L.color); endCap(c, i, 'end', pts, L.color); }
+    if (ui.sel === i) strokeScreen(c, pts, T.halo, LW + 8, 0.9);
+    strokeScreen(c, pts, paint(L.color), LW, dim);
+    if (!L.loop && pts.length > 1 && dim === 1) { endCap(c, i, 'start', pts, paint(L.color)); endCap(c, i, 'end', pts, paint(L.color)); }
     if (water && dim === 1) { // tunnel: where the line is under the river, it gets a pale core
       c.save(); c.clip(water);
-      strokeScreen(c, pts, 'rgba(255,255,255,.75)', LW - 4);
+      strokeScreen(c, pts, T.core, LW - 4);
       c.restore();
     }
   });
@@ -193,11 +202,13 @@ export function draw(S, ui, now) {
       const seg = segmentPoints(P.pts[i - 1], P.pts[i]);
       pts.push(...seg.slice(1));
     }
-    strokeWorld(c, pts, P.bad ? '#d33' : P.color, LW, P.bad ? 0.8 : 0.85);
+    strokeWorld(c, pts, P.bad ? '#d33' : paint(P.color), LW, P.bad ? 0.8 : 0.85);
   }
 
   // trains: one rounded car per carriage, a little wider than the line, passengers as white shapes
+  const hidden = ui.carry && ui.carry.hide;
   S.lines.forEach((L, li) => L.trains.forEach((t, ti) => {
+    if (hidden && hidden.line === li && hidden.train === ti) return;
     let pose;
     try { pose = trainPose(S, li, ti); } catch (e) { return; }
     if (!pose) return;
@@ -211,7 +222,7 @@ export function draw(S, ui, now) {
     const cars = Math.max(1, t.cars || 1);
     for (let k = 0; k < cars; k++) {
       const x0 = -13 - k * 29;
-      c.fillStyle = L.color; c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = 1.5;
+      c.fillStyle = paint(L.color); c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = 1.5;
       c.beginPath(); c.roundRect ? c.roundRect(x0, -8.5, 26, 17, 4) : c.rect(x0, -8.5, 26, 17); c.fill(); c.stroke();
       c.fillStyle = '#fff';
       const pax = (t.pax || []).slice(k * 6, k * 6 + 6);
@@ -229,7 +240,7 @@ export function draw(S, ui, now) {
     const r = SR * k;
     if (st.overflow > 0) {
       const hot = st.overflow > 0.5;
-      c.fillStyle = hot ? `rgba(214,51,51,${0.25 + 0.12 * Math.sin(now / 140)})` : 'rgba(40,40,50,.22)';
+      c.fillStyle = hot ? `rgba(214,51,51,${0.25 + 0.12 * Math.sin(now / 140)})` : T.wedge;
       c.beginPath(); c.moveTo(s.x, s.y); c.arc(s.x, s.y, r + 16, -Math.PI / 2, -Math.PI / 2 + st.overflow * Math.PI * 2); c.closePath(); c.fill();
     }
     if (R.overId === st.id) {
@@ -237,14 +248,14 @@ export function draw(S, ui, now) {
       c.beginPath(); c.arc(s.x, s.y, r + 18 + Math.sin(now / 120) * 3, 0, Math.PI * 2); c.stroke();
     }
     if (st.interchange) {
-      c.fillStyle = '#fff'; c.strokeStyle = '#222'; c.lineWidth = 3.5;
+      c.fillStyle = T.station; c.strokeStyle = T.ink; c.lineWidth = 3.5;
       c.beginPath(); c.arc(s.x, s.y, r + 7, 0, Math.PI * 2); c.fill(); c.stroke();
     }
     shapePath(c, st.shape, s.x, s.y, r);
-    c.fillStyle = '#fff'; c.fill();
-    c.strokeStyle = '#222'; c.lineWidth = 3.5; c.stroke();
+    c.fillStyle = T.station; c.fill();
+    c.strokeStyle = T.ink; c.lineWidth = 3.5; c.stroke();
     // waiting passengers
-    c.fillStyle = '#333';
+    c.fillStyle = T.pax;
     (st.queue || []).forEach((sh, j) => {
       shapePath(c, sh, s.x + r + 9 + (j % 6) * 9, s.y - 5 + Math.floor(j / 6) * 9, 3.3);
       c.fill();
@@ -253,7 +264,7 @@ export function draw(S, ui, now) {
 
   // picked line: mark its stations, tapping one takes it off the line
   if (ui.sel != null && S.lines[ui.sel]) {
-    c.strokeStyle = S.lines[ui.sel].color; c.lineWidth = 3; c.setLineDash([5, 5]); c.lineDashOffset = -now / 60;
+    c.strokeStyle = paint(S.lines[ui.sel].color); c.lineWidth = 3; c.setLineDash([5, 5]); c.lineDashOffset = -now / 60;
     for (const id of S.lines[ui.sel].stations) { const s = toScreen(S.stations[id].x, S.stations[id].y); c.beginPath(); c.arc(s.x, s.y, SR + 9, 0, Math.PI * 2); c.stroke(); }
     c.setLineDash([]);
   }
@@ -266,23 +277,23 @@ export function draw(S, ui, now) {
 
   // a spare being dragged: its target lights up, and the item floats above the finger
   if (ui.carry || ui.tool === 'train' || ui.tool === 'carriage') {
-    const k = ui.carry, T = k && k.target, pulse = 0.5 + 0.3 * Math.sin(now / 150);
-    if (k && k.kind === 'train' && T) strokeScreen(c, linePath(S, share, S.lines[T.line], T.line), S.lines[T.line].color, LW + 10, pulse * 0.6);
-    if (k && k.kind === 'interchange' && T) {
-      const s = toScreen(S.stations[T.station].x, S.stations[T.station].y);
+    const k = ui.carry, tg = k && k.target, pulse = 0.5 + 0.3 * Math.sin(now / 150);
+    if (k && k.kind === 'train' && tg && tg.line != null) strokeScreen(c, linePath(S, share, S.lines[tg.line], tg.line), paint(S.lines[tg.line].color), LW + 10, pulse * 0.6);
+    if (k && k.kind === 'interchange' && tg) {
+      const s = toScreen(S.stations[tg.station].x, S.stations[tg.station].y);
       c.strokeStyle = '#e4423f'; c.lineWidth = 4; c.beginPath(); c.arc(s.x, s.y, SR + 12, 0, Math.PI * 2); c.stroke();
     }
     if ((k && k.kind === 'carriage') || ui.tool === 'carriage') {
       S.lines.forEach((L, li) => L.trains.forEach((t, ti) => {
         const q = trainPose(S, li, ti); if (!q) return;
-        const s = toScreen(q.x, q.y), on = T && T.line === li && T.train === ti;
-        c.strokeStyle = on ? '#e4423f' : 'rgba(31,42,68,.35)'; c.lineWidth = on ? 4 : 2;
+        const s = toScreen(q.x, q.y), on = tg && tg.line === li && tg.train === ti;
+        c.strokeStyle = on ? '#e4423f' : T.soft; c.lineWidth = on ? 4 : 2;
         c.beginPath(); c.arc(s.x, s.y, on ? 26 : 22, 0, Math.PI * 2); c.stroke();
       }));
     }
     if (k) {
-      const col = T && T.line != null ? S.lines[T.line].color : '#1f2a44';
-      c.save(); c.translate(k.x, k.y); c.globalAlpha = T ? 1 : 0.6;
+      const col = tg && tg.line != null ? paint(S.lines[tg.line].color) : '#1f2a44';
+      c.save(); c.translate(k.x, k.y); c.globalAlpha = tg ? 1 : 0.6;
       c.fillStyle = col; c.strokeStyle = '#fff'; c.lineWidth = 3;
       c.shadowColor = 'rgba(0,0,0,.3)'; c.shadowBlur = 10; c.shadowOffsetY = 4;
       c.beginPath();
@@ -299,7 +310,7 @@ export function draw(S, ui, now) {
   R.floats = R.floats.filter((f) => now - f.t0 < 900);
   for (const f of R.floats) {
     const t = (now - f.t0) / 900, s = toScreen(f.x, f.y);
-    c.globalAlpha = 1 - t; c.fillStyle = '#222';
+    c.globalAlpha = 1 - t; c.fillStyle = T.ink;
     c.fillText(f.text, s.x, s.y - 18 - t * 26);
   }
   c.globalAlpha = 1;

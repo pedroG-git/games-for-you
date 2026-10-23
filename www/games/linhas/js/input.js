@@ -137,11 +137,22 @@ export function initInput(canvas, api) {
   // Dragging a spare from the bar: the item floats a little above the finger so you can see where it lands.
   const LIFT = 36;
   let carry = null;
-  function startCarry(kind, e) {
+  function startCarry(kind, e, from = null) {
     const S = api.get();
     if (!S || api.blocked() || drag || carry) return;
-    carry = { kind, x0: e.clientX, y0: e.clientY, moved: false };
+    carry = { kind, from, x0: e.clientX, y0: e.clientY, moved: false };
   }
+  // A train already on the map, under p (not while it sits in a station: that grab draws a line).
+  function trainAt(S, p) {
+    let hit = null, bd = 20;
+    S.lines.forEach((L, li) => L.trains.forEach((t, ti) => {
+      const q = E.trainPose(S, li, ti); if (!q) return;
+      const sp = toScreen(q.x, q.y), d = Math.hypot(sp.x - p.x, sp.y - p.y);
+      if (d < bd) { bd = d; hit = { line: li, train: ti }; }
+    }));
+    return hit;
+  }
+  const overBar = (y) => { const b = document.getElementById('bar'); return b && y > b.getBoundingClientRect().top + 4; };
   addEventListener('pointermove', (e) => {
     if (!carry) return;
     const S = api.get();
@@ -149,12 +160,26 @@ export function initInput(canvas, api) {
     if (!carry.moved && Math.hypot(e.clientX - carry.x0, e.clientY - carry.y0) < 10) return;
     if (!carry.moved) { carry.moved = true; play.tap(); api.setTool(null); }
     const r = canvas.getBoundingClientRect(), p = { x: e.clientX - r.left, y: e.clientY - r.top - LIFT };
-    ui.carry = { kind: carry.kind, x: p.x, y: p.y, target: dropTarget(S, carry.kind, p) };
+    if (carry.from) {
+      // Moving a train: onto any line, or down onto the bar to put it back with the spares.
+      const back = overBar(e.clientY);
+      ui.carry = { kind: 'train', x: p.x, y: p.y, hide: carry.from, target: back ? { bar: true } : dropTarget(S, 'train', p) };
+    } else ui.carry = { kind: carry.kind, x: p.x, y: p.y, target: dropTarget(S, carry.kind, p) };
   });
   addEventListener('pointerup', () => {
     if (!carry) return;
     const c = carry, S = api.get(), k = ui.carry;
     carry = null; ui.carry = null;
+    if (c.from) {
+      if (!c.moved || !S || !k || api.blocked()) return;
+      const tg = k.target, f = c.from;
+      let ok;
+      if (tg && tg.bar) ok = E.storeTrain(S, f.line, f.train);
+      else if (tg) { const w = toWorld(k.x, k.y); ok = E.moveTrainTo(S, f.line, f.train, tg.line, w.x, w.y); }
+      else { api.toast('Drop it on a line — or on the bar to keep it'); play.locked(); return; }
+      if (ok) { play.connect(); api.changed(); } else { api.toast('Every line keeps at least one train'); play.locked(); }
+      return;
+    }
     if (!c.moved) { api.tapped(c.kind); return; }
     if (S && k && !api.blocked()) place(S, c.kind, k.target, k);
   });
@@ -185,8 +210,11 @@ export function initInput(canvas, api) {
     }
     ui.sel = null;
 
+    // A terminal station sits right next to its end cap: whichever is closer to the finger wins.
+    const sid = stationAt(S, p), sp = sid >= 0 ? toScreen(st(S, sid).x, st(S, sid).y) : null;
     for (const cap of R.caps) {
-      if (Math.hypot(cap.x - p.x, cap.y - p.y) > CAP_HIT) continue;
+      const dc = Math.hypot(cap.x - p.x, cap.y - p.y);
+      if (dc > CAP_HIT || (sp && Math.hypot(sp.x - p.x, sp.y - p.y) < dc)) continue;
       const L = S.lines[cap.line];
       let ids = L.stations.slice();
       if (cap.end === 'start') ids.reverse();
@@ -199,6 +227,10 @@ export function initInput(canvas, api) {
         if (S.lines.length >= S.inv.lines) { api.toast('No free line'); play.locked(); return; }
         drag = { kind: 'new', line: S.lines.length, ids: [id], loop: false, color: freeColor(S) };
       }
+    }
+    if (!drag) {
+      const tr = trainAt(S, p);
+      if (tr) { startCarry('move', e, tr); return; }
     }
     if (!drag) {
       const seg = segmentAt(S, p);

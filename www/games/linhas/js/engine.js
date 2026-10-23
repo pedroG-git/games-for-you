@@ -455,6 +455,34 @@ export function addCarriage(s, lineIdx, trainIdx) {
   return true;
 }
 
+// Takes a train off its line and back to the spares (with its carriages); its passengers get off at the nearest stop.
+// Every line keeps at least one train.
+export function storeTrain(s, lineIdx, trainIdx) {
+  const line = s.lines[lineIdx], tr = line && line.trains[trainIdx];
+  if (!tr || line.trains.length < 2) return false;
+  const p = trainPose(s, lineIdx, trainIdx), id = nearestStation(s, p.x, p.y, line.stations);
+  s.stations[id].queue.push(...tr.pax.filter((k) => k !== s.stations[id].shape));
+  s.inv.carriages += tr.cars - 1;
+  s.inv.trains++;
+  line.trains.splice(trainIdx, 1);
+  return true;
+}
+// Moves a train (and its carriages) to the point of a line closest to (x, y) — another line, or elsewhere on its own.
+export function moveTrainTo(s, lineIdx, trainIdx, toLine, x, y) {
+  const line = s.lines[lineIdx], tr = line && line.trains[trainIdx];
+  if (!tr || !s.lines[toLine]) return false;
+  if (toLine !== lineIdx && line.trains.length < 2) return false;
+  const cars = tr.cars;
+  s.inv.trains++; s.inv.carriages += cars - 1;
+  const p = trainPose(s, lineIdx, trainIdx), id = nearestStation(s, p.x, p.y, line.stations);
+  s.stations[id].queue.push(...tr.pax.filter((k) => k !== s.stations[id].shape));
+  line.trains.splice(trainIdx, 1);
+  addTrain(s, toLine, x, y);
+  const moved = s.lines[toLine].trains[s.lines[toLine].trains.length - 1];
+  moved.cars = cars; s.inv.carriages -= cars - 1;
+  return true;
+}
+
 // Puts every spare train and carriage where it's needed most (used by the test bots).
 export function autoPlace(s) { placeSpares(s); }
 function placeSpares(s) {

@@ -214,3 +214,29 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 #spares .cnt:not(.empty) { background: #1f2a44; color: #fff; animation: ready 1.4s ease-in-out infinite; }
 @keyframes ready { 50% { box-shadow: 0 0 0 5px rgba(228,66,63,.35), 0 2px 0 rgba(0,0,0,.15); } }
 #bar .row { flex-wrap: wrap; }
+
+/* night map: the HUD goes dark with it */
+#game.night { background: #161c2b; }
+#game.night #hud, #game.night #score { color: #eef1f7; }
+#game.night #goal, #game.night #week small { color: #9aa6bf; }
+#game.night #dots i { background: rgba(255,255,255,.18); }
+#game.night #dots i.on { background: #eef1f7; }
+#game.night .round, #game.night #bar .round, #game.night .cnt { background: rgba(40,50,74,.92); color: #eef1f7; box-shadow: 0 2px 0 rgba(0,0,0,.35); }
+#game.night #spares .cnt:not(.empty) { background: #eef1f7; color: #1f2a44; }
+#game.night .chip::before { background: rgba(22,28,43,.6); }
+#game.night .chip.used::before { background: var(--k); }
+#game.night .chip.locked::before { border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.04); }
+#game.night .chip.sel::before { box-shadow: 0 0 0 3px #161c2b, 0 0 0 5px #eef1f7; }
+#game.night #hint { background: #eef1f7; }
+
+/* restart / end game ask twice */
+.ghostbtn.confirm { background: #e4423f; color: #fff; }
+
+/* passengers per week on the game-over card */
+#over-chart { display: flex; align-items: flex-end; gap: 4px; height: 70px; padding: 0 4px; }
+#over-chart div { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; }
+#over-chart b { width: 100%; max-width: 22px; border-radius: 4px 4px 2px 2px; background: #2f6fd6; animation: grow .5s ease-out both; transform-origin: bottom; }
+#over-chart div:last-child b { background: #e4423f; }
+#over-chart small { font-size: 10px; color: #9aa6bf; font-weight: 700; }
+@keyframes grow { from { transform: scaleY(0); } }
+#settings label span { text-align: left; }
