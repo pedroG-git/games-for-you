@@ -152,7 +152,7 @@ function begin() {
   paused = false; speed = 1; hudKey = ''; ended = false;
   undo = []; best0 = bestSoFar(S); cheered = false; shownScore = -1;
   $('#game').classList.remove('viewing'); $('#mapview').hidden = true;
-  ui.preview = null; ui.tool = null; ui.sel = null; ui.carry = null; ui.info = null;
+  ui.preview = null; ui.tool = null; ui.sel = null; ui.carry = null; ui.info = null; $('#timeline').hidden = true;
   for (const id of ['#pause', '#upgrade', '#over', '#settings']) modal(id, false);
   $('#frozen').hidden = true; $('#game').classList.remove('frozen'); $('#b-pause').classList.remove('on');
   $('#b-speed').textContent = '▶';
@@ -312,13 +312,51 @@ function edited(before) {
   if (undo.length > 30) undo.shift();
   hudKey = '';
 }
-$('#b-undo').onclick = () => {
+// Go back `n` steps at once (the timeline), or one step (a tap on undo).
+function undoTo(n) {
   if (!S || S.over || S.pendingUpgrade) return;
-  const snap = undo.pop();
-  if (!snap) { play.locked(); toast('Nothing to undo'); return; }
+  if (!undo.length) { play.locked(); toast('Nothing to undo'); return; }
+  const snap = undo.splice(Math.max(0, undo.length - n))[0];
   E.restoreRoutes(S, snap); play.undo();
   ui.sel = null; ui.tool = null; hudKey = ''; save();
-};
+}
+let holdT = 0, held = false;
+$('#b-undo').onpointerdown = () => { held = false; clearTimeout(holdT); holdT = setTimeout(() => { held = true; openTimeline(); }, 450); };
+$('#b-undo').onpointerup = $('#b-undo').onpointerleave = () => clearTimeout(holdT);
+$('#b-undo').onclick = () => { if (held) { held = false; return; } $('#timeline').hidden = true; undoTo(1); };
+$('#b-undo').oncontextmenu = (e) => e.preventDefault();
+// Small map of a set of routes, the way the map looks now.
+function miniMap(cv, routes) {
+  const c = cv.getContext('2d'), W = cv.width = 128, H = cv.height = 168, v = S.view;
+  const k = Math.min((W - 16) / v.w, (H - 16) / v.h), ox = (W - v.w * k) / 2 - v.x * k, oy = (H - v.h * k) / 2 - v.y * k;
+  const P = (st) => [st.x * k + ox, st.y * k + oy];
+  c.lineWidth = 5; c.lineCap = c.lineJoin = 'round';
+  for (const r of routes) {
+    c.strokeStyle = Rn.paint(r.color); c.beginPath();
+    const ids = r.loop ? [...r.stations, r.stations[0]] : r.stations;
+    ids.forEach((id, i) => {
+      if (!i) { c.moveTo(...P(S.stations[id])); return; }
+      for (const q of E.segmentPoints(S.stations[ids[i - 1]], S.stations[id]).slice(1)) c.lineTo(...P(q));
+    });
+    c.stroke();
+  }
+  c.fillStyle = '#fff'; c.strokeStyle = '#222'; c.lineWidth = 2;
+  for (const st of S.stations) { const [x, y] = P(st); c.beginPath(); c.arc(x, y, 4, 0, Math.PI * 2); c.fill(); c.stroke(); }
+}
+function openTimeline() {
+  if (!S || S.over || !undo.length) { play.locked(); return; }
+  play.tap();
+  const row = $('#tl-row'); row.innerHTML = '';
+  for (let n = 1; n <= undo.length; n++) {
+    const b = document.createElement('button'), cv = document.createElement('canvas');
+    miniMap(cv, undo[undo.length - n]);
+    b.append(cv); b.insertAdjacentHTML('beforeend', `<i>−${n}</i>`);
+    b.onclick = () => { $('#timeline').hidden = true; undoTo(n); };
+    row.append(b);
+  }
+  $('#timeline').hidden = false;
+}
+$('#cv').addEventListener('pointerdown', () => { $('#timeline').hidden = true; });
 $('#b-trash').onclick = () => {
   if (ui.sel == null || !S.lines[ui.sel]) return;
   const before = E.routesOf(S);
@@ -435,6 +473,7 @@ function updateHud() {
   }
   $('#b-trash').hidden = ui.sel == null || !S.lines[ui.sel];
   $('#b-undo').classList.toggle('off', !undo.length);
+  if (undo.length > 1) $('#b-undo').dataset.n = undo.length; else delete $('#b-undo').dataset.n;
   // Spare trains and carriages are placed by themselves, so their counters only show while some are waiting.
   const cnt = (id, n, tool, hideEmpty) => {
     const b = $(id);
