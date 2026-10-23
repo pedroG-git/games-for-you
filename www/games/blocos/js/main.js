@@ -27,6 +27,19 @@ const saveProg = () => store(PROG, prog);
 const unlockedIn = (mode) => Math.max(0, ...Object.keys(prog[mode]).map(Number)) + 1;
 const totalStars = () => ['time', 'moves', 'relaxed'].reduce((s, m) => s + Object.values(prog[m]).reduce((a, b) => a + b, 0), 0);
 
+// Power-ups: earned by winning Adventures levels and the daily puzzle, used anywhere (most of all when stuck).
+const POWER = 'blocos-power', DAILY = 'blocos-daily';
+const PW = ['fresh', 'turn', 'bomb'], PW_ICON = { fresh: '🔄', turn: '↻', bomb: '💣' };
+const pw = Object.assign({ fresh: 2, turn: 2, bomb: 1 }, load(POWER) || {});
+const savePw = () => store(POWER, pw);
+let arm = null; // 'bomb' while waiting for a tap on the board
+
+// Daily puzzle: a new level every day, solving it on days in a row builds a streak.
+const daily = Object.assign({ last: '', streak: 0 }, load(DAILY) || {});
+const dayStr = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return dayStr(d); };
+const streakNow = () => (daily.last === dayStr() || daily.last === yesterday() ? daily.streak : 0);
+
 function newGame() {
   const grid = Array(N * N).fill(0);
   S = {
@@ -46,6 +59,7 @@ const help = () => (S.adv ? DIFFS[S.adv.diff].help : 0);
 // ---------------------------------------------------------------- screens
 function show(name) {
   screen = name;
+  arm = null;
   for (const id of ['menu', 'map', 'app']) $(id).hidden = id !== name;
   for (const id of ['over', 'win', 'lvl']) $(id).hidden = true;
   localStorage.setItem(SCREEN, name === 'app' ? (S.adv ? 'adv' : 'classic') : name);
@@ -57,7 +71,15 @@ function openMenu() {
   $('m-best').textContent = best;
   $('m-stars').textContent = totalStars();
   $('menu-cats').innerHTML = `<div>${catSVG('meme')}</div><div>${catSVG('mimi')}</div>`;
+  const done = daily.last === dayStr(), st = streakNow();
+  $('m-daily').classList.toggle('ready', !done);
+  $('m-daily-sub').textContent = done ? `✓${st > 1 ? ` 🔥${st}` : ' Done'}` : st ? `🔥${st} · Play!` : 'New!';
   show('menu');
+}
+
+function startDaily() {
+  const d = new Date(), day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
+  startLevel('moves', day, 1, dayStr());
 }
 
 function openClassic() {
@@ -73,15 +95,16 @@ function openMap() {
   renderMap($('map-scroll'), $('map-path'), prog[prog.mode], unlockedIn(prog.mode), openLevel);
 }
 
-function startLevel(mode, n, diff) {
-  const info = levelInfo(mode, n, diff);
+// day = the daily puzzle's date: its levels come from their own seeds ('daily'), played with the Moves rules.
+function startLevel(mode, n, diff, day = null) {
+  const info = levelInfo(day ? 'daily' : mode, n, diff);
   const grid = info.grid.slice();
-  prog.mode = mode; saveProg();
+  if (!day) { prog.mode = mode; saveProg(); }
   S = {
     grid, tray: null, score: 0, combo: 0, miss: 0,
     undo: null, undoReady: true, pending: null, over: false, won: false, why: '',
     adv: {
-      mode, n, diff, left: info.total, total: info.total, started: false,
+      mode, n, diff, daily: day, left: info.total, total: info.total, started: false,
       moves: mode === 'moves' ? info.moves : null, time: mode === 'time' ? info.time : null, timeTotal: info.time,
     },
   };
@@ -178,13 +201,20 @@ function renderHud() {
   const a = S.adv;
   $('best').hidden = !!a;
   $('chip').hidden = !a;
-  if (a) $('chip').innerHTML = `Level ${a.n} <span>${stars(a.diff)}</span>`;
+  if (a) $('chip').innerHTML = a.daily ? `📅 Daily${streakNow() ? ` <span>🔥${streakNow()}</span>` : ''}` : `Level ${a.n} <span>${stars(a.diff)}</span>`;
   $('best-n').textContent = best;
   $('score').classList.toggle('goal', !!a);
   const c = $('combo');
-  c.hidden = S.combo < 2;
-  c.textContent = `Combo x${S.combo}`;
+  c.hidden = S.combo < 2 && !arm;
+  c.textContent = arm ? '💣 Tap the board to drop the bomb' : `Combo x${S.combo}`;
   $('b-undo').disabled = !(S.undo && S.undoReady) || S.over || S.won;
+  document.querySelectorAll('#bottom .pw').forEach((b) => {
+    const k = b.dataset.pw;
+    b.querySelector('i').textContent = pw[k] || '+';
+    b.classList.toggle('none', !pw[k]);
+    b.classList.toggle('armed', arm === k);
+  });
+  board.classList.toggle('aim', arm === 'bomb');
   renderLimit();
 }
 
@@ -311,7 +341,7 @@ function gameOver(instant = false) {
       $('over-title').textContent = OVER_TITLE[S.why] || OVER_TITLE.space;
       $('over-lbl').textContent = 'Blocks left';
       $('over-score').textContent = a.left;
-      $('over-sub').textContent = `Level ${a.n} · ${DIFFS[a.diff].name}`;
+      $('over-sub').textContent = a.daily ? '📅 Daily puzzle' : `Level ${a.n} · ${DIFFS[a.diff].name}`;
       $('b-again').textContent = 'Try again';
     } else {
       $('over-title').textContent = S.beat ? 'New Best!' : 'No more space!';
@@ -321,7 +351,12 @@ function gameOver(instant = false) {
       $('b-again').textContent = 'Play again';
     }
     $('b-over-map').hidden = !a;
+    $('b-over-map').textContent = a && a.daily ? '🏠 Menu' : '🗺️ Map';
     $('b-over-undo').hidden = !(S.undo && S.undoReady) || S.why === 'time';
+    $('b-over-fresh').hidden = S.why !== 'space' || !pw.fresh;
+    $('b-over-bomb').hidden = S.why !== 'space' || !pw.bomb;
+    $('b-over-fresh').textContent = `🔄 New pieces (${pw.fresh} left)`;
+    $('b-over-bomb').textContent = `💣 Drop a bomb (${pw.bomb} left)`;
     $('over').hidden = false;
   }, instant ? 0 : 1100);
 }
@@ -336,9 +371,19 @@ const WIN_LINES = [
 function win() {
   const a = S.adv;
   S.won = true;
-  const had = prog[a.mode][a.n] || 0;
-  if (a.diff > had) { prog[a.mode][a.n] = a.diff; saveProg(); }
+  const had = a.daily ? 0 : prog[a.mode][a.n] || 0;
+  if (!a.daily && a.diff > had) { prog[a.mode][a.n] = a.diff; saveProg(); }
   localStorage.removeItem(RUN);
+  // Rewards: one random power-up per level, one of each for the first daily solve of the day.
+  const gift = [], first = a.daily && a.daily === dayStr() && daily.last !== a.daily;
+  if (first) {
+    daily.streak = (daily.last === yesterday() ? daily.streak : 0) + 1;
+    daily.last = a.daily;
+    store(DAILY, daily);
+    gift.push(...PW);
+  } else if (!a.daily) gift.push(PW[Math.floor(Math.random() * PW.length)]);
+  for (const k of gift) pw[k]++;
+  savePw();
   setTimeout(() => {
     praise('Level Clear!', '');
     play.best();
@@ -347,8 +392,8 @@ function win() {
   }, 350);
   setTimeout(() => {
     if (screen !== 'app' || !S.won) return;
-    $('win-title').textContent = `Level ${a.n} complete!`;
-    const got = Math.max(had, a.diff);
+    $('win-title').textContent = a.daily ? 'Daily puzzle solved!' : `Level ${a.n} complete!`;
+    const got = a.daily ? 3 : Math.max(had, a.diff);
     [...$('win-stars').children].forEach((s, i) => {
       s.className = i < got ? 'on' : '';
       s.style.animationDelay = 250 + i * 250 + 'ms';
@@ -357,6 +402,13 @@ function win() {
     $('win-msg').textContent = a.diff === 3 ? 'All 3 stars. Purrfect!'
       : a.diff > had ? `Beat it on ${DIFFS[a.diff + 1].name} for ${stars(a.diff + 1)}`
         : `You already have ${stars(had)} here`;
+    if (a.daily) {
+      const st = streakNow();
+      $('win-msg').textContent = first ? `🔥 ${st} ${st === 1 ? 'day' : 'days in a row'} · a new puzzle tomorrow` : a.daily !== dayStr() ? "That was yesterday's puzzle · today's is waiting" : 'Already solved today · a new puzzle tomorrow';
+    }
+    $('win-gift').textContent = gift.length ? `Reward: ${gift.map((k) => PW_ICON[k]).join(' ')}` : '';
+    $('win-next').hidden = !!a.daily;
+    $('win-map').textContent = a.daily ? '🏠 Menu' : '🗺️ Map';
     $('win').hidden = false;
   }, 1600);
 }
@@ -526,6 +578,7 @@ slots.forEach((slot, i) => {
   slot.addEventListener('pointerdown', (e) => {
     unlock();
     if (drag || S.over || S.won || !S.tray[i]) return;
+    if (arm) { arm = null; renderHud(); }
     const p = S.tray[i];
     if (S.adv && S.adv.time !== null && !S.adv.started) { S.adv.started = true; lastT = performance.now(); renderLimit(); }
     float.className = '';
@@ -572,6 +625,79 @@ function drop() {
   drag = null;
 }
 
+// ---------------------------------------------------------------- power-ups
+// Turning = the same shape rotated a quarter turn clockwise (every orientation is in SHAPES).
+const shapeKey = (cells) => cells.map(([r, c]) => r * N + c).sort((a, b) => a - b).join();
+const TURN = SHAPES.map((sh, i) => {
+  const k = shapeKey(sh.cells.map(([r, c]) => [c, sh.h - 1 - r]));
+  const j = SHAPES.findIndex((o) => shapeKey(o.cells) === k);
+  return j < 0 ? i : j;
+});
+
+function spend(k) { pw[k]--; savePw(); arm = null; S.undo = null; }
+
+// After a power-up the board may have room again: clear a game over and check once more.
+function afterPower(deal = false) {
+  S.over = false; S.why = '';
+  $('over').hidden = true;
+  $('board').classList.remove('dead');
+  checkOver();
+  save();
+  renderAll(deal);
+}
+
+function usePower(k) {
+  if (!S || S.won || drag || (S.over && S.why !== 'space')) return;
+  unlock();
+  if (!pw[k]) { play.back(); cat('mimi', 'Mew? (None left! Win Adventures levels and the daily puzzle to get more.)', true); return; }
+  if (k === 'bomb') {
+    arm = arm ? null : 'bomb';
+    play.pick();
+    if (!arm && S.over) gameOver(true);
+    renderHud();
+    return;
+  }
+  spend(k);
+  if (k === 'fresh') { S.tray = dealTray(S.grid, Math.random, help()); S.pending = null; play.deal(); }
+  else { S.tray = S.tray.map((p) => p && { ...p, s: TURN[p.s] }); play.pick(); }
+  afterPower(k === 'fresh');
+}
+
+// The bomb clears the 3×3 square around the tapped cell (stones crack, as in a line clear).
+function bomb(row, col) {
+  spend('bomb');
+  const gone = [], vals = [], cracked = [];
+  let hit = 0;
+  for (let r = row - 1; r <= row + 1; r++) for (let c = col - 1; c <= col + 1; c++) {
+    if (r < 0 || c < 0 || r >= N || c >= N) continue;
+    const j = r * N + c, v = S.grid[j];
+    if (!v) continue;
+    if (v === STONE) { S.grid[j] = CRACKED; cracked.push(j); continue; }
+    if (isTarget(v)) hit++;
+    gone.push(j); vals.push(v); S.grid[j] = 0;
+  }
+  blast(gone, vals, col + 0.5, row + 0.5);
+  if (cracked.length) crack(cracked);
+  play.clear(2, 1);
+  shake();
+  if (S.adv && (S.adv.left -= hit) <= 0) { S.over = false; $('over').hidden = true; $('board').classList.remove('dead'); win(); renderAll(); return; }
+  afterPower();
+}
+
+board.addEventListener('pointerdown', (e) => {
+  if (arm !== 'bomb' || !S || S.won) return;
+  const rect = board.getBoundingClientRect();
+  const col = Math.floor((e.clientX - rect.left - PAD) / (cell + GAP)), row = Math.floor((e.clientY - rect.top - PAD) / (cell + GAP));
+  if (row >= 0 && col >= 0 && row < N && col < N) bomb(row, col);
+});
+document.querySelectorAll('#bottom .pw').forEach((b) => b.addEventListener('click', () => usePower(b.dataset.pw)));
+$('b-over-fresh').addEventListener('click', () => usePower('fresh'));
+$('b-over-bomb').addEventListener('click', () => {
+  $('over').hidden = true;
+  $('board').classList.remove('dead');
+  usePower('bomb');
+});
+
 // ---------------------------------------------------------------- level popup
 let pick = null; // { mode, n, diff }
 const lvlCells = [];
@@ -587,7 +713,7 @@ function openLevel(n) {
     b.querySelector('.st').innerHTML = [1, 2, 3].slice(0, d).map(() => `<i class="${had >= d ? 'on' : ''}">★</i>`).join('');
   });
   const run = load(RUN);
-  const cont = valid(run) && run.adv && run.adv.mode === mode && run.adv.n === n && !run.over && !run.won;
+  const cont = valid(run) && run.adv && !run.adv.daily && run.adv.mode === mode && run.adv.n === n && !run.over && !run.won;
   $('lvl-cont').hidden = !cont;
   if (cont) $('lvl-cont').textContent = `▶ Continue (${DIFFS[run.adv.diff].name})`;
   $('lvl').hidden = false;
@@ -616,23 +742,30 @@ $('lvl-close').addEventListener('click', () => { play.tap(); $('lvl').hidden = t
 // ---------------------------------------------------------------- buttons
 $('m-classic').addEventListener('click', () => { unlock(); play.tap(); openClassic(); });
 $('m-adv').addEventListener('click', () => { unlock(); play.tap(); openMap(); });
+$('m-daily').addEventListener('click', () => {
+  unlock(); play.tap();
+  const run = load(RUN);
+  if (valid(run) && run.adv && run.adv.daily === dayStr() && !run.over && !run.won) { S = run; shown = S.adv.left; startBoard(); } else startDaily();
+});
+const backToList = () => (S.adv && S.adv.daily ? openMenu() : openMap());
 $('map-back').addEventListener('click', () => { play.tap(); openMenu(); });
 document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => {
   play.tap(); prog.mode = b.dataset.mode; saveProg(); openMap();
 }));
 
-$('b-home').addEventListener('click', () => { drop(); if (!S.won) save(); if (S.adv) openMap(); else openMenu(); });
+$('b-home').addEventListener('click', () => { drop(); if (!S.won) save(); if (S.adv) backToList(); else openMenu(); });
 $('b-undo').addEventListener('click', undo);
 $('b-over-undo').addEventListener('click', undo);
-$('b-over-map').addEventListener('click', () => { play.tap(); $('over').hidden = true; openMap(); });
+$('b-over-map').addEventListener('click', () => { play.tap(); $('over').hidden = true; backToList(); });
 function again() {
   play.tap();
-  if (S.adv) startLevel(S.adv.mode, S.adv.n, S.adv.diff);
+  if (S.adv && S.adv.daily) startDaily();
+  else if (S.adv) startLevel(S.adv.mode, S.adv.n, S.adv.diff);
   else { newGame(); startBoard(); }
 }
 $('b-again').addEventListener('click', again);
 $('win-retry').addEventListener('click', again);
-$('win-map').addEventListener('click', () => { play.tap(); openMap(); });
+$('win-map').addEventListener('click', () => { play.tap(); backToList(); });
 $('win-next').addEventListener('click', () => { const n = S.adv.n + 1; openMap(); openLevel(n); });
 
 const sw = { 's-sfx': 'sfx', 's-music': 'music', 's-vib': 'vib' };
@@ -651,6 +784,7 @@ $('b-close').addEventListener('click', () => { play.tap(); $('settings').hidden 
 $('b-restart').addEventListener('click', () => { $('settings').hidden = true; again(); });
 document.addEventListener('pointerdown', unlock, { once: true });
 document.addEventListener('visibilitychange', () => { if (document.hidden && S && !S.won) save(); });
+if (location.search.includes('debug')) window.dbg = { get S() { return S; }, renderAll, checkOver };
 
 // ---------------------------------------------------------------- start (back where she left off)
 window.addEventListener('resize', layout);

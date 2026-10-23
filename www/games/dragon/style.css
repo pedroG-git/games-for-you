@@ -207,6 +207,21 @@ svg { display: block; }
 .gift { display: inline-flex; align-items: center; gap: 6px; }
 .gift svg { width: 34px; height: 34px; }
 
+/* win streak and daily gift */
+.streak { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; margin: 8px 0 2px; font-size: 16px; color: #ffd27a; }
+.streak svg { width: 28px; height: 28px; }
+.streak.warn { padding: 6px 10px; border-radius: 14px; background: rgba(216, 32, 62, .35); color: #fff; }
+#h-play .fire { display: block; font-size: 14px; color: #ffe9a8; }
+#gift-days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 4px; }
+#gift-days > div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 14px; background: rgba(0,0,0,.25); font-size: 13px; }
+#gift-days > div.last { grid-column: span 2; }
+#gift-days > div.past { opacity: .45; }
+#gift-days > div.now { background: linear-gradient(#ffcf6a, #e8892a); box-shadow: inset 0 0 0 3px #fff; color: #5a2a00; animation: glow 1.2s ease-in-out infinite alternate; }
+#gift-days .ic { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 1px; min-height: 26px; }
+#gift-days .ic svg { width: 24px; height: 24px; }
+#gift-days .ic b { font-size: 13px; margin-right: 2px; }
+@keyframes glow { to { transform: scale(1.06); } }
+
 #t-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .task { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 16px; background: rgba(0,0,0,.25); text-align: left; }
 .task .ic { font-size: 30px; width: 40px; text-align: center; }

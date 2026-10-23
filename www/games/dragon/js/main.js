@@ -17,9 +17,43 @@ const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 
 // ---------------------------------------------------------------- saved progress
 const BOOSTS = ['rocket', 'bomb', 'light', 'hammer', 'arrow', 'cannon', 'shuffle'];
-const P = Object.assign({ level: 1, stars: 0, built: [], seen: [], boost: {} }, load(SAVE) || {});
+const P = Object.assign({ level: 1, stars: 0, built: [], seen: [], boost: {}, streak: 0, gift: { day: '', n: 0 } }, load(SAVE) || {});
 for (const b of BOOSTS) if (!(P.boost[b] >= 0)) P.boost[b] = ['hammer', 'shuffle'].includes(b) ? 2 : 1;
 const saveP = () => store(SAVE, P);
+const boostArt = (k) => use(k === 'shuffle' ? 'mix' : k);
+
+// ---------------------------------------------------------------- win streak
+// Every level won in a row starts the next one with free powers on the board. Losing a level ends it.
+const STREAK = [[], ['rocket'], ['rocket', 'bomb'], ['rocket', 'bomb', 'light']];
+const streakPowers = () => STREAK[Math.min(P.streak, STREAK.length - 1)];
+const streakIcons = () => streakPowers().map(boostArt).join('');
+function endStreak() { if (P.streak) { P.streak = 0; saveP(); } }
+
+// ---------------------------------------------------------------- daily gift
+// One gift a day, bigger each day for a week, then it starts again. A missed day doesn't reset it.
+const GIFTS = [
+  { hammer: 1 }, { rocket: 1, bomb: 1 }, { shuffle: 1, arrow: 1 }, { stars: 1, cannon: 1 },
+  { light: 1, bomb: 1 }, { hammer: 1, rocket: 1, arrow: 1 }, { stars: 3, rocket: 1, bomb: 1, light: 1, hammer: 1 },
+];
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+const giftHTML = (g) => Object.entries(g).map(([k, n]) => (n > 1 ? `<b>${n}×</b>` : '') + (k === 'stars' ? use('star') : boostArt(k))).join('');
+
+function maybeGift() {
+  if (P.gift.day === today() || P.level < 2) return;
+  $('gift-days').innerHTML = GIFTS.map((g, i) => `<div class="${i < P.gift.n ? 'past' : i === P.gift.n ? 'now' : ''}${i === 6 ? ' last' : ''}">`
+    + `Day ${i + 1}<span class="ic">${i < P.gift.n ? '✓' : giftHTML(g)}</span></div>`).join('');
+  openModal('m-gift');
+}
+function collectGift() {
+  for (const [k, n] of Object.entries(GIFTS[P.gift.n])) { if (k === 'stars') P.stars += n; else P.boost[k] += n; }
+  P.gift = { day: today(), n: (P.gift.n + 1) % GIFTS.length };
+  saveP();
+  const b = document.querySelector('#gift-days .now').getBoundingClientRect();
+  burst(b.left + b.width / 2, b.top + b.height / 2, ['#ffd23a', '#fff', '#ff8a3d'], 36, 1.3);
+  play.build();
+  closeModal('m-gift');
+  openHome();
+}
 Object.assign(settings, load(SET) || {});
 const saveSettings = () => store(SET, settings);
 
@@ -72,8 +106,9 @@ function openHome(justBuilt) {
   $('h-badge').hidden = done || !A.tasks.some((t, i) => !P.built.includes(a + ':' + i) && t.cost <= P.stars);
   const hard = isHard(P.level);
   $('h-play').className = 'big' + (hard ? ' hard' : '');
-  $('h-play').innerHTML = `Level ${P.level}${hard ? '<small>Hard level</small>' : ''}`;
+  $('h-play').innerHTML = `Level ${P.level}${hard ? '<small>Hard level</small>' : ''}${P.streak ? `<span class="fire">🔥 ${P.streak} in a row</span>` : ''}`;
   if (!done && !P.seen.includes('area' + a)) { P.seen.push('area' + a); saveP(); say(A.name, A.intro); }
+  maybeGift();
 }
 
 function openTasks() {
@@ -149,6 +184,9 @@ function openStart() {
   $('st-title').textContent = `Level ${P.level}`;
   $('st-tag').hidden = !L.hard;
   $('st-goals').innerHTML = goalsHTML(L.goals, false);
+  const sk = $('st-streak');
+  sk.hidden = P.level < 3;
+  sk.innerHTML = P.streak ? `🔥 ${P.streak} in a row · free: ${streakIcons()}` : '🔥 Win levels in a row for free powers';
   G.pre.clear();
   for (const b of $('st-boost').children) {
     const k = b.dataset.b;
@@ -164,7 +202,8 @@ function startLevel() {
   for (const k of G.pre) P.boost[k]--;
   saveP();
   S = E.createState(L, (Math.random() * 2 ** 31) | 0);
-  E.placeBoosters(S, [...G.pre]);
+  E.placeBoosters(S, [...G.pre, ...streakPowers()]);
+  if (P.streak) setTimeout(() => showPraise(`🔥 ${P.streak} in a row!`), 500);
   G.pre.clear(); G.extra = false; G.sel = -1; G.tool = null; G.busy = false;
   show('game');
   $('goals').innerHTML = '';
@@ -628,6 +667,7 @@ async function winFlow() {
   const stars = L.hard ? 2 : 1;
   P.stars += stars;
   P.level++;
+  P.streak++;
   const gifts = [];
   for (let k = 0; k < (L.hard ? 2 : 1); k++) {
     const g = BOOSTS[Math.floor(Math.random() * BOOSTS.length)];
@@ -636,7 +676,9 @@ async function winFlow() {
   }
   saveP();
   $('win-n').textContent = '+' + stars;
-  $('win-gift').innerHTML = 'Reward: ' + gifts.map((g) => `<span class="gift">${use(g === 'shuffle' ? 'mix' : g)}</span>`).join(' ');
+  $('win-gift').innerHTML = 'Reward: ' + gifts.map((g) => `<span class="gift">${boostArt(g)}</span>`).join(' ');
+  $('win-streak').hidden = false;
+  $('win-streak').innerHTML = `🔥 ${P.streak} in a row! Next level starts with ${streakIcons()}`;
   openModal('m-win');
   const b = $('win-star').getBoundingClientRect();
   burst(b.left + b.width / 2, b.top + b.height / 2, ['#ffd23a', '#fff', '#ff8a3d'], 40, 1.4);
@@ -647,6 +689,8 @@ function loseFlow() {
   play.lose();
   $('lose-goals').innerHTML = goalsHTML(S.goals.filter((g) => g.left > 0), true);
   $('lose-more').hidden = G.extra;
+  $('lose-streak').hidden = !P.streak;
+  $('lose-streak').textContent = `Giving up ends your 🔥 ${P.streak} in a row`;
   openModal('m-lose');
 }
 
@@ -673,11 +717,16 @@ $('lose-more').addEventListener('click', () => {
   updateHud();
   resetHint();
 });
-$('lose-retry').addEventListener('click', () => { closeModal('m-lose'); openStart(); });
-$('lose-home').addEventListener('click', () => { S = null; openHome(); });
-$('g-back').addEventListener('click', () => { if (!G.busy) openModal('m-quit'); });
+$('lose-retry').addEventListener('click', () => { endStreak(); closeModal('m-lose'); openStart(); });
+$('lose-home').addEventListener('click', () => { endStreak(); S = null; openHome(); });
+$('g-back').addEventListener('click', () => {
+  if (G.busy) return;
+  $('q-msg').textContent = 'You will have to start this level again' + (P.streak ? ` and your 🔥 ${P.streak} in a row ends.` : '.');
+  openModal('m-quit');
+});
 $('q-stay').addEventListener('click', () => closeModal('m-quit'));
-$('q-leave').addEventListener('click', () => { S = null; clearHint(); openHome(); });
+$('q-leave').addEventListener('click', () => { endStreak(); S = null; clearHint(); openHome(); });
+$('gift-ok').addEventListener('click', () => { unlock(); collectGift(); });
 
 for (const b of document.querySelectorAll('.b-set')) b.addEventListener('click', () => {
   $('s-sfx').checked = settings.sfx; $('s-music').checked = settings.music; $('s-vib').checked = settings.vib;
@@ -689,5 +738,5 @@ $('s-vib').addEventListener('change', (e) => { settings.vib = e.target.checked; 
 $('s-close').addEventListener('click', () => closeModal('m-set'));
 
 document.addEventListener('pointerdown', unlock, { once: true });
-if (location.search.includes('debug')) window.dbg = { get S() { return S; }, E, P, trySwap, tapCell, openStart };
+if (location.search.includes('debug')) window.dbg = { get S() { return S; }, E, P, trySwap, tapCell, openStart, winFlow, loseFlow };
 openHome();

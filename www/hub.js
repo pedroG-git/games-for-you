@@ -5,15 +5,56 @@
   const current = window.APP_VERSION || '0.0.0';
 
   // replace(), so the back gesture never steps back into a game that was already left
-  const open = (e) => { e.preventDefault(); location.replace(e.currentTarget.href); };
+  const open = (e) => {
+    e.preventDefault();
+    const href = e.currentTarget.href;
+    document.body.classList.add('leaving');
+    setTimeout(() => location.replace(href), 140);
+  };
 
-  window.GAMES.forEach((g, i) => {
+  const read = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+  const day = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  // Small "something is waiting today" badges. Each returns [emoji, label], or '' when nothing is waiting.
+  // The games write these keys themselves; a missing or broken key never breaks the home screen.
+  const BADGES = {
+    dragon() {
+      const s = read('dragon-save');
+      return s && s.level >= 2 && !(s.gift && s.gift.day === day(new Date())) ? ['🎁', 'Daily gift'] : '';
+    },
+    blocos() {
+      const s = read('blocos-daily') || {};
+      if (s.last === day(new Date())) return '';
+      const y = new Date(); y.setDate(y.getDate() - 1);
+      return ['📅' + (s.streak > 0 && s.last === day(y) ? '🔥' + s.streak : ''), 'Daily puzzle'];
+    },
+    linhas() {
+      const d = read('linhas-daily'), t = new Date();
+      return d && d.date === t.getFullYear() * 10000 + (t.getMonth() + 1) * 100 + t.getDate() ? '' : ['📅', 'Daily challenge'];
+    },
+  };
+  const folder = (g) => g.path.split('/')[1];
+  const badgeOf = (g) => { try { return (BADGES[folder(g)] || (() => ''))(); } catch { return ''; } };
+
+  // Most recently played first; games never played keep their order below.
+  const played = read('gfy-played') || {};
+  const games = window.GAMES.map((g, i) => ({ g, i })).sort((a, b) => {
+    return (+played[folder(b.g)] || 0) - (+played[folder(a.g)] || 0) || a.i - b.i;
+  }).map((o) => o.g);
+
+  games.forEach((g, i) => {
     const a = document.createElement('a');
     a.className = 'tile';
     a.href = g.path;
     a.style.setProperty('--c', g.color);
     a.style.setProperty('--i', i);
     a.innerHTML = '<img alt=""><b></b><small></small>';
+    const badge = badgeOf(g);
+    if (badge) {
+      const em = document.createElement('em');
+      em.textContent = badge[0];
+      em.title = badge[1];
+      a.append(em);
+    }
     a.querySelector('img').src = g.icon;
     a.querySelector('b').textContent = g.name;
     a.querySelector('small').textContent = g.tag || '';
@@ -31,6 +72,8 @@
     a.style.setProperty('--c', last.color);
     a.querySelector('img').src = last.icon;
     a.querySelector('b').textContent = last.name;
+    const lb = badgeOf(last);
+    if (lb) a.querySelector('small').textContent = `Keep playing · ${lb[0]}`;
     a.addEventListener('click', open);
     a.hidden = false;
   }
@@ -87,4 +130,6 @@
   check(false);
   // The app can stay open in the background for days: check again whenever it comes back.
   document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && check(false));
+  // Restored from the page cache: rebuild so badges and order are current.
+  addEventListener('pageshow', (e) => e.persisted && location.reload());
 })();

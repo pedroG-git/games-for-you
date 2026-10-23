@@ -54,7 +54,7 @@ h1 small { font-size: .62em; color: var(--red); vertical-align: .14em; }
 .gift { font-size: 24px; }
 #update button {
   background: var(--cream); border: 3px solid var(--ink); border-radius: 12px;
-  padding: 7px 14px 3px; font-family: var(--title); font-size: 18px; box-shadow: 0 3px 0 var(--ink);
+  padding: 7px 14px 3px; min-height: 44px; font-family: var(--title); font-size: 18px; box-shadow: 0 3px 0 var(--ink);
 }
 #update button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
 
@@ -99,7 +99,18 @@ main {
   content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .14;
   background: radial-gradient(#fff 2px, transparent 2.5px) 0 0 / 18px 18px, radial-gradient(#fff 2px, transparent 2.5px) 9px 9px / 18px 18px;
 }
-.tile:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+.tile:active { transform: translateY(4px) scale(.98); box-shadow: 0 2px 0 var(--ink); }
+/* "waiting today" badge */
+.tile em {
+  position: absolute; top: 8px; right: 8px; min-width: 34px; height: 34px; padding: 0 7px;
+  display: grid; place-items: center; font-style: normal; font-size: 16px; font-weight: 800; white-space: nowrap;
+  background: var(--cream); color: #3b2f2a; border: 3px solid var(--ink); border-radius: 999px; box-shadow: 0 2px 0 var(--ink);
+  animation: bob 2.4s ease-in-out infinite;
+}
+@keyframes bob { 50% { transform: translateY(-3px); } }
+/* tapping a game: the list fades out just before the game opens */
+.leaving main, .leaving .last { transition: opacity .14s, transform .14s; opacity: 0; transform: scale(.97); }
+.leaving .tile, .leaving .last { animation: none; }
 .tile img {
   position: relative; width: 86px; height: 86px; border-radius: 22px;
   border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); background: var(--cream);
@@ -115,7 +126,7 @@ main {
 .tile small { position: relative; margin-top: 6px; font-size: 12.5px; font-weight: 700; line-height: 1.2; opacity: .92; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
 
 @keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.92); } }
-@media (prefers-reduced-motion: reduce) { .tile, .last { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tile, .last, .tile em { animation: none; } .leaving main, .leaving .last { transition: none; } }
 
 /* ---------------------------------------------------------------- footer */
 footer {
@@ -125,6 +136,15 @@ footer {
 #version { opacity: .7; font-weight: 600; }
 .link {
   background: var(--cream); border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink);
-  padding: 7px 16px; margin-top: 6px; font-weight: 800; font-size: 14px;
+  padding: 0 18px; min-height: 44px; margin-top: 6px; font-weight: 800; font-size: 14px;
 }
 .link:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+
+/* ---------------------------------------------------------------- dark mode */
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #2a211d; --dot: #34291f; --ink: #120d0b; --cream: #f6e6c8; }
+  body { color: #f6e6c8; }
+  h1, .last, .link, #update button { color: #3b2f2a; }
+  #update { color: #1d3312; }
+  .awning i { background: repeating-linear-gradient(90deg, #b83a2f 0 48px, #e8d5b0 48px 96px); }
+}

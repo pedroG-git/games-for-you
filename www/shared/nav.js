@@ -47,6 +47,12 @@
   // Remembered so the home screen can offer "Keep playing".
   if (inGame) {
     const game = location.pathname.split('/games/')[1].split('/')[0];
-    try { localStorage.setItem('gfy-last', game); } catch {}
+    try {
+      localStorage.setItem('gfy-last', game);
+      // When each game was opened last: the home screen shows the most recent ones first.
+      const played = JSON.parse(localStorage.getItem('gfy-played')) || {};
+      played[game] = Date.now();
+      localStorage.setItem('gfy-played', JSON.stringify(played));
+    } catch {}
   }
 })();

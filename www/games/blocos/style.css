@@ -99,18 +99,24 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 #float .piece { grid-auto-rows: var(--cell); filter: drop-shadow(0 10px 8px rgba(0,0,0,.35)); }
 #float.back { transition: transform .18s ease-out; }
 
-#bottom { height: 58px; display: flex; align-items: center; }
-#b-undo {
-  position: relative; display: flex; flex-direction: column; align-items: center;
+#bottom { height: 58px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+#bottom button {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
   width: 64px; height: 54px; border-radius: 16px; line-height: 1;
   background: rgba(255,255,255,.16); box-shadow: inset 0 -4px 0 rgba(0,0,0,.2);
 }
-#b-undo span { font-size: 26px; }
-#b-undo small { font-size: 12px; margin-top: 2px; }
-#b-undo i { position: absolute; top: -6px; right: -6px; font-style: normal; font-size: 13px; width: 22px; height: 22px; line-height: 23px; border-radius: 50%; background: #ff5a5f; }
-#b-undo:disabled { opacity: .35; }
-#b-undo:disabled i { display: none; }
-#b-undo:not(:disabled):active { transform: scale(.92); }
+#bottom span { font-size: 26px; }
+#bottom small { font-size: 12px; margin-top: 2px; }
+#bottom i { position: absolute; top: -6px; right: -6px; font-style: normal; font-size: 13px; min-width: 22px; height: 22px; line-height: 23px; padding: 0 4px; border-radius: 11px; background: #ff5a5f; }
+#bottom .pw i { background: #2fb24f; }
+#bottom button:disabled { opacity: .35; }
+#bottom button:disabled i { display: none; }
+#bottom .pw.none { opacity: .45; }
+#bottom .pw.none i { background: rgba(0,0,0,.35); }
+#bottom .pw.armed { background: linear-gradient(#ffb547, #f07a1f); box-shadow: inset 0 0 0 3px #fff; animation: armed .6s ease-in-out infinite alternate; }
+@keyframes armed { to { transform: scale(1.08); } }
+#bottom button:not(:disabled):active { transform: scale(.92); }
+#board.aim { cursor: crosshair; box-shadow: 0 0 0 3px #ffb547, 0 0 24px #ffb547; }
 
 #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; }
 
@@ -243,6 +249,8 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .mode-btn b { font-weight: 400; font-size: 30px; text-shadow: 0 3px 0 rgba(0,0,0,.25); }
 .mode-btn small { font-size: 20px; background: rgba(0,0,0,.18); padding: 4px 10px; border-radius: 12px; }
 .mode-btn.adv { background: linear-gradient(#ffb547, #f07a1f); box-shadow: 0 6px 0 #a34a0a; }
+.mode-btn.daily { background: linear-gradient(#b98cff, #7a4cf0); box-shadow: 0 6px 0 #45209a; }
+.mode-btn.daily.ready small { background: #ff5a5f; animation: armed .7s ease-in-out infinite alternate; }
 .mode-btn:active { transform: translateY(4px); box-shadow: none; }
 
 /* ---------------------------------------------------------------- map */

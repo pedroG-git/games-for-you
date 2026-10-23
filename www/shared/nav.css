@@ -13,3 +13,7 @@
   position: fixed; z-index: 50;
   top: calc(env(safe-area-inset-top) + 10px); left: calc(env(safe-area-inset-left) + 10px);
 }
+/* Soft fade-in when a game opens (the home screen fades the tile out first). */
+@keyframes gfy-in { from { opacity: 0; } }
+body { animation: gfy-in .22s ease-out; }
+@media (prefers-reduced-motion: reduce) { body { animation: none; } }

@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="../../shared/nav.css">
 <script src="../../shared/nav.js"></script>
 <script>GFY.back([['#m-set', '#s-close'], ['#m-tasks', '#t-close'], ['#m-start', '#st-close'], ['#m-quit', '#q-stay'],
-  ['#m-win', '#win-ok'], ['#m-lose', '#lose-home'], ['#game', '#g-back']]);</script>
+  ['#m-gift', '#gift-ok'], ['#m-win', '#win-ok'], ['#m-lose', '#lose-home'], ['#game', '#g-back']]);</script>
 </head>
 <body>
 <!-- Fortress (home screen) -->
@@ -59,6 +59,7 @@
   <div class="box">
     <h2 id="st-title">Level 1</h2>
     <p class="tag" id="st-tag" hidden>Hard level</p>
+    <p class="streak" id="st-streak" hidden></p>
     <p class="lbl">Goals</p>
     <div id="st-goals" class="goalrow"></div>
     <p class="lbl">Boosters</p>
@@ -77,6 +78,7 @@
     <h2>Well done!</h2>
     <div id="win-star"><svg viewBox="0 0 100 100"><use href="#star"/></svg><b id="win-n">+1</b></div>
     <p class="lbl" id="win-gift"></p>
+    <p class="streak" id="win-streak" hidden></p>
     <button class="big" id="win-ok">Continue</button>
   </div>
 </div>
@@ -85,6 +87,7 @@
   <div class="box">
     <h2>Out of moves!</h2>
     <div id="lose-goals" class="goalrow"></div>
+    <p class="streak warn" id="lose-streak" hidden></p>
     <button class="big" id="lose-more">+5 moves</button>
     <button class="big alt" id="lose-retry">Try again</button>
     <button class="ghostbtn" id="lose-home">Fortress</button>
@@ -94,7 +97,7 @@
 <div id="m-quit" class="modal" hidden>
   <div class="box">
     <h2>Leave level?</h2>
-    <p class="lbl">You will have to start this level again.</p>
+    <p class="lbl" id="q-msg">You will have to start this level again.</p>
     <button class="big" id="q-stay">Keep playing</button>
     <button class="ghostbtn" id="q-leave">Leave</button>
   </div>
@@ -105,6 +108,15 @@
     <h2 id="t-title">Tasks</h2>
     <div id="t-list"></div>
     <button class="ghostbtn" id="t-close">Close</button>
+  </div>
+</div>
+
+<div id="m-gift" class="modal" hidden>
+  <div class="box">
+    <h2>Daily gift</h2>
+    <p class="lbl">A bigger gift every day you come back</p>
+    <div id="gift-days"></div>
+    <button class="big" id="gift-ok">Collect</button>
   </div>
 </div>
 
