@@ -210,7 +210,7 @@ export function initInput(canvas, api) {
       }
     }
     const was = ui.sel;
-    ui.sel = null;
+    ui.sel = null; const info = ui.info; ui.info = null;
 
     // A terminal station sits right next to its end cap: whichever is closer to the finger wins.
     const sid = stationAt(S, p), sp = sid >= 0 ? toScreen(st(S, sid).x, st(S, sid).y) : null;
@@ -226,8 +226,8 @@ export function initInput(canvas, api) {
     if (!drag) {
       const id = stationAt(S, p);
       if (id >= 0) {
-        if (S.lines.length >= S.inv.lines) { api.toast('No free line'); play.locked(); return; }
-        drag = { kind: 'new', line: S.lines.length, ids: [id], loop: false, color: freeColor(S) };
+        // With every line in use a tap still shows the station's passengers; dragging says there is no free line.
+        drag = { kind: 'new', line: S.lines.length, ids: [id], loop: false, color: freeColor(S), full: S.lines.length >= S.inv.lines };
       }
     }
     if (!drag) {
@@ -240,7 +240,7 @@ export function initInput(canvas, api) {
     }
     if (!drag) return;
     drag.before = E.routesOf(S);
-    drag.p0 = p; drag.was = was;
+    drag.p0 = p; drag.was = was; ui.info = info;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     drag.cursor = toWorld(p.x, p.y);
     play.tap();
@@ -252,6 +252,7 @@ export function initInput(canvas, api) {
     if (!drag || !S) return;
     const p = pos(e);
     if (!drag.moved && Math.hypot(p.x - drag.p0.x, p.y - drag.p0.y) > 10) drag.moved = true;
+    if (drag.full && drag.moved) { drag = null; ui.preview = null; api.toast('No free line'); play.locked(); return; }
     drag.cursor = toWorld(p.x, p.y);
     const id = stationAt(S, p);
     if (drag.kind === 'reroute') {
@@ -287,6 +288,8 @@ export function initInput(canvas, api) {
     }
     let r = null;
     if (d.kind === 'new') {
+      // A tap on a station shows where its passengers want to go.
+      if (d.ids.length < 2 && !d.moved) { ui.info = ui.info && ui.info.station === d.ids[0] ? null : { station: d.ids[0], until: performance.now() + 5000 }; return; }
       if (d.ids.length < 2) return;
       r = E.setLine(S, d.line, d.ids);
       if (r && r.ok && d.loop) E.setLoop(S, d.line, true);

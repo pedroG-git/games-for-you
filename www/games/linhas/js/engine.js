@@ -272,6 +272,7 @@ function arrive(s, L, tr, events) {
   tr.pax = keep;
   if (delivered) {
     s.score += delivered; moved += delivered;
+    line.carried = (line.carried || 0) + delivered;
     events.push({ type: 'deliver', id: st.id, x: st.x, y: st.y, n: delivered });
   }
   // Board: passengers whose best path is this line in this direction.
@@ -339,6 +340,18 @@ function reproject(s, line, poses) {
   });
 }
 const posesOf = (s, L) => s.lines[L].trains.map((_, i) => trainPose(s, L, i));
+
+// What the passengers waiting at station id want: [{ shape, n, ok }], ok = the network can take them there now.
+export function wants(s, id) {
+  const st = s.stations[id], r = routing(s), out = [];
+  if (!st) return out;
+  for (const k of st.queue) {
+    let w = out.find((o) => o.shape === k);
+    if (!w) out.push(w = { shape: k, n: 0, ok: Number.isFinite(bestAt(r, k, id)) });
+    w.n++;
+  }
+  return out;
+}
 
 export function setLine(s, lineIdx, stationIds) {
   let ids = (stationIds || []).filter((id) => Number.isInteger(id) && s.stations[id]);

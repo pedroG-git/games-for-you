@@ -1,6 +1,6 @@
 // Canvas drawing for Linhas. Sizes are in screen pixels so the map stays readable while the city grows.
 import { CITIES, COLORS, CB_COLORS } from './cities.js';
-import { trainPose, segmentPoints } from './engine.js';
+import { trainPose, segmentPoints, wants } from './engine.js';
 
 export const LW = 7;      // line width
 export const SR = 11;     // station radius
@@ -321,6 +321,21 @@ export function draw(S, ui, now) {
   if (ui.sel != null && S.lines[ui.sel]) {
     c.strokeStyle = paint(S.lines[ui.sel].color); c.lineWidth = 3; c.setLineDash([5, 5]); c.lineDashOffset = -now / 60;
     for (const id of S.lines[ui.sel].stations) { const s = toScreen(S.stations[id].x, S.stations[id].y); c.beginPath(); c.arc(s.x, s.y, SR + 9, 0, Math.PI * 2); c.stroke(); }
+    c.setLineDash([]);
+  }
+
+  // tapped station: where its passengers want to go (green: a line can take them, red: no way there yet)
+  if (ui.info && S.stations[ui.info.station] && !ui.preview) {
+    const from = S.stations[ui.info.station], w = wants(S, from.id), f = toScreen(from.x, from.y);
+    c.strokeStyle = T.ink; c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, SR + 9, 0, Math.PI * 2); c.stroke();
+    c.lineWidth = 3; c.setLineDash([4, 5]); c.lineDashOffset = -now / 50;
+    for (const st of S.stations) {
+      const o = w.find((x) => x.shape === st.shape);
+      if (!o || st.id === from.id) continue;
+      const s = toScreen(st.x, st.y);
+      c.strokeStyle = o.ok ? '#2fa35b' : '#d33';
+      c.beginPath(); c.arc(s.x, s.y, SR + 8 + Math.sin(now / 200) * 2, 0, Math.PI * 2); c.stroke();
+    }
     c.setLineDash([]);
   }
 

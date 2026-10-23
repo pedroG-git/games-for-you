@@ -30,7 +30,7 @@ const applyLook = () => { $('#game').classList.toggle('night', look.night); hudK
 
 let S = null, ended = false, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, toastT = 0, hudKey = '';
 let undo = [], best0 = 0, cheered = false, shownScore = -1;
-const ui = { preview: null, tool: null, sel: null, hint: null, carry: null };
+const ui = { preview: null, tool: null, sel: null, hint: null, carry: null, info: null }; // info: { station, until } after a tap on a station
 let tut = load(K.tut) || {};
 
 const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
@@ -152,7 +152,7 @@ function begin() {
   paused = false; speed = 1; hudKey = ''; ended = false;
   undo = []; best0 = bestSoFar(S); cheered = false; shownScore = -1;
   $('#game').classList.remove('viewing'); $('#mapview').hidden = true;
-  ui.preview = null; ui.tool = null; ui.sel = null; ui.carry = null;
+  ui.preview = null; ui.tool = null; ui.sel = null; ui.carry = null; ui.info = null;
   for (const id of ['#pause', '#upgrade', '#over', '#settings']) modal(id, false);
   $('#frozen').hidden = true; $('#game').classList.remove('frozen'); $('#b-pause').classList.remove('on');
   $('#b-speed').textContent = '▶';
@@ -363,15 +363,43 @@ function updateHint() {
     if (hintFor !== h) { hintFor = h; hintT = S.t; }
     if (S.t - hintT > 12) { done(h); h = null; }
   }
-  if (ui.preview || ui.carry || S.over || paused) h = null;
+  if (ui.preview || ui.carry || S.over || paused || !$('#card').hidden) h = null;
   ui.hint = h;
   const el = $('#hint');
   if (el.hidden !== !h) el.hidden = !h;
   if (h && el.textContent !== HINTS[h]) el.textContent = HINTS[h];
 }
 
+// Info card: the picked line's numbers, or where a tapped station's passengers want to go.
+const GLYPH = { circle: '●', triangle: '▲', square: '■', diamond: '◆', star: '★', cross: '✚', pentagon: '⬟' };
+function updateCard() {
+  let html = '';
+  if (ui.info && performance.now() > ui.info.until) ui.info = null;
+  const L = ui.sel != null && S.lines[ui.sel];
+  if (L && !ui.preview) {
+    const cars = L.trains.reduce((n, t) => n + t.cars - 1, 0), riding = L.trains.reduce((n, t) => n + t.pax.length, 0);
+    const busy = L.stations.map((id) => S.stations[id]).sort((a, b) => b.queue.length - a.queue.length)[0];
+    html = `<span class="n" style="--k:${Rn.paint(L.color)}">${ui.sel + 1}</span><b>${L.carried || 0}</b> delivered · ${riding} riding<br>`
+      + `${L.stations.length} stops${L.loop ? ' (loop)' : ''} · ${L.trains.length} train${L.trains.length > 1 ? 's' : ''}${cars ? ` · ${cars} carriage${cars > 1 ? 's' : ''}` : ''}`
+      + (busy && busy.queue.length > 2 ? ` · busiest stop ${GLYPH[busy.shape]} ${busy.queue.length} waiting` : '');
+  } else if (ui.info && S.stations[ui.info.station] && !ui.preview && !ui.carry) {
+    const w = E.wants(S, ui.info.station), st = S.stations[ui.info.station];
+    if (!w.length) html = `${GLYPH[st.shape]} Nobody waiting here`;
+    else {
+      html = 'Waiting: ' + w.map((o) => `<b class="${o.ok ? '' : 'no'}">${GLYPH[o.shape]}×${o.n}</b>`).join(' ');
+      const lost = w.filter((o) => !o.ok);
+      if (lost.length) html += `<br><span class="no">No line goes to ${lost.map((o) => GLYPH[o.shape]).join(' ')} from here yet</span>`;
+      else html += '<br>Every one of them has a way there';
+    }
+  }
+  const el = $('#card');
+  if (el.hidden !== !html) el.hidden = !html;
+  if (html && el.innerHTML !== html) el.innerHTML = html;
+}
+
 // ---------------------------------------------------------------- HUD
 function updateHud() {
+  updateCard();
   updateHint();
   if (shownScore !== S.score) {
     shownScore = S.score;
@@ -398,7 +426,7 @@ function updateHud() {
     if (inUse) b.dataset.n = i + 1; // same number as the badge at the line's ends
     b.onclick = () => {
       if (!inUse) { play.tap(); toast(i < S.inv.lines ? 'Drag between stations to draw a line' : 'Unlock more lines each week'); return; }
-      play.tap(); ui.sel = ui.sel === i ? null : i; hudKey = '';
+      play.tap(); ui.sel = ui.sel === i ? null : i; ui.info = null; hudKey = '';
       if (ui.sel != null) toast('Tap a station to take it off · 🗑 removes the line');
     };
     chips.append(b);
