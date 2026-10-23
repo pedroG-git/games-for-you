@@ -4,6 +4,7 @@ import * as E from './engine.js';
 import { settings, unlock, setMusic, play, trainStop } from './audio.js';
 import * as Rn from './render.js';
 import { initInput } from './input.js';
+import { record, openReplay } from './replay.js';
 
 const $ = (s) => document.querySelector(s);
 const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
@@ -153,7 +154,7 @@ function begin() {
   undo = []; best0 = bestSoFar(S); cheered = false; shownScore = -1;
   $('#game').classList.remove('viewing'); $('#mapview').hidden = true;
   ui.preview = null; ui.tool = null; ui.sel = null; ui.carry = null; ui.info = null; $('#timeline').hidden = true;
-  for (const id of ['#pause', '#upgrade', '#over', '#settings']) modal(id, false);
+  for (const id of ['#pause', '#upgrade', '#over', '#settings', '#replay']) modal(id, false);
   $('#frozen').hidden = true; $('#game').classList.remove('frozen'); $('#b-pause').classList.remove('on');
   $('#b-speed').textContent = '▶';
   if (S.pendingUpgrade) showUpgrade();
@@ -234,6 +235,7 @@ function gameOver(id) {
   if (ended) return;
   ended = true;
   S.over = true;
+  record(S, true);
   Rn.R.overId = id;
   localStorage.removeItem(K.run);
   const had = starsFor(best0);
@@ -257,6 +259,8 @@ function gameOver(id) {
 }
 
 $('#o-again').onclick = () => { play.tap(); start(S.city, S.mode, S.mode === 'daily' ? today() : (Math.random() * 1e9) | 0); };
+$('#o-replay').onclick = () => { play.tap(); modal('#over', false); openReplay(S, $, toast); };
+$('#rp-close').onclick = () => { play.tap(); modal('#replay', false); modal('#over', true); };
 $('#o-menu').onclick = () => { play.tap(); modal('#over', false); show('menu'); };
 // The finished network on its own, before going back to the results.
 $('#o-map').onclick = () => {
@@ -438,6 +442,7 @@ function updateCard() {
 
 // ---------------------------------------------------------------- HUD
 function updateHud() {
+  if (!S.over) record(S);
   updateCard();
   const zoomed = Rn.R.zoom.k > 1;
   if ($('#b-fit').hidden === zoomed) $('#b-fit').hidden = !zoomed;
