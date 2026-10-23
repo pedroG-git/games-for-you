@@ -636,7 +636,7 @@ export function removeLine(s, lineIdx) {
   line.trains.forEach((tr, i) => {
     const p = trainPose(s, lineIdx, i);
     const id = nearestStation(s, p.x, p.y, line.stations);
-    s.stations[id].queue.push(...tr.pax.filter((k) => k !== s.stations[id].shape));
+    dropOff(s, s.stations[id], tr);
     s.inv.carriages += tr.cars - 1;
   });
   s.inv.trains += line.trains.length - 1;
@@ -644,6 +644,14 @@ export function removeLine(s, lineIdx) {
   if (line.express) s.inv.express = (s.inv.express || 0) + 1; // the express goes back to the spares too
   s.lines.splice(lineIdx, 1);
   s.rev++;
+}
+
+// A train taken off (or its line removed) lets its riders off at the nearest stop; those already there are home.
+function dropOff(s, st, tr) {
+  const home = tr.pax.filter((k) => k === st.shape).length;
+  s.score += home;
+  st.queue.push(...tr.pax.filter((k) => k !== st.shape));
+  tr.pax = [];
 }
 
 // Undo support: the routes of all lines, and putting them back. Trains and passengers stay where they are.
@@ -706,7 +714,7 @@ export function storeTrain(s, lineIdx, trainIdx) {
   const line = s.lines[lineIdx], tr = line && line.trains[trainIdx];
   if (!tr || line.trains.length < 2) return false;
   const p = trainPose(s, lineIdx, trainIdx), id = nearestStation(s, p.x, p.y, line.stations);
-  s.stations[id].queue.push(...tr.pax.filter((k) => k !== s.stations[id].shape));
+  dropOff(s, s.stations[id], tr);
   s.inv.carriages += tr.cars - 1;
   s.inv.trains++;
   line.trains.splice(trainIdx, 1);
@@ -720,7 +728,7 @@ export function moveTrainTo(s, lineIdx, trainIdx, toLine, x, y) {
   const cars = tr.cars;
   s.inv.trains++; s.inv.carriages += cars - 1;
   const p = trainPose(s, lineIdx, trainIdx), id = nearestStation(s, p.x, p.y, line.stations);
-  s.stations[id].queue.push(...tr.pax.filter((k) => k !== s.stations[id].shape));
+  dropOff(s, s.stations[id], tr);
   line.trains.splice(trainIdx, 1);
   addTrain(s, toLine, x, y);
   const moved = s.lines[toLine].trains[s.lines[toLine].trains.length - 1];
@@ -792,6 +800,9 @@ function endWeek(s, events) {
   const maxLines = Math.min(cityOf(s).colors.length, (s.mods && s.mods.maxLines) || 99);
   if (s.inv.lines < maxLines) pool.push('line');
   if (s.week >= 2 && s.lines.some((l) => !l.express) && !(s.inv.express > 0)) pool.push('express');
+  // No wasted picks: not another line while two lie unused, nor tunnels while plenty are left.
+  const spare = (k) => (k === 'line' && s.inv.lines - s.lines.length >= 2) || (k === 'tunnel' && s.inv.tunnels >= 4);
+  for (let i = pool.length - 1; i >= 0 && pool.length > 2; i--) if (spare(pool[i])) pool.splice(i, 1);
   const a = pool.splice(Math.floor(rnd(s) * pool.length), 1)[0];
   const b = pool[Math.floor(rnd(s) * pool.length)];
   s.pendingUpgrade = { options: [a, b] };
