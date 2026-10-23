@@ -152,6 +152,8 @@ export function crossings(s, ids) {
 // Hong Kong has ferries: crossing the water is free, but slow.
 const usage = (s, ids, loop) => cityOf(s).ferry ? 0 : crossings(s, loop ? [...ids, ids[0]] : ids) * (cityOf(s).tunnelCost || 1);
 const FERRY = 0.55;
+// Tunnels a route would take, for the drawing preview (same rule as building it).
+export const tunnelsFor = (s, ids, loop) => usage(s, ids, loop);
 
 // ---------------------------------------------------------------- weather, rush hour
 const hash = (a, b) => {
@@ -225,6 +227,20 @@ const cost = (r, k, st, L) => r.C[k][st * r.NL + L] ?? Infinity;
 function bestAt(r, k, st) {
   let b = Infinity;
   for (const L of r.linesAt[st] || []) b = Math.min(b, cost(r, k, st, L));
+  return b;
+}
+// Loops: a train only runs one way round, so what counts is the cost going that way, not the shorter way.
+// Getting off at a station costs 0 there if it has the shape, else a change to another line.
+function exitCost(s, r, k, id, L) {
+  if (s.stations[id].shape === k) return 0;
+  let b = Infinity;
+  for (const L2 of r.linesAt[id]) if (L2 !== L) b = Math.min(b, cost(r, k, id, L2) + TRANSFER);
+  return b;
+}
+function aheadCost(s, r, k, L, i, dir) {
+  const ids = s.lines[L].stations, n = ids.length;
+  let b = Infinity;
+  for (let j = 1; j < n; j++) b = Math.min(b, j + exitCost(s, r, k, ids[(((i + dir * j) % n) + n) % n], L));
   return b;
 }
 
@@ -350,9 +366,11 @@ function nextStop(g, d, dir, loop) {
   return loop ? { i: n - 1, dir } : { i: 0, dir: 1 };
 }
 
+// On a loop, trains take turns going each way round, so nobody has to ride the long way for long.
+const loopDir = (line) => (line.trains.filter((t) => t.dir > 0).length > line.trains.filter((t) => t.dir < 0).length ? -1 : 1);
 function newTrain(s, line, idx = 0) {
   const g = geom(s, line);
-  return { d: g.stopD[idx], dir: idx === line.stations.length - 1 && !line.loop ? -1 : 1, cars: 1, pax: [], dwell: 0, i: idx };
+  return { d: g.stopD[idx], dir: line.loop ? loopDir(line) : idx === line.stations.length - 1 ? -1 : 1, cars: 1, pax: [], dwell: 0, i: idx };
 }
 
 function nearestStation(s, x, y, ids) {
@@ -371,14 +389,23 @@ function arrive(s, L, tr, events) {
   else if (ni < 0 || ni >= n) { tr.dir = -tr.dir; ni = tr.i + tr.dir; }
   const next = line.stations[ni], r = routing(s);
   let moved = 0, delivered = 0;
-  // Unload: deliver, or step off to change lines.
+  // Unload: deliver, or step off to change lines. Riders with no way left to their shape (the line was changed)
+  // step off too, instead of riding round for ever and taking up room.
   const keep = [];
   for (const k of tr.pax) {
     if (k === st.shape) { delivered++; continue; }
-    const cur = cost(r, k, st.id, L);
-    let ride = Infinity;
-    for (const nb of r.nbrs[L].get(st.id) || []) ride = Math.min(ride, cost(r, k, nb, L) + 1);
-    if (Number.isFinite(cur) && ride > cur) { st.queue.push(k); moved++; } else keep.push(k);
+    let off;
+    if (line.loop) {
+      const here = exitCost(s, r, k, st.id, L);
+      const ahead = aheadCost(s, r, k, L, tr.i, tr.dir);
+      off = here < ahead || !Number.isFinite(ahead);
+    } else {
+      const cur = cost(r, k, st.id, L);
+      let ride = Infinity;
+      for (const nb of r.nbrs[L].get(st.id) || []) ride = Math.min(ride, cost(r, k, nb, L) + 1);
+      off = ride > cur || !Number.isFinite(cur);
+    }
+    if (off) { st.queue.push(k); moved++; } else keep.push(k);
   }
   tr.pax = keep;
   if (delivered) {
@@ -394,7 +421,13 @@ function arrive(s, L, tr, events) {
     // This line must be heading the right way, and be no more than SLACK stops (and no extra change) worse than the best.
     const b = bestAt(r, k, st.id);
     const good = Number.isFinite(c) && c <= b + SLACK && Math.floor(c / TRANSFER) === Math.floor(b / TRANSFER);
-    if (tr.pax.length < room && good && cost(r, k, next, L) + 1 === c) {
+    let way;
+    if (line.loop) {
+      // The long way round is fine when no train on the loop runs the other way.
+      const ahead = aheadCost(s, r, k, L, tr.i, tr.dir), back = line.trains.some((t) => t.dir === -tr.dir);
+      way = Math.floor(ahead / TRANSFER) === Math.floor(c / TRANSFER) && (ahead <= b + SLACK || !back);
+    } else way = cost(r, k, next, L) + 1 === c;
+    if (tr.pax.length < room && good && way) {
       tr.pax.push(k); moved++;
     } else stay.push(k);
   }
@@ -402,7 +435,28 @@ function arrive(s, L, tr, events) {
   events.push({ type: 'stop', line: L, id: st.id, n: moved });
   tr.i = ni;
   // Interchanges have bigger platforms: boarding there is twice as quick.
-  tr.dwell = (DWELL + Math.min(0.6, moved * 0.05)) * (st.interchange ? 0.5 : 1);
+  tr.dwell = (DWELL + Math.min(0.6, moved * 0.05)) * (st.interchange ? 0.5 : 1) + headway(s, L, tr);
+}
+
+// Trains on a line drift together (the one behind finds the platforms empty, so it catches up) and then run as one.
+// A train too close behind another waits a little longer at the stop, so they spread out again.
+function headway(s, L, tr) {
+  const line = s.lines[L], g = geom(s, line), T = g.total;
+  const mates = line.loop ? line.trains.filter((t) => t.dir === tr.dir) : line.trains;
+  if (mates.length < 2 || !(T > 0)) return 0;
+  // Position around the round trip: there and back on a line, once round on a loop (each way on its own).
+  const cyc = line.loop ? T : 2 * T;
+  const u = (t) => (t.dir > 0 ? t.d : cyc - t.d);
+  const me = u(tr), idx = line.trains.indexOf(tr);
+  let gap = Infinity;
+  for (const o of mates) {
+    if (o === tr) continue;
+    let d = (((u(o) - me) % cyc) + cyc) % cyc;
+    if (d < 1e-6 && line.trains.indexOf(o) > idx) d = cyc; // side by side: the first one leads
+    gap = Math.min(gap, d);
+  }
+  const want = cyc / mates.length;
+  return gap < want * 0.5 ? Math.min(2.5, (want * 0.5 - gap) / trainSpeed(s, line)) : 0;
 }
 
 function moveTrain(s, L, tr, dt, events) {
@@ -631,7 +685,7 @@ export function makeInterchange(s, id) {
 export function addTrain(s, lineIdx, x, y) {
   const line = s.lines[lineIdx];
   if (!line || s.inv.trains <= 0) return false;
-  const g = geom(s, line), d = project(g, x, y), ns = nextStop(g, d, 1, line.loop);
+  const g = geom(s, line), d = project(g, x, y), ns = nextStop(g, d, line.loop ? loopDir(line) : 1, line.loop);
   line.trains.push({ d, dir: ns.dir, cars: 1, pax: [], dwell: 0, i: ns.i });
   s.inv.trains--;
   return true;

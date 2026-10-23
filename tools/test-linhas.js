@@ -153,6 +153,30 @@ const WEEKS = Number(process.argv[2]) || 6;
     if (!E.storeTrain(s, 1, 1) || s.inv.trains !== 1 || s.inv.carriages !== 1) fails.push('storeTrain: spares not returned');
   }
 
+  // Loops: a train runs one way round, so a passenger one stop "behind" rides the long way (and isn't stranded);
+  // a second train goes the other way round; trains that bunch up spread out again.
+  {
+    const s = E.newGame({ city: 'berlin', mode: 'creative', seed: 5 });
+    s.stations.length = 0;
+    [[500, 500, 'circle'], [650, 500, 'square'], [750, 650, 'circle'], [650, 800, 'circle'], [500, 800, 'circle'], [400, 650, 'triangle']]
+      .forEach(([x, y, shape], id) => s.stations.push({ id, x, y, shape, queue: [], interchange: false, overflow: 0 }));
+    E.setLine(s, 0, [0, 1, 2, 3, 4, 5, 0]);
+    s.nextPax = 1e9;
+    s.stations[0].queue.push('triangle'); s.stations[2].queue.push('square');
+    for (let i = 0; i < 400; i++) E.step(s, 0.1);
+    if (s.score !== 2) fails.push(`loop: ${s.score}/2 delivered, passengers going the other way round were stranded`);
+    s.inv.trains = 2; E.addTrain(s, 0, 650, 800); E.addTrain(s, 0, 650, 800);
+    if (s.lines[0].trains.filter((t) => t.dir < 0).length !== 1) fails.push('loop: trains do not take turns going each way');
+    const b = E.newGame({ city: 'lisboa', mode: 'normal', seed: 5 });
+    E.setLine(b, 0, [0, 1, 2]);
+    b.inv.trains = 2; E.addTrain(b, 0, b.stations[0].x, b.stations[0].y); E.addTrain(b, 0, b.stations[0].x, b.stations[0].y);
+    b.nextPax = b.nextStation = 1e9;
+    for (let i = 0; i < 1200; i++) E.step(b, 0.1);
+    const T = b.lines[0].trains.map((t) => t.d);
+    const spread = b.lines[0].trains.every((t, i, a) => a.every((o) => o === t || Math.abs(o.d - t.d) > 30 || o.dir !== t.dir));
+    if (!spread) fails.push(`headway: trains still bunched after 2 minutes (${T.map((d) => d.toFixed(0))})`);
+  }
+
   // Challenges: every puzzle can be solved by the decent player on its fixed map, weekly challenges run, creative never ends.
   const CH = await import('../www/games/linhas/js/challenges.js');
   for (const p of CH.PUZZLES) {

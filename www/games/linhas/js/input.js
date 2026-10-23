@@ -59,10 +59,12 @@ export function initInput(canvas, api) {
     return drag.end === 'start' ? drag.ids.slice().reverse() : drag.ids.slice();
   }
 
+  // Same rule as building: ferries need no tunnels, some cities need two per crossing, a loop closes back.
   function tunnelsOk(S, ids) {
     try {
-      const old = drag.kind === 'new' ? 0 : E.crossings(S, S.lines[drag.line].stations);
-      return E.crossings(S, ids) - old <= S.inv.tunnels;
+      const L = drag.kind === 'new' ? null : S.lines[drag.line];
+      const old = L ? E.tunnelsFor(S, L.stations, L.loop) : 0;
+      return E.tunnelsFor(S, ids, drag.loop || (drag.kind === 'reroute' && L.loop)) - old <= S.inv.tunnels;
     } catch (e) { return true; }
   }
 
