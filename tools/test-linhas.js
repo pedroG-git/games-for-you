@@ -1,0 +1,83 @@
+// node tools/test-linhas.js [weeks] - Linhas: a greedy auto-player runs every city; no crashes, saves round-trip, deterministic
+const WEEKS = Number(process.argv[2]) || 6;
+(async () => {
+  const E = await import('../www/games/linhas/js/engine.js');
+  const { CITIES } = await import('../www/games/linhas/js/cities.js');
+  const fails = [];
+
+  // Greedy player: hook every unconnected station onto the nearest line end, or start a new line.
+  function play(s) {
+    if (s.pendingUpgrade) E.chooseUpgrade(s, s.pendingUpgrade.options[0]);
+    if (s.inv.interchanges > 0) {
+      const busy = [...s.stations].sort((a, b) => b.queue.length - a.queue.length)[0];
+      E.makeInterchange(s, busy.id);
+    }
+    const on = new Set(s.lines.flatMap((l) => l.stations));
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    for (const st of s.stations) {
+      if (on.has(st.id)) continue;
+      if (s.lines.length < s.inv.lines) {
+        const near = s.stations.filter((o) => o.id !== st.id).sort((a, b) => dist(a, st) - dist(b, st));
+        for (const o of near) if (E.setLine(s, s.lines.length, [st.id, o.id]).ok) { on.add(st.id); break; }
+        if (on.has(st.id)) continue;
+      }
+      const ends = [];
+      s.lines.forEach((l, L) => {
+        if (l.loop) return;
+        ends.push({ L, ids: [...l.stations, st.id], d: dist(s.stations[l.stations[l.stations.length - 1]], st) });
+        ends.push({ L, ids: [st.id, ...l.stations], d: dist(s.stations[l.stations[0]], st) });
+      });
+      ends.sort((a, b) => a.d - b.d);
+      for (const e of ends) if (E.setLine(s, e.L, e.ids).ok) { on.add(st.id); break; }
+    }
+  }
+
+  function run(city, mode, seed, seconds, check) {
+    let s = E.newGame({ city, mode, seed });
+    let t = 0, events = 0;
+    while (t < seconds && !s.over) {
+      play(s);
+      for (let i = 0; i < 20; i++) events += E.step(s, 0.05).length;
+      t += 1;
+      if (check && t === Math.floor(seconds / 2)) {
+        const copy = JSON.parse(JSON.stringify(s));
+        const a = run2(s, 60), b = run2(copy, 60);
+        if (a !== b) fails.push(`${city}/${mode}: save round-trip diverged (${a} vs ${b})`);
+        s = copy;
+      }
+      for (const [L, line] of s.lines.entries()) line.trains.forEach((_, i) => {
+        const p = E.trainPose(s, L, i);
+        if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) fails.push(`${city}/${mode}: bad train pose`);
+      });
+    }
+    return { s, events };
+  }
+  // Runs a copy forward without the player, returns a fingerprint.
+  function run2(s, seconds) {
+    const c = JSON.parse(JSON.stringify(s));
+    for (let i = 0; i < seconds * 20; i++) { if (c.pendingUpgrade) E.chooseUpgrade(c, c.pendingUpgrade.options[0]); E.step(c, 0.05); }
+    return `${c.score}/${c.stations.length}/${c.t.toFixed(2)}`;
+  }
+
+  const seconds = WEEKS * E.DAY * 7;
+  for (const c of CITIES) {
+    for (const mode of ['normal', 'relaxed']) {
+      try {
+        const t0 = Date.now();
+        const { s } = run(c.id, mode, 1234, seconds, true);
+        const again = run(c.id, mode, 1234, seconds, false).s;
+        if (s.score !== again.score) fails.push(`${c.id}/${mode}: not deterministic (${s.score} vs ${again.score})`);
+        if (s.score <= 0) fails.push(`${c.id}/${mode}: no passengers delivered`);
+        if (mode === 'relaxed' && s.over) fails.push(`${c.id}/relaxed: game ended`);
+        if (s.stations.some((st) => st.id !== s.stations.indexOf(st))) fails.push(`${c.id}: station ids out of order`);
+        console.log(`${c.id.padEnd(7)} ${mode.padEnd(8)} score ${String(s.score).padStart(4)}  week ${s.week}  stations ${String(s.stations.length).padStart(2)}  lines ${s.lines.length}  ${s.over ? 'over' : 'running'}  ${Date.now() - t0} ms`);
+      } catch (e) {
+        fails.push(`${c.id}/${mode}: ${e.stack}`);
+      }
+    }
+  }
+  const d = E.newGame({ mode: 'daily', seed: 20261023 });
+  if (d.city !== CITIES[20261023 % CITIES.length].id) fails.push('daily: wrong city');
+  if (fails.length) { console.error('FAIL\n' + fails.join('\n')); process.exit(1); }
+  console.log('Linhas OK');
+})();

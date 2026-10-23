@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#f3eee4"/>
+  <!-- river -->
+  <path d="M0 330 C120 300 170 380 300 350 S450 300 512 320 V400 C440 380 380 430 290 420 S110 380 0 410 Z" fill="#a9d3e8"/>
+  <g fill="none" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M70 120 H250 L380 250 V440" stroke="#2f6fd6"/>
+    <path d="M90 440 V300 L250 140 H440" stroke="#e4423f"/>
+    <path d="M60 250 H440" stroke="#f2b51d"/>
+  </g>
+  <!-- train on red line -->
+  <rect x="300" y="117" width="70" height="46" rx="10" fill="#e4423f" stroke="#2b2b2b" stroke-width="5"/>
+  <rect x="312" y="130" width="12" height="12" fill="#fff"/><rect x="331" y="130" width="12" height="12" fill="#fff"/><rect x="350" y="130" width="12" height="12" fill="#fff"/>
+  <!-- stations -->
+  <g fill="#fff" stroke="#2b2b2b" stroke-width="10" stroke-linejoin="round">
+    <circle cx="70" cy="120" r="26"/>
+    <rect x="224" y="224" width="52" height="52"/>
+    <path d="M440 222 L470 276 H410 Z"/>
+    <circle cx="380" cy="440" r="26"/>
+    <path d="M90 412 L120 440 L90 468 L60 440 Z"/>
+    <path d="M60 222 L90 276 H30 Z"/>
+  </g>
+</svg>

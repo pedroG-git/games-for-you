@@ -7,4 +7,5 @@ window.GAMES = [
   { name: 'Blocos', tag: 'Fit the blocks', path: 'games/blocos/index.html', icon: 'games/blocos/icon.svg', color: '#2f4aa8' },
   { name: 'Mahjong', tag: 'Match the tile pairs', path: 'games/mahjong/index.html', icon: 'games/mahjong/icon.svg', color: '#1c5a3e' },
   { name: 'Dragon Match', tag: 'Match 3, rebuild the fortress', path: 'games/dragon/index.html', icon: 'games/dragon/icon.svg', color: '#4a1f8a' },
+  { name: 'Linhas', tag: 'Connect the city by train', path: 'games/linhas/index.html', icon: 'games/linhas/icon.svg', color: '#e4423f' },
 ];

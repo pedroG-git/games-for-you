@@ -8,7 +8,7 @@
     "version": "node scripts/write-version.js && git add docs/version.json",
     "sync": "node scripts/write-version.js && cap sync android",
     "serve": "node scripts/write-version.js && node scripts/serve.js",
-    "test": "node tools/test-levelgen.js 30 && node tools/test-dragon.js 20 && node tools/test-mahjong.js 30"
+    "test": "node tools/test-levelgen.js 30 && node tools/test-dragon.js 20 && node tools/test-mahjong.js 30 && node tools/test-linhas.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
