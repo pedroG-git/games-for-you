@@ -8,6 +8,7 @@ export const R = {
   canvas: null, ctx: null, W: 0, H: 0, dpr: 1,
   cam: null, scale: 1, ox: 0, oy: 0, padT: 80, padB: 96,
   pops: {}, floats: [], caps: [], paths: [], overId: -1,
+  zoom: { k: 1, x: 0, y: 0 }, // the player's pinch zoom on top of the automatic fit: screen = fit × k + (x, y)
 };
 
 // Look of the map: day or night, and line colours that colour-blind players can tell apart.
@@ -38,7 +39,7 @@ export function resize() {
 
 export function reset(state) {
   R.cam = { ...state.view };
-  R.pops = {}; R.floats = []; R.caps = []; R.paths = []; R.overId = -1; laneCache = { key: '', runs: [] };
+  R.pops = {}; R.floats = []; R.caps = []; R.paths = []; R.overId = -1; R.zoom = { k: 1, x: 0, y: 0 }; laneCache = { key: '', runs: [] };
 }
 
 export const pop = (id, now) => { R.pops[id] = now; };
@@ -49,6 +50,16 @@ function fit() {
   R.scale = Math.min(aw / c.w, ah / c.h);
   R.ox = 16 + (aw - c.w * R.scale) / 2 - c.x * R.scale;
   R.oy = R.padT + (ah - c.h * R.scale) / 2 - c.y * R.scale;
+  const z = R.zoom;
+  R.scale *= z.k; R.ox = R.ox * z.k + z.x; R.oy = R.oy * z.k + z.y;
+}
+// Zoom by k (1..3) keeping the map under the screen point (mx, my) at that point; the map can't be pushed off screen.
+export function setZoom(k, mx, my, from = R.zoom) {
+  k = Math.max(1, Math.min(3, k));
+  const bx = (mx - from.x) / from.k, by = (my - from.y) / from.k; // that point before any zoom
+  const x = mx - bx * k, y = my - by * k;
+  R.zoom = { k, x: Math.max(R.W * (1 - k), Math.min(0, x)), y: Math.max(R.H * (1 - k), Math.min(0, y)) };
+  if (k < 1.03) R.zoom = { k: 1, x: 0, y: 0 };
 }
 export const toScreen = (x, y) => ({ x: x * R.scale + R.ox, y: y * R.scale + R.oy });
 export const toWorld = (sx, sy) => ({ x: (sx - R.ox) / R.scale, y: (sy - R.oy) / R.scale });

@@ -1,7 +1,7 @@
 // Touch input: draw, extend, loop and reroute lines; apply carriages and interchanges.
 import * as E from './engine.js';
 import { CITIES } from './cities.js';
-import { R, toWorld, toScreen } from './render.js';
+import { R, toWorld, toScreen, setZoom } from './render.js';
 import { play } from './audio.js';
 
 const HIT = 28;        // px: how close a finger must be to a station (about 9.6 mm across, Parhi et al. 2006)
@@ -190,9 +190,37 @@ export function initInput(canvas, api) {
     if (el) el.addEventListener('pointerdown', (e) => startCarry(kind, e));
   }
 
+  // Two fingers zoom and pan the map (one finger keeps drawing); a second finger cancels whatever the first one started.
+  const fingers = new Map();
+  let pinch = null;
+  const pinchInfo = () => {
+    const [a, b] = [...fingers.values()];
+    return { m: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 };
+  };
+  canvas.addEventListener('pointerdown', (e) => {
+    fingers.set(e.pointerId, pos(e));
+    if (fingers.size === 2) {
+      drag = null; ui.preview = null;
+      pinch = { ...pinchInfo(), z: { ...R.zoom } };
+    }
+  }, true);
+  canvas.addEventListener('pointermove', (e) => {
+    if (!fingers.has(e.pointerId)) return;
+    fingers.set(e.pointerId, pos(e));
+    if (pinch && fingers.size === 2) {
+      const n = pinchInfo();
+      // the point under the fingers' midpoint follows the midpoint (pan), the spread sets the zoom
+      setZoom(pinch.z.k * n.d / pinch.d, n.m.x, n.m.y, { k: pinch.z.k, x: pinch.z.x + n.m.x - pinch.m.x, y: pinch.z.y + n.m.y - pinch.m.y });
+    }
+  }, true);
+  const lift = (e) => { fingers.delete(e.pointerId); if (!fingers.size) pinch = null; };
+  canvas.addEventListener('pointerup', lift, true);
+  canvas.addEventListener('pointercancel', lift, true);
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); const p = pos(e); setZoom(R.zoom.k * Math.exp(-e.deltaY / 400), p.x, p.y); }, { passive: false });
+
   canvas.addEventListener('pointerdown', (e) => {
     const S = api.get();
-    if (!S || api.blocked() || drag) return;
+    if (!S || api.blocked() || drag || pinch) return;
     const p = pos(e);
     if (ui.tool) { applyTool(S, p); return; }
     // With a line picked in the bar, tapping one of its stations takes that station off the line.
@@ -249,7 +277,7 @@ export function initInput(canvas, api) {
 
   canvas.addEventListener('pointermove', (e) => {
     const S = api.get();
-    if (!drag || !S) return;
+    if (!drag || !S || pinch) return;
     const p = pos(e);
     if (!drag.moved && Math.hypot(p.x - drag.p0.x, p.y - drag.p0.y) > 10) drag.moved = true;
     if (drag.full && drag.moved) { drag = null; ui.preview = null; api.toast('No free line'); play.locked(); return; }

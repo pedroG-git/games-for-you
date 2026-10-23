@@ -400,6 +400,8 @@ function updateCard() {
 // ---------------------------------------------------------------- HUD
 function updateHud() {
   updateCard();
+  const zoomed = Rn.R.zoom.k > 1;
+  if ($('#b-fit').hidden === zoomed) $('#b-fit').hidden = !zoomed;
   updateHint();
   if (shownScore !== S.score) {
     shownScore = S.score;
@@ -490,6 +492,7 @@ addEventListener('pagehide', save);
 Rn.init($('#cv'));
 applyLook();
 recordBest(load(K.run)); // a game left unfinished before bests were saved during play
+$('#b-fit').onclick = () => { play.tap(); Rn.R.zoom = { k: 1, x: 0, y: 0 }; };
 initInput($('#cv'), {
   get: () => S,
   ui,
