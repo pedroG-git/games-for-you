@@ -68,7 +68,10 @@ h1 small { font-size: .62em; color: var(--red); vertical-align: .14em; }
 }
 .last[hidden] { display: none; }
 .last:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
-.last img { width: 56px; height: 56px; border-radius: 14px; flex: none; }
+.last img {
+  width: 58px; height: 58px; border-radius: 16px; flex: none; transform: rotate(-4deg);
+  border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); background: var(--cream);
+}
 .last span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .last small { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; opacity: .65; }
 .last b { font-family: var(--title); font-weight: 400; font-size: 24px; line-height: 1.1; margin-top: 2px; }
@@ -139,6 +142,8 @@ main {
 a:focus-visible, button:focus-visible { outline: 4px solid var(--red); outline-offset: 4px; }
 
 @keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.92); } }
+@keyframes fade { from { opacity: 0; } }
+.back .tile, .back .last { animation: fade .18s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .tile, .last, .tile em { animation: none; } .leaving main, .leaving .last { transition: none; } }
 
 /* ---------------------------------------------------------------- big screens: content stays a comfortable width */
