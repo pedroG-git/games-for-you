@@ -60,48 +60,68 @@ const gems = [
 
 // Specials
 const specials = `
-  ${grad('rk', [[0, '#ffe08a'], [0.5, '#ff7a1a'], [1, '#b8320a']])}
-  ${grad('fl', [[0, '#fff3a0'], [1, '#ff4d1a']], 1, 0)}
+  ${grad('rkB', [[0, '#ffb0a0'], [0.35, '#ff3b4a'], [1, '#8a0a24']])}
+  ${grad('rkG', [[0, '#fff6b8'], [0.5, '#ffc93a'], [1, '#b86a00']])}
+  ${grad('rkF', [[0, '#ffe08a'], [1, '#ff6a1a']])}
+  <radialGradient id="rkGl" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffb020" stop-opacity=".55"/><stop offset="1" stop-color="#ff6a1a" stop-opacity="0"/></radialGradient>
   <symbol id="rocket" viewBox="0 0 100 100">
-    <path d="M4 50L18 38L18 62Z" fill="url(#fl)"/><path d="M96 50L82 38L82 62Z" fill="url(#fl)"/>
-    <path d="M14 50Q4 42 0 50Q4 58 14 50Z" fill="#ffd23a"/><path d="M86 50Q96 42 100 50Q96 58 86 50Z" fill="#ffd23a"/>
-    <rect x="16" y="36" width="68" height="28" rx="14" fill="url(#rk)" stroke="#7a1f00" stroke-width="3"/>
-    <path d="M30 36L22 22L40 36ZM70 36L78 22L60 36ZM30 64L22 78L40 64ZM70 64L78 78L60 64Z" fill="#c22a1e" stroke="#7a1f00" stroke-width="2.5" stroke-linejoin="round"/>
-    <circle cx="50" cy="50" r="7" fill="#fff4c2" stroke="#7a1f00" stroke-width="2.5"/>
-    <rect x="22" y="40" width="56" height="6" rx="3" fill="#fff" opacity=".45"/>
+    <ellipse cx="50" cy="50" rx="50" ry="30" fill="url(#rkGl)"/>
+    <path d="M41 36L33 14Q48 16 58 36Z M41 64L33 86Q48 84 58 64Z" fill="url(#rkF)" stroke="#5a1400" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M40 34L36 22" stroke="#fff" stroke-width="2.5" opacity=".6" stroke-linecap="round"/>
+    <path d="M25 33L25 67Q10 63 3 50Q10 37 25 33Z" fill="url(#rkG)" stroke="#5a1400" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="M75 33L75 67Q90 63 97 50Q90 37 75 33Z" fill="url(#rkG)" stroke="#5a1400" stroke-width="3.5" stroke-linejoin="round"/>
+    <rect x="23" y="32" width="54" height="36" rx="7" fill="url(#rkB)" stroke="#4a0010" stroke-width="3.5"/>
+    <rect x="29" y="32" width="6" height="36" fill="url(#rkG)" stroke="#4a0010" stroke-width="2"/><rect x="65" y="32" width="6" height="36" fill="url(#rkG)" stroke="#4a0010" stroke-width="2"/>
+    <circle cx="50" cy="50" r="9" fill="#4a0010"/><circle cx="50" cy="50" r="6.5" fill="#bff4ff"/><circle cx="48" cy="48" r="2.5" fill="#fff"/>
+    <rect x="25" y="36" width="50" height="5" rx="2.5" fill="#fff" opacity=".55"/>
+    <path d="M10 44Q14 40 20 39" stroke="#fff" stroke-width="2.5" opacity=".7" fill="none" stroke-linecap="round"/>
   </symbol>
-  ${rgrad('bm', [[0, '#7a4a8a'], [0.6, '#2b1736'], [1, '#12081a']])}
+  <radialGradient id="bmB" cx=".36" cy=".32" r=".75"><stop offset="0" stop-color="#9a8ac8"/><stop offset=".35" stop-color="#4a3a7a"/><stop offset=".8" stop-color="#1a1030"/><stop offset="1" stop-color="#0a0418"/></radialGradient>
+  <radialGradient id="bmS" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff6b0"/><stop offset=".4" stop-color="#ffc93a" stop-opacity=".9"/><stop offset="1" stop-color="#ff6a1a" stop-opacity="0"/></radialGradient>
   <symbol id="bomb" viewBox="0 0 100 100">
-    <path d="M60 22Q70 6 84 12" stroke="#8a5a2b" stroke-width="5" fill="none" stroke-linecap="round"/>
-    <path d="M84 12L80 2L88 8L96 4L90 14L98 18L86 18Z" fill="#ffcf3a"/>
-    <circle cx="48" cy="56" r="36" fill="url(#bm)" stroke="#0a0410" stroke-width="3"/>
-    <rect x="50" y="14" width="18" height="12" rx="3" transform="rotate(30 59 20)" fill="#5a3a6a" stroke="#0a0410" stroke-width="2.5"/>
-    <path d="M48 36L54 50L68 52L56 60L60 74L48 66L36 74L40 60L28 52L42 50Z" fill="#ff4d2e" opacity=".9"/>
-    <path d="M48 44L51 52L59 53L52 57L54 65L48 61L42 65L44 57L37 53L45 52Z" fill="#ffd23a"/>
-    <ellipse cx="34" cy="38" rx="10" ry="6" fill="#fff" opacity=".35" transform="rotate(-30 34 38)"/>
+    <path d="M62 24Q66 8 80 12" stroke="#3a2010" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M62 24Q66 8 80 12" stroke="#c8a070" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-dasharray="4 3"/>
+    <circle cx="82" cy="11" r="13" fill="url(#bmS)"/>
+    <path d="M82 1L84.5 8.5L92 11L84.5 13.5L82 21L79.5 13.5L72 11L79.5 8.5Z" fill="#fff"/>
+    <circle cx="46" cy="58" r="37" fill="url(#bmB)" stroke="#05020c" stroke-width="3.5"/>
+    <path d="M14 66Q46 82 78 66" stroke="#ffc93a" stroke-width="5" fill="none" opacity=".9"/>
+    <path d="M14 66Q46 82 78 66" stroke="#05020c" stroke-width="1.5" fill="none" opacity=".6"/>
+    <rect x="50" y="17" width="20" height="14" rx="3" transform="rotate(32 60 24)" fill="url(#rkG)" stroke="#05020c" stroke-width="3"/>
+    <path d="M46 40l4.5 9.5 10.5 1.2-7.8 7 2.2 10.3-9.4-5.3-9.4 5.3 2.2-10.3-7.8-7 10.5-1.2z" fill="url(#rkG)" stroke="#5a2a00" stroke-width="2.5" stroke-linejoin="round"/>
+    <ellipse cx="31" cy="40" rx="11" ry="6.5" fill="#fff" opacity=".45" transform="rotate(-35 31 40)"/>
+    <circle cx="66" cy="76" r="3" fill="#fff" opacity=".35"/>
   </symbol>
-  ${grad('dr', [[0, '#8af0a8'], [1, '#1e8a4a']])}
-  ${grad('wg', [[0, '#ffd9a0'], [1, '#ff8a3d']])}
+  ${grad('drH', [[0, '#a8ffb8'], [0.5, '#3ad46a'], [1, '#127a3a']])}
+  ${grad('drW', [[0, '#ffe0a8'], [1, '#ff7a3d']])}
+  ${grad('drC', [[0, '#fffbe8'], [1, '#e8c98a']])}
   <symbol id="prop" viewBox="0 0 100 100">
-    <path d="M38 52Q14 30 2 40Q12 46 8 54Q18 52 20 62Q28 54 38 60Z" fill="url(#wg)" stroke="#9a3d0a" stroke-width="2.5" stroke-linejoin="round"/>
-    <path d="M62 52Q86 30 98 40Q88 46 92 54Q82 52 80 62Q72 54 62 60Z" fill="url(#wg)" stroke="#9a3d0a" stroke-width="2.5" stroke-linejoin="round"/>
-    <path d="M36 26L32 10L44 22ZM64 26L68 10L56 22Z" fill="#ffe08a" stroke="#7a5a00" stroke-width="2"/>
-    <ellipse cx="50" cy="52" rx="24" ry="26" fill="url(#dr)" stroke="#0e5a2e" stroke-width="3"/>
-    <ellipse cx="50" cy="68" rx="13" ry="9" fill="#c8ffd8"/>
-    <circle cx="42" cy="66" r="2.2" fill="#0e5a2e"/><circle cx="58" cy="66" r="2.2" fill="#0e5a2e"/>
-    <circle cx="40" cy="46" r="7" fill="#fff"/><circle cx="60" cy="46" r="7" fill="#fff"/>
-    <circle cx="41" cy="47" r="4" fill="#1a1030"/><circle cx="61" cy="47" r="4" fill="#1a1030"/>
-    <circle cx="42.5" cy="45" r="1.5" fill="#fff"/><circle cx="62.5" cy="45" r="1.5" fill="#fff"/>
-    <ellipse cx="42" cy="34" rx="8" ry="4" fill="#fff" opacity=".4"/>
+    <path d="M30 52Q12 18 0 34Q10 38 6 48Q16 46 16 56Q24 52 30 62Z" fill="url(#drW)" stroke="#6a2a06" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M70 52Q88 18 100 34Q90 38 94 48Q84 46 84 56Q76 52 70 62Z" fill="url(#drW)" stroke="#6a2a06" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M28 50L10 36M28 54L12 48M72 50L90 36M72 54L88 48" stroke="#c2480a" stroke-width="2" opacity=".7"/>
+    <path d="M33 30L25 10L44 24Z M67 30L75 10L56 24Z" fill="url(#drC)" stroke="#5a3a10" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M44 22L50 12L56 22Z" fill="#ff8a3d" stroke="#6a2a06" stroke-width="2.5" stroke-linejoin="round"/>
+    <ellipse cx="50" cy="52" rx="27" ry="27" fill="url(#drH)" stroke="#0b4a24" stroke-width="3.5"/>
+    <ellipse cx="50" cy="67" rx="16" ry="11" fill="#d4ffdc" stroke="#0b4a24" stroke-width="2.5"/>
+    <circle cx="44" cy="64" r="2.2" fill="#0b4a24"/><circle cx="56" cy="64" r="2.2" fill="#0b4a24"/>
+    <path d="M43 71Q50 76 57 71" stroke="#0b4a24" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <circle cx="38" cy="47" r="8.5" fill="#fff" stroke="#0b4a24" stroke-width="2.5"/><circle cx="62" cy="47" r="8.5" fill="#fff" stroke="#0b4a24" stroke-width="2.5"/>
+    <circle cx="39.5" cy="48.5" r="5" fill="#1a1030"/><circle cx="60.5" cy="48.5" r="5" fill="#1a1030"/>
+    <circle cx="41.5" cy="46" r="2" fill="#fff"/><circle cx="62.5" cy="46" r="2" fill="#fff"/>
+    <ellipse cx="29" cy="60" rx="4.5" ry="3" fill="#ff7ab0" opacity=".6"/><ellipse cx="71" cy="60" rx="4.5" ry="3" fill="#ff7ab0" opacity=".6"/>
+    <ellipse cx="41" cy="32" rx="10" ry="5" fill="#fff" opacity=".45" transform="rotate(-15 41 32)"/>
   </symbol>
-  <radialGradient id="ey" cx=".5" cy=".5" r=".55"><stop offset="0" stop-color="#fff7c2"/><stop offset=".35" stop-color="#ffb627"/><stop offset=".7" stop-color="#ff3b8a"/><stop offset="1" stop-color="#5a1aa8"/></radialGradient>
+  <radialGradient id="ey" cx=".5" cy=".5" r=".55"><stop offset="0" stop-color="#fff7c2"/><stop offset=".3" stop-color="#ffc93a"/><stop offset=".65" stop-color="#ff3b8a"/><stop offset="1" stop-color="#5a1aa8"/></radialGradient>
+  <radialGradient id="eyG" cx=".5" cy=".5" r=".5"><stop offset=".6" stop-color="#c27aff" stop-opacity=".8"/><stop offset="1" stop-color="#7a3dff" stop-opacity="0"/></radialGradient>
+  ${grad('eyS', [[0, '#8a5ad8'], [1, '#2a0a5a']])}
   <symbol id="light" viewBox="0 0 100 100">
-    <circle cx="50" cy="50" r="44" fill="#7a3dff" opacity=".35"/>
-    <circle cx="50" cy="50" r="38" fill="url(#ey)" stroke="#3a0a6b" stroke-width="3"/>
-    <path d="M50 18Q60 50 50 82Q40 50 50 18Z" fill="#1a0a2b"/>
-    <path d="M50 30Q54 50 50 70Q46 50 50 30Z" fill="#ff4d2e" opacity=".8"/>
-    <ellipse cx="34" cy="32" rx="10" ry="6" fill="#fff" opacity=".6" transform="rotate(-35 34 32)"/>
-    <circle cx="68" cy="66" r="3" fill="#fff" opacity=".7"/>
+    <circle cx="50" cy="50" r="50" fill="url(#eyG)"/>
+    <circle cx="50" cy="50" r="44" fill="url(#eyS)" stroke="#1a0438" stroke-width="3"/>
+    ${Array.from({ length: 12 }, (_, i) => { const a = i * Math.PI / 6; const x = 50 + 40 * Math.sin(a), y = 50 - 40 * Math.cos(a); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="#a87af0" stroke="#1a0438" stroke-width="1.5"/>`; }).join('')}
+    <circle cx="50" cy="50" r="33" fill="url(#ey)" stroke="#1a0438" stroke-width="3"/>
+    <g stroke="#ff8a1a" stroke-width="1.6" opacity=".7">${Array.from({ length: 16 }, (_, i) => { const a = i * Math.PI / 8; return `<path d="M${(50 + 12 * Math.cos(a)).toFixed(1)} ${(50 + 12 * Math.sin(a)).toFixed(1)}L${(50 + 30 * Math.cos(a)).toFixed(1)} ${(50 + 30 * Math.sin(a)).toFixed(1)}"/>`; }).join('')}</g>
+    <path d="M50 19Q61 50 50 81Q39 50 50 19Z" fill="#14041f" stroke="#ff3b5c" stroke-width="2"/>
+    <ellipse cx="38" cy="34" rx="9" ry="5.5" fill="#fff" opacity=".8" transform="rotate(-35 38 34)"/>
+    <circle cx="64" cy="66" r="3" fill="#fff" opacity=".7"/>
   </symbol>`;
 
 // Obstacles: crate (1 layer), iron-banded crate (2), rune stone (3); dragon egg; ice.
@@ -144,26 +164,50 @@ const obstacles = `
     <path d="M50 4L63 36L97 38L70 59L80 93L50 74L20 93L30 59L3 38L37 36Z" fill="#ffd23a" stroke="#a86a00" stroke-width="5" stroke-linejoin="round"/>
     <path d="M50 18L58 40L80 41L50 30Z" fill="#fff" opacity=".5"/>
   </symbol>
+  ${grad('hmW', [[0, '#e8b070'], [1, '#8a4a1a']], 1, 0)}
+  ${grad('hmI', [[0, '#f0f4fa'], [0.45, '#a8b2c2'], [1, '#4a5466']])}
   <symbol id="hammer" viewBox="0 0 100 100">
-    <rect x="44" y="34" width="12" height="62" rx="5" fill="#a8672e" stroke="#4a2a0e" stroke-width="3" transform="rotate(35 50 60)"/>
-    <rect x="16" y="10" width="62" height="30" rx="8" fill="url(#ir)" stroke="#262b38" stroke-width="3.5" transform="rotate(35 50 30)"/>
+    <g transform="translate(50 52) scale(.84) rotate(35) translate(-50 -50)">
+      <rect x="44" y="34" width="12" height="62" rx="5" fill="url(#hmW)" stroke="#3a1a06" stroke-width="3.5"/>
+      <rect x="42" y="72" width="16" height="20" rx="4" fill="#7a2a1a" stroke="#3a1a06" stroke-width="3"/>
+      <path d="M44 77H56M44 82H56M44 87H56" stroke="#3a1a06" stroke-width="1.5" opacity=".6"/>
+      <rect x="14" y="10" width="72" height="30" rx="7" fill="url(#hmI)" stroke="#1e2430" stroke-width="3.5"/>
+      <rect x="10" y="8" width="12" height="34" rx="4" fill="#6b7686" stroke="#1e2430" stroke-width="3"/><rect x="78" y="8" width="12" height="34" rx="4" fill="#6b7686" stroke="#1e2430" stroke-width="3"/>
+      <rect x="40" y="10" width="20" height="30" fill="url(#rkG)" stroke="#1e2430" stroke-width="3"/>
+      <rect x="24" y="14" width="52" height="5" rx="2.5" fill="#fff" opacity=".6"/>
+    </g>
   </symbol>
   <symbol id="arrow" viewBox="0 0 100 100">
-    <path d="M8 50H80" stroke="#a8672e" stroke-width="9" stroke-linecap="round"/>
-    <path d="M96 50L72 34L76 50L72 66Z" fill="url(#ir)" stroke="#262b38" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M8 50L20 34H32L22 50L32 66H20Z" fill="#ff4d5e" stroke="#7a0020" stroke-width="2.5"/>
+    <path d="M4 38H22M2 50H18M4 62H22" stroke="#ffe08a" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+    <rect x="14" y="45" width="66" height="10" rx="5" fill="url(#hmW)" stroke="#3a1a06" stroke-width="3"/>
+    <rect x="60" y="44" width="6" height="12" fill="url(#rkG)" stroke="#3a1a06" stroke-width="2"/>
+    <path d="M98 50L72 30L77 50L72 70Z" fill="url(#hmI)" stroke="#1e2430" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M94 49L76 35L79 49Z" fill="#fff" opacity=".6"/>
+    <path d="M14 50L26 30H40L30 50Z" fill="url(#rkB)" stroke="#4a0010" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M14 50L26 70H40L30 50Z" fill="#f4eef8" stroke="#4a0010" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M26 34L32 46M26 66L32 54" stroke="#fff" stroke-width="1.5" opacity=".6"/>
+    <rect x="18" y="47" width="58" height="3" rx="1.5" fill="#fff" opacity=".45"/>
   </symbol>
+  ${grad('cnB', [[0, '#4a5466'], [0.4, '#a8b2c2'], [1, '#2a303c']], 1, 0)}
   <symbol id="cannon" viewBox="0 0 100 100">
-    <rect x="30" y="8" width="40" height="62" rx="10" fill="url(#st)" stroke="#262b38" stroke-width="3.5"/>
-    <rect x="26" y="6" width="48" height="12" rx="5" fill="#6b7686" stroke="#262b38" stroke-width="3"/>
-    <circle cx="28" cy="78" r="16" fill="#a8672e" stroke="#4a2a0e" stroke-width="3.5"/><circle cx="72" cy="78" r="16" fill="#a8672e" stroke="#4a2a0e" stroke-width="3.5"/>
-    <circle cx="28" cy="78" r="4" fill="#4a2a0e"/><circle cx="72" cy="78" r="4" fill="#4a2a0e"/>
+    <circle cx="50" cy="10" r="9" fill="url(#bmS)"/>
+    <path d="M32 16H68L64 70H36Z" fill="url(#cnB)" stroke="#141820" stroke-width="3.5" stroke-linejoin="round"/>
+    <rect x="28" y="8" width="44" height="13" rx="5" fill="url(#cnB)" stroke="#141820" stroke-width="3"/>
+    <ellipse cx="50" cy="10" rx="13" ry="3" fill="#141820"/>
+    <rect x="32" y="34" width="36" height="6" fill="url(#rkG)" stroke="#141820" stroke-width="2"/><rect x="34" y="54" width="32" height="6" fill="url(#rkG)" stroke="#141820" stroke-width="2"/>
+    <path d="M40 22V66" stroke="#fff" stroke-width="3" opacity=".45" stroke-linecap="round"/>
+    <path d="M18 92L28 62H72L82 92Z" fill="url(#hmW)" stroke="#3a1a06" stroke-width="3.5" stroke-linejoin="round"/>
+    ${[24, 76].map((x) => `<circle cx="${x}" cy="82" r="14" fill="url(#hmW)" stroke="#3a1a06" stroke-width="3.5"/><path d="M${x - 10} 82H${x + 10}M${x} 72V92M${x - 7} 75L${x + 7} 89M${x + 7} 75L${x - 7} 89" stroke="#5a2a0e" stroke-width="2"/><circle cx="${x}" cy="82" r="4" fill="url(#rkG)" stroke="#3a1a06" stroke-width="2"/>`).join('')}
   </symbol>
   <symbol id="mix" viewBox="0 0 100 100">
-    <path d="M10 70Q50 100 90 70L82 30Q50 10 18 30Z" fill="#ff4d8a" stroke="#7a0a3b" stroke-width="3.5"/>
-    <path d="M18 30Q50 46 82 30" stroke="#7a0a3b" stroke-width="3" fill="none"/>
-    <circle cx="50" cy="12" r="8" fill="#ffd23a" stroke="#a86a00" stroke-width="3"/>
-    <path d="M30 58L40 50M60 50L70 58M45 66H55" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".8"/>
+    <circle cx="50" cy="50" r="46" fill="#b25cff" opacity=".25"/>
+    <path d="M18 44A33 33 0 0 1 76 28" stroke="#3a1a06" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M82 56A33 33 0 0 1 24 72" stroke="#3a1a06" stroke-width="13" fill="none" stroke-linecap="round"/>
+    <path d="M18 44A33 33 0 0 1 76 28" stroke="url(#rkG)" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M82 56A33 33 0 0 1 24 72" stroke="url(#rkG)" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M66 14L90 24L74 42Z" fill="url(#rkG)" stroke="#3a1a06" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M34 86L10 76L26 58Z" fill="url(#rkG)" stroke="#3a1a06" stroke-width="3" stroke-linejoin="round"/>
+    <use href="#gem4" x="31" y="31" width="38" height="38"/>
   </symbol>`;
 
 export function installArt() {
