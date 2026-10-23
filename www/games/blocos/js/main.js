@@ -1,6 +1,6 @@
 // Blocos — Block Blast-style puzzle: drag pieces onto an 8×8 board, fill rows/columns to clear them.
 // Classic = endless high-score game. Adventures = endless levels where pre-placed blocks must be cleared.
-import { N, SHAPES, STONE, CRACKED, isTarget, colorOf, fits, fitsAnywhere, dealTray, fullLines, lineCells, clearLines } from './pieces.js';
+import { N, SHAPES, GOLD, STONE, CRACKED, isTarget, colorOf, setColors, fits, fitsAnywhere, dealTray, fullLines, lineCells, clearLines } from './pieces.js';
 import { play, settings, unlock, setMusic } from './audio.js';
 import { catSVG } from './cats.js';
 import { DIFFS, worldOf, levelInfo } from './levels.js';
@@ -27,7 +27,8 @@ const saveProg = () => store(PROG, prog);
 const unlockedIn = (mode) => Math.max(0, ...Object.keys(prog[mode]).map(Number)) + 1;
 const totalStars = () => ['time', 'moves', 'relaxed'].reduce((s, m) => s + Object.values(prog[m]).reduce((a, b) => a + b, 0), 0);
 
-// Power-ups: earned by winning Adventures levels and the daily puzzle, used anywhere (most of all when stuck).
+// Power-ups: earned by winning Adventures levels and the daily puzzle, and in Classic by clearing golden
+// blocks and every GIFT_LINES lines. Used anywhere (most of all when stuck).
 const POWER = 'blocos-power', DAILY = 'blocos-daily';
 const PW = ['fresh', 'turn', 'bomb'], PW_ICON = { fresh: '🔄', turn: '↻', bomb: '💣' };
 const pw = Object.assign({ fresh: 2, turn: 2, bomb: 1 }, load(POWER) || {});
@@ -40,12 +41,84 @@ const dayStr = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.g
 const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return dayStr(d); };
 const streakNow = () => (daily.last === dayStr() || daily.last === yesterday() ? daily.streak : 0);
 
+// ---------------------------------------------------------------- Classic extras
+// Golden blocks: now and then a Classic piece carries a golden cell; clearing it doubles that clear's
+// points and may drop a power-up (surprise rewards keep a game fun). Score milestones get a cheer.
+const GOLD_DEAL = 0.18, GOLD_GIFT = 0.5, GIFT_LINES = 20;
+const MILESTONES = [250, 500, 1000, 2000, 3000, 5000, 7500, 10000, 15000, 20000, 30000, 50000, 75000, 100000];
+function deal(grid, classic) {
+  const tray = dealTray(grid, Math.random, classic ? 0 : help());
+  if (classic && Math.random() < GOLD_DEAL) {
+    const p = tray[Math.floor(Math.random() * tray.length)];
+    if (p) p.g = Math.floor(Math.random() * SHAPES[p.s].cells.length);
+  }
+  return tray;
+}
+
+// Themes: block colours + board look, unlocked by the Classic best score.
+const THEME = 'blocos-theme';
+const THEMES = [
+  { id: 'classic', name: 'Classic', need: 0, colors: ['#ff4d5e', '#ff9a2e', '#ffd23a', '#4fd65a', '#2ec9e8', '#3f7cff', '#a35cff'] },
+  { id: 'candy', name: 'Candy', need: 500, colors: ['#ff7eb6', '#ffa86b', '#ffe17a', '#8be0a4', '#7fd8f0', '#9fb4ff', '#d39bff'] },
+  { id: 'ocean', name: 'Ocean', need: 1500, colors: ['#ff6f61', '#ffb347', '#f9e07f', '#3ddc97', '#1fd1e0', '#2f8cff', '#6c63ff'] },
+  { id: 'sunset', name: 'Sunset', need: 3000, colors: ['#ff3d6e', '#ff7a2f', '#ffc23a', '#c2e05a', '#ff9ec4', '#b04aff', '#7a4dff'] },
+  { id: 'forest', name: 'Forest', need: 6000, colors: ['#e8574a', '#f29a3c', '#f2d25c', '#6cc24a', '#3fb59a', '#4f8fd6', '#a07ad6'] },
+  { id: 'neon', name: 'Neon night', need: 10000, colors: ['#ff2e88', '#ff8c1a', '#ffe500', '#39ff6a', '#00e5ff', '#3d7bff', '#c63dff'] },
+];
+const theme = Object.assign({ id: 'classic', seen: 0 }, load(THEME) || {});
+function applyTheme(id) {
+  const t = THEMES.find((x) => x.id === id && x.need <= best) || THEMES[0];
+  theme.id = t.id;
+  store(THEME, theme);
+  setColors(t.colors);
+  document.body.dataset.theme = t.id;
+}
+function renderThemes() {
+  $('themes').innerHTML = THEMES.map((t) => `<button data-t="${t.id}" class="${t.id === theme.id ? 'on' : ''}${t.need > best ? ' locked' : ''}">`
+    + `<span class="sw">${t.colors.slice(0, 4).map((c) => `<i style="background:${c}"></i>`).join('')}</span>`
+    + `<b>${t.name}</b><small>${t.need > best ? `🔒 👑${t.need}` : t.id === theme.id ? '✓' : ''}</small></button>`).join('');
+}
+$('themes').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const t = THEMES.find((x) => x.id === b.dataset.t);
+  if (t.need > best) { play.back(); cat('meme', `Mrrp. (Score ${t.need} in Classic to unlock ${t.name}.)`, true); return; }
+  play.tap();
+  applyTheme(t.id);
+  renderThemes();
+  if (S) renderAll();
+});
+// A theme unlocked by a new best: tell her once.
+function checkUnlock() {
+  const t = THEMES.filter((x) => x.need <= best).pop();
+  if (t.need <= theme.seen) return;
+  theme.seen = t.need;
+  store(THEME, theme);
+  if (t.need > 0) setTimeout(() => cat('mimi', `Mew mew! (New theme unlocked: ${t.name}! Find it in ⚙️)`, true), 2600);
+}
+
+// A power-up dropped in Classic: a cat brings it and its button bounces.
+function classicGift(why) {
+  const k = PW[Math.floor(Math.random() * PW.length)];
+  pw[k]++;
+  savePw();
+  setTimeout(() => {
+    const b = document.querySelector(`#bottom .pw[data-pw="${k}"]`);
+    b.classList.remove('got'); void b.offsetWidth; b.classList.add('got');
+    const r = b.getBoundingClientRect();
+    burst(r.left + r.width / 2, r.top + r.height / 2, '#ffd23a', 14);
+    play.best();
+    cat(nextCat(), `Mrrp! (${why} Here, a ${PW_ICON[k]} for you!)`, true);
+    renderHud();
+  }, 700);
+}
+
 function newGame() {
   const grid = Array(N * N).fill(0);
   S = {
-    grid, tray: dealTray(grid), score: 0, combo: 0, miss: 0,
+    grid, tray: deal(grid, true), score: 0, combo: 0, miss: 0,
     undo: null, undoReady: true, pending: null, over: false,
-    startBest: best, beat: false, adv: null,
+    startBest: best, beat: false, adv: null, lines: 0, ms: 0, near: false,
   };
   shown = 0;
   save();
@@ -129,7 +202,7 @@ for (let i = 0; i < N * N; i++) { const d = document.createElement('div'); d.cla
 
 function layout() {
   const w = Math.min(window.innerWidth - 24, 520);
-  const h = window.innerHeight - (S && S.adv && S.adv.mode !== 'relaxed' ? 280 : 250);
+  const h = window.innerHeight - (S && S.adv ? (S.adv.mode !== 'relaxed' ? 280 : 250) : 268); // Classic: + best bar
   cell = Math.floor(Math.max(24, Math.min(56, (w - PAD * 2 - GAP * 7) / 8, (h - GAP * 7) / 11)));
   document.documentElement.style.setProperty('--cell', cell + 'px');
   document.documentElement.style.setProperty('--gap', GAP + 'px');
@@ -139,6 +212,7 @@ function layout() {
 // ---------------------------------------------------------------- render
 function cellClass(v) {
   if (!v) return 'c';
+  if (v === GOLD) return 'c b gold';
   if (v >= STONE) return v === CRACKED ? 'c b st cr' : 'c b st';
   return isTarget(v) ? 'c b t' : 'c b';
 }
@@ -156,13 +230,13 @@ function pieceEl(p, size) {
   el.className = 'piece';
   el.style.gridTemplateColumns = `repeat(${sh.wd}, ${size})`;
   el.style.gridTemplateRows = `repeat(${sh.h}, ${size})`;
-  for (const [r, c] of sh.cells) {
+  sh.cells.forEach(([r, c], n) => {
     const b = document.createElement('div');
-    b.className = 'b';
+    b.className = n === p.g ? 'b gold' : 'b';
     b.style.setProperty('--k', colorOf(p.k + 1));
     b.style.gridRow = r + 1; b.style.gridColumn = c + 1;
     el.appendChild(b);
-  }
+  });
   return el;
 }
 
@@ -204,6 +278,7 @@ function renderHud() {
   if (a) $('chip').innerHTML = a.daily ? `📅 Daily${streakNow() ? ` <span>🔥${streakNow()}</span>` : ''}` : `Level ${a.n} <span>${stars(a.diff)}</span>`;
   $('best-n').textContent = best;
   $('score').classList.toggle('goal', !!a);
+  renderBestBar();
   const c = $('combo');
   c.hidden = S.combo < 2 && !arm;
   c.textContent = arm ? '💣 Tap the board to drop the bomb' : `Combo x${S.combo}`;
@@ -216,6 +291,18 @@ function renderHud() {
   });
   board.classList.toggle('aim', arm === 'bomb');
   renderLimit();
+}
+
+// Classic: a bar that fills toward the best score she had when this game started.
+function renderBestBar() {
+  const el = $('bestbar');
+  el.hidden = !!S.adv || !(S.startBest > 0);
+  if (el.hidden) return;
+  const k = Math.min(1, S.score / S.startBest);
+  el.firstChild.style.width = k * 100 + '%';
+  el.classList.toggle('near', !S.beat && k >= 0.8);
+  el.classList.toggle('beat', S.beat);
+  el.lastChild.textContent = S.beat ? '👑 New best!' : k >= 0.8 ? `Almost! ${S.startBest - S.score} to your best` : `👑 ${S.startBest}`;
 }
 
 let countTimer = null;
@@ -246,7 +333,7 @@ function place(i, row, col) {
     left: a && a.left, moves: a && a.moves,
   };
 
-  for (const [r, c] of sh.cells) S.grid[(row + r) * N + col + c] = p.k + 1;
+  sh.cells.forEach(([r, c], n) => { S.grid[(row + r) * N + col + c] = n === p.g ? GOLD : p.k + 1; });
   S.tray[i] = null;
   S.score += sh.cells.length;
   if (a && a.moves !== null) a.moves--;
@@ -261,6 +348,8 @@ function place(i, row, col) {
     let pts = 10 * L * (L + 1) / 2 * S.combo;
     const allClear = S.grid.every((v) => !v);
     if (allClear) pts += 300;
+    const golden = !a && res.vals.includes(GOLD);
+    if (golden) pts *= 2;
     S.score += pts; gained += pts;
     if (a) a.left -= res.hit;
 
@@ -269,13 +358,35 @@ function place(i, row, col) {
     play.clear(L, S.combo);
     if (L >= 2) shake();
     const won = a && a.left <= 0;
-    if (!won && (L >= 2 || S.combo >= 2)) praise(allClear ? 'All Clear!' : WORDS[Math.min(L, 6)], S.combo >= 2 ? `Combo x${S.combo}` : '');
+    if (golden) praise('Golden!', 'Points x2');
+    else if (!won && (L >= 2 || S.combo >= 2)) praise(allClear ? 'All Clear!' : WORDS[Math.min(L, 6)], S.combo >= 2 ? `Combo x${S.combo}` : '');
+    if (!a) {
+      const before = S.lines || 0;
+      S.lines = before + L;
+      if (golden && Math.random() < GOLD_GIFT) classicGift('Golden blocks!');
+      else if (Math.floor(S.lines / GIFT_LINES) > Math.floor(before / GIFT_LINES)) classicGift(`${Math.floor(S.lines / GIFT_LINES) * GIFT_LINES} lines!`);
+    }
     if (won) { /* the win popup does the cheering */ } else if (allClear) { play.allClear(); cat('mimi', 'Mew?! (Where did all the blocks go?!)', true); }
     else if (L >= 3 || S.combo >= 4) cat(nextCat(), null);
   } else if (++S.miss >= 3) {
     S.combo = 0;
   }
   if (!a) points(gained, cx, cy);
+  if (!a) {
+    S.ms = S.ms || 0;
+    let hitMs = 0;
+    while (S.ms < MILESTONES.length && S.score >= MILESTONES[S.ms]) hitMs = MILESTONES[S.ms++];
+    if (hitMs) setTimeout(() => {
+      praise(hitMs.toLocaleString('en-US'), 'points!');
+      const r = $('score').getBoundingClientRect();
+      for (const k of [0, 2, 4]) burst(r.left + r.width / 2, r.top + r.height / 2, colorOf(k + 1), 10);
+      play.allClear();
+    }, L ? 900 : 200);
+    if (!S.near && !S.beat && S.startBest >= 200 && S.score >= S.startBest * 0.9 && S.score < S.startBest) {
+      S.near = true;
+      setTimeout(() => cat('mimi', `Mew! (Only ${S.startBest - S.score} to your best! You can do it!)`, true), 600);
+    }
+  }
 
   if (!a && S.score > best) {
     best = S.score;
@@ -284,6 +395,7 @@ function place(i, row, col) {
       S.beat = true;
       setTimeout(() => { play.best(); praise('New Best!', ''); cat('meme', 'Mrrrow!! (New record! I demand a celebration snack.)', true); }, 500);
     }
+    checkUnlock();
   }
 
   if (a && a.left <= 0) {
@@ -296,7 +408,7 @@ function place(i, row, col) {
   if (S.tray.every((t) => !t)) {
     deal = true;
     S.undo.dealt = true;
-    if (S.pending) { S.tray = S.pending; S.pending = null; } else { S.tray = dealTray(S.grid, Math.random, help()); S.undoReady = true; }
+    if (S.pending) { S.tray = S.pending; S.pending = null; } else { S.tray = deal(S.grid, !a); S.undoReady = true; }
     setTimeout(() => play.deal(), 150);
   }
   checkOver();
@@ -649,7 +761,7 @@ function afterPower(deal = false) {
 function usePower(k) {
   if (!S || S.won || drag || (S.over && S.why !== 'space')) return;
   unlock();
-  if (!pw[k]) { play.back(); cat('mimi', 'Mew? (None left! Win Adventures levels and the daily puzzle to get more.)', true); return; }
+  if (!pw[k]) { play.back(); cat('mimi', 'Mew? (None left! Clear golden blocks and lots of lines, or win levels, to get more.)', true); return; }
   if (k === 'bomb') {
     arm = arm ? null : 'bomb';
     play.pick();
@@ -658,7 +770,7 @@ function usePower(k) {
     return;
   }
   spend(k);
-  if (k === 'fresh') { S.tray = dealTray(S.grid, Math.random, help()); S.pending = null; play.deal(); }
+  if (k === 'fresh') { S.tray = deal(S.grid, !S.adv); S.pending = null; play.deal(); }
   else { S.tray = S.tray.map((p) => p && { ...p, s: TURN[p.s] }); play.pick(); }
   afterPower(k === 'fresh');
 }
@@ -772,6 +884,7 @@ const sw = { 's-sfx': 'sfx', 's-music': 'music', 's-vib': 'vib' };
 document.querySelectorAll('.b-set').forEach((b) => b.addEventListener('click', () => {
   unlock(); play.tap();
   for (const [id, k] of Object.entries(sw)) $(id).checked = settings[k];
+  renderThemes();
   $('settings').hidden = false;
 }));
 for (const [id, k] of Object.entries(sw)) {
@@ -784,10 +897,12 @@ $('b-close').addEventListener('click', () => { play.tap(); $('settings').hidden 
 $('b-restart').addEventListener('click', () => { $('settings').hidden = true; again(); });
 document.addEventListener('pointerdown', unlock, { once: true });
 document.addEventListener('visibilitychange', () => { if (document.hidden && S && !S.won) save(); });
-if (location.search.includes('debug')) window.dbg = { get S() { return S; }, renderAll, checkOver };
+if (location.search.includes('debug')) window.dbg = { get S() { return S; }, renderAll, checkOver, place };
 
 // ---------------------------------------------------------------- start (back where she left off)
 window.addEventListener('resize', layout);
+applyTheme(theme.id);
+if (!theme.seen) { theme.seen = THEMES.filter((x) => x.need <= best).pop().need; store(THEME, theme); }
 layout();
 const last = localStorage.getItem(SCREEN), run = load(RUN);
 if (last === 'classic') openClassic();

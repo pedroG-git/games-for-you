@@ -181,6 +181,18 @@ svg { display: block; }
 }
 #tools button.none { filter: grayscale(.8); opacity: .6; }
 #tools button.armed { background: linear-gradient(#ffcf6a, #e8892a); transform: translateY(-6px); }
+/* dragon fire: the ring fills with every match, glows when ready */
+#tools #fire {
+  border-radius: 50%; padding: 9px;
+  background: radial-gradient(circle, #3a1870 58%, transparent 60%), conic-gradient(#ffb627 var(--p, 20%), rgba(0,0,0,.4) 0);
+  box-shadow: 0 0 0 2px #e8b04a, 0 4px 0 rgba(0,0,0,.35);
+}
+#tools #fire svg { opacity: .7; }
+#tools #fire.ready { background: radial-gradient(circle, #ff8a1a 58%, #ffe08a 60%); animation: fireglow .7s ease-in-out infinite alternate; }
+#tools #fire.ready svg { opacity: 1; }
+@keyframes fireglow { to { transform: scale(1.1); filter: drop-shadow(0 0 10px #ffb627); } }
+.streak.help { color: #9fe8ff; }
+.streak small { opacity: .85; }
 #tool-tip { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 92px); transform: translateX(-50%); padding: 8px 16px; border-radius: 14px; background: rgba(0,0,0,.6); font-size: 16px; white-space: nowrap; z-index: 20; }
 
 #praise { position: fixed; left: 0; right: 0; top: 40%; text-align: center; font-size: 50px; pointer-events: none; z-index: 26; color: #ffe08a; text-shadow: 0 4px 0 #b8320a, 0 8px 12px rgba(0,0,0,.5); opacity: 0; }

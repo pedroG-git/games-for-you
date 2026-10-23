@@ -325,3 +325,54 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 #win-stars i { font-style: normal; color: rgba(0,0,0,.3); display: inline-block; }
 #win-stars i.on { color: #ffd84a; -webkit-text-stroke: 2px #a26d00; animation: star .5s cubic-bezier(.3,1.8,.6,1) backwards; }
 @keyframes star { from { transform: scale(0) rotate(-90deg); opacity: 0; } }
+
+/* ---------------------------------------------------------------- Classic extras */
+/* Golden block: gold face with a twinkling star. */
+.b.gold { --k: #ffc21f !important; position: relative; animation: goldglow 1.4s ease-in-out infinite alternate; }
+.b.gold::after {
+  content: '★'; position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: system-ui, sans-serif; font-size: calc(var(--cell) * .5); line-height: 1; color: #fff8d6;
+  text-shadow: 0 1px 2px rgba(150, 90, 0, .9);
+}
+.slot .b.gold::after { font-size: calc(var(--pc) * .55); }
+@keyframes goldglow { to { filter: brightness(1.18) drop-shadow(0 0 5px #ffe27a); } }
+
+/* Bar under the score filling toward the best score. */
+#bestbar { position: relative; width: min(70vw, 260px); height: 16px; margin: 0 auto 2px; border-radius: 8px; background: rgba(0,0,0,.3); overflow: hidden; }
+#bestbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 8px; background: linear-gradient(90deg, #4fd6ff, #7f9cff); transition: width .45s; }
+#bestbar span { position: relative; display: block; font-size: 12px; line-height: 17px; letter-spacing: .5px; }
+#bestbar.near i { background: linear-gradient(90deg, #ffb547, #ff6a5a); }
+#bestbar.beat i { background: linear-gradient(90deg, #ffd23a, #ffef9a); }
+#bestbar.beat span { color: #5a3a00; }
+
+/* A power-up just dropped in. */
+#bottom .pw.got { animation: got .6s cubic-bezier(.3, 1.8, .6, 1); }
+@keyframes got { 40% { transform: scale(1.35) rotate(-8deg); } }
+
+/* Theme picker in settings */
+#settings .lbl small { font-size: 12px; opacity: .75; }
+#themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 14px; }
+#themes button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px; border-radius: 14px; background: rgba(0,0,0,.25); }
+#themes button.on { box-shadow: inset 0 0 0 3px #5fe07a; }
+#themes button.locked { opacity: .5; }
+#themes .sw { display: flex; gap: 2px; }
+#themes .sw i { width: 12px; height: 12px; border-radius: 3px; }
+#themes b { font-weight: 400; font-size: 13px; }
+#themes small { font-size: 11px; min-height: 13px; }
+
+/* Themes: page, board and empty cells (block colours come from JS). */
+body[data-theme="candy"] { background: radial-gradient(circle at 15% 15%, rgba(255,180,220,.35), transparent 160px), radial-gradient(circle at 90% 80%, rgba(200,160,255,.35), transparent 180px), radial-gradient(ellipse at 50% 0%, #c76bb8 0%, #8a4b9e 50%, #4e2a6e 100%); background-attachment: fixed; }
+body[data-theme="candy"] #board { background: linear-gradient(#5a2c6e, #3e1c52); box-shadow: 0 0 0 3px #d58ad8, 0 0 0 6px #4e2366, 0 10px 0 2px rgba(0,0,0,.25), 0 14px 30px rgba(0,0,0,.35), inset 0 3px 8px rgba(0,0,0,.45); }
+body[data-theme="candy"] .c:not(.b):not(.ghost) { background: linear-gradient(#6a3580, #753d8c); }
+body[data-theme="ocean"] { background: radial-gradient(circle at 10% 20%, rgba(80,240,220,.25), transparent 150px), radial-gradient(circle at 90% 75%, rgba(60,140,255,.3), transparent 180px), radial-gradient(ellipse at 50% 0%, #1fa3b8 0%, #12708f 50%, #0a3a5a 100%); background-attachment: fixed; }
+body[data-theme="ocean"] #board { background: linear-gradient(#0d3b4f, #082a3a); box-shadow: 0 0 0 3px #2fb8c9, 0 0 0 6px #0a3346, 0 10px 0 2px rgba(0,0,0,.25), 0 14px 30px rgba(0,0,0,.35), inset 0 3px 8px rgba(0,0,0,.45); }
+body[data-theme="ocean"] .c:not(.b):not(.ghost) { background: linear-gradient(#11506a, #145a76); }
+body[data-theme="sunset"] { background: radial-gradient(circle at 80% 12%, rgba(255,210,90,.4), transparent 140px), radial-gradient(circle at 10% 85%, rgba(255,90,140,.3), transparent 170px), radial-gradient(ellipse at 50% 0%, #ff8a4a 0%, #c2457a 50%, #4a1f5e 100%); background-attachment: fixed; }
+body[data-theme="sunset"] #board { background: linear-gradient(#4a1f3a, #331328); box-shadow: 0 0 0 3px #ff8a5a, 0 0 0 6px #3e1730, 0 10px 0 2px rgba(0,0,0,.25), 0 14px 30px rgba(0,0,0,.35), inset 0 3px 8px rgba(0,0,0,.45); }
+body[data-theme="sunset"] .c:not(.b):not(.ghost) { background: linear-gradient(#5c2747, #672c50); }
+body[data-theme="forest"] { background: radial-gradient(circle at 12% 18%, rgba(190,240,120,.25), transparent 150px), radial-gradient(circle at 90% 80%, rgba(255,210,120,.18), transparent 170px), radial-gradient(ellipse at 50% 0%, #4f9a4a 0%, #2f6a38 50%, #163a20 100%); background-attachment: fixed; }
+body[data-theme="forest"] #board { background: linear-gradient(#1f3a24, #152a19); box-shadow: 0 0 0 3px #8ac25a, 0 0 0 6px #1a3320, 0 10px 0 2px rgba(0,0,0,.25), 0 14px 30px rgba(0,0,0,.35), inset 0 3px 8px rgba(0,0,0,.45); }
+body[data-theme="forest"] .c:not(.b):not(.ghost) { background: linear-gradient(#28492e, #2d5233); }
+body[data-theme="neon"] { background: radial-gradient(circle at 10% 20%, rgba(255,46,136,.25), transparent 150px), radial-gradient(circle at 92% 70%, rgba(0,229,255,.22), transparent 170px), radial-gradient(ellipse at 50% 0%, #2a1a5a 0%, #140c30 55%, #06060f 100%); background-attachment: fixed; }
+body[data-theme="neon"] #board { background: linear-gradient(#0b0b1a, #06060f); box-shadow: 0 0 0 3px #c63dff, 0 0 18px #c63dff, 0 10px 0 2px rgba(0,0,0,.25), inset 0 3px 8px rgba(0,0,0,.6); }
+body[data-theme="neon"] .c:not(.b):not(.ghost) { background: linear-gradient(#15152b, #191935); }

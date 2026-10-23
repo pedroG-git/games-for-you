@@ -17,17 +17,58 @@ const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 
 // ---------------------------------------------------------------- saved progress
 const BOOSTS = ['rocket', 'bomb', 'light', 'hammer', 'arrow', 'cannon', 'shuffle'];
-const P = Object.assign({ level: 1, stars: 0, built: [], seen: [], boost: {}, streak: 0, gift: { day: '', n: 0 } }, load(SAVE) || {});
+const P = Object.assign({ level: 1, stars: 0, built: [], seen: [], boost: {}, streak: 0, gift: { day: '', n: 0 },
+  fire: 0.2, shield: 0, fail: { level: 0, n: 0 } }, load(SAVE) || {});
 for (const b of BOOSTS) if (!(P.boost[b] >= 0)) P.boost[b] = ['hammer', 'shuffle'].includes(b) ? 2 : 1;
 const saveP = () => store(SAVE, P);
 const boostArt = (k) => use(k === 'shuffle' ? 'mix' : k);
 
 // ---------------------------------------------------------------- win streak
-// Every level won in a row starts the next one with free powers on the board. Losing a level ends it.
+// Every level won in a row starts the next one with free powers on the board. Losing a level ends it,
+// unless the dragon shield is up: it saves the streak once, then needs SHIELD_WINS more wins to come back
+// (a broken streak is the most demotivating moment, so the first slip is forgiven).
 const STREAK = [[], ['rocket'], ['rocket', 'bomb'], ['rocket', 'bomb', 'light']];
+const SHIELD_WINS = 3;
 const streakPowers = () => STREAK[Math.min(P.streak, STREAK.length - 1)];
 const streakIcons = () => streakPowers().map(boostArt).join('');
-function endStreak() { if (P.streak) { P.streak = 0; saveP(); } }
+const shieldUp = () => P.streak > 0 && !P.shield;
+function endStreak() {
+  if (!P.streak) return;
+  if (shieldUp()) {
+    P.shield = SHIELD_WINS; saveP();
+    setTimeout(() => say('🛡️ Shield!', `Your dragon shield saved your 🔥 ${P.streak} in a row. It comes back after ${SHIELD_WINS} wins.`), 400);
+    return;
+  }
+  P.streak = 0; P.shield = 0; saveP();
+}
+const streakRisk = () => (shieldUp() ? `🛡️ Your shield keeps your 🔥 ${P.streak} in a row` : `Giving up ends your 🔥 ${P.streak} in a row`);
+
+// ---------------------------------------------------------------- dragon help after failing
+// Losing the same level again and again is when players quit, so each extra try gets a bit more help.
+function help() {
+  const n = P.fail.level === P.level ? P.fail.n : 0;
+  return { moves: n >= 4 ? 5 : n >= 2 ? 3 : 0, powers: n >= 4 ? ['rocket', 'bomb'] : n >= 3 ? ['rocket'] : [] };
+}
+
+// ---------------------------------------------------------------- dragon fire
+// Matched gems fill the dragon's fire; when it is full, tapping the dragon sends baby dragons to the goals.
+// The charge carries over between levels and never starts from zero.
+const FIRE_GEMS = 70;
+function chargeFire(gems) {
+  if (P.fire >= 1) return;
+  P.fire = Math.min(1, P.fire + gems / FIRE_GEMS);
+  saveP();
+  updateFire();
+  if (P.fire >= 1) {
+    play.born();
+    if (!P.seen.includes('fire')) { P.seen.push('fire'); say('Dragon fire is ready!', 'Tap the glowing dragon below: baby dragons fly to what you still need. It doesn\'t use a move.'); }
+  }
+}
+function updateFire() {
+  const b = $('fire');
+  b.style.setProperty('--p', Math.round(P.fire * 100) + '%');
+  b.classList.toggle('ready', P.fire >= 1);
+}
 
 // ---------------------------------------------------------------- daily gift
 // One gift a day, bigger each day for a week, then it starts again. A missed day doesn't reset it.
@@ -186,7 +227,10 @@ function openStart() {
   $('st-goals').innerHTML = goalsHTML(L.goals, false);
   const sk = $('st-streak');
   sk.hidden = P.level < 3;
-  sk.innerHTML = P.streak ? `🔥 ${P.streak} in a row · free: ${streakIcons()}` : '🔥 Win levels in a row for free powers';
+  sk.innerHTML = P.streak ? `🔥 ${P.streak} in a row · free: ${streakIcons()}${shieldUp() ? ' · 🛡️' : ''}` : '🔥 Win levels in a row for free powers';
+  const h = help(), hl = $('st-help');
+  hl.hidden = !h.moves;
+  hl.innerHTML = `🐉 Dragon help: +${h.moves} moves${h.powers.length ? ' · ' + h.powers.map(boostArt).join('') : ''}`;
   G.pre.clear();
   for (const b of $('st-boost').children) {
     const k = b.dataset.b;
@@ -202,9 +246,11 @@ function startLevel() {
   for (const k of G.pre) P.boost[k]--;
   saveP();
   S = E.createState(L, (Math.random() * 2 ** 31) | 0);
-  E.placeBoosters(S, [...G.pre, ...streakPowers()]);
+  const h = help();
+  S.moves += h.moves;
+  E.placeBoosters(S, [...G.pre, ...streakPowers(), ...h.powers]);
   if (P.streak) setTimeout(() => showPraise(`🔥 ${P.streak} in a row!`), 500);
-  G.pre.clear(); G.extra = false; G.sel = -1; G.tool = null; G.busy = false;
+  G.pre.clear(); G.extra = false; G.failed = false; G.sel = -1; G.tool = null; G.busy = false;
   show('game');
   $('goals').innerHTML = '';
   layout();
@@ -212,6 +258,7 @@ function startLevel() {
   for (let i = 0; i < W * H; i++) if (S.tiles[i] && S.tiles[i].t !== 'box') S.tiles[i].y0 = Math.floor(i / W) - H - 1;
   render();
   updateTools();
+  updateFire();
   tutorial();
   resetHint();
 }
@@ -371,7 +418,7 @@ function updateHud() {
 }
 
 function updateTools() {
-  for (const b of $('tools').children) {
+  for (const b of document.querySelectorAll('#tools [data-tool]')) {
     const k = b.dataset.tool;
     b.querySelector('i').textContent = P.boost[k] || '+';
     b.classList.toggle('none', !P.boost[k]);
@@ -516,6 +563,7 @@ async function drive(gen) {
       render();
       G.merge.clear();
       cascade = ph.combo;
+      if (!S.won) chargeFire(ph.groups.reduce((s, g) => s + g.cells.length, 0));
       play.match(ph.combo, ph.groups.reduce((s, g) => s + g.cells.length, 0));
       if (ph.groups.some((g) => g.make)) setTimeout(() => play.born(), 120);
       await wait(230);
@@ -620,7 +668,7 @@ function showHint() {
 
 // ---------------------------------------------------------------- in-game tools
 const TOOL_TIP = { hammer: 'Tap a tile to smash it', arrow: 'Tap a row to fire an arrow', cannon: 'Tap a column to fire the cannon' };
-for (const b of $('tools').children) {
+for (const b of document.querySelectorAll('#tools [data-tool]')) {
   b.addEventListener('click', async () => {
     unlock();
     if (G.busy || !S || S.won || S.lost) return;
@@ -668,6 +716,8 @@ async function winFlow() {
   P.stars += stars;
   P.level++;
   P.streak++;
+  if (P.shield) P.shield--;
+  P.fail = { level: 0, n: 0 };
   const gifts = [];
   for (let k = 0; k < (L.hard ? 2 : 1); k++) {
     const g = BOOSTS[Math.floor(Math.random() * BOOSTS.length)];
@@ -678,7 +728,8 @@ async function winFlow() {
   $('win-n').textContent = '+' + stars;
   $('win-gift').innerHTML = 'Reward: ' + gifts.map((g) => `<span class="gift">${boostArt(g)}</span>`).join(' ');
   $('win-streak').hidden = false;
-  $('win-streak').innerHTML = `🔥 ${P.streak} in a row! Next level starts with ${streakIcons()}`;
+  $('win-streak').innerHTML = `🔥 ${P.streak} in a row! Next level starts with ${streakIcons()}`
+    + (P.shield ? `<br><small>🛡️ Shield back in ${P.shield} ${P.shield > 1 ? 'wins' : 'win'}</small>` : '');
   openModal('m-win');
   const b = $('win-star').getBoundingClientRect();
   burst(b.left + b.width / 2, b.top + b.height / 2, ['#ffd23a', '#fff', '#ff8a3d'], 40, 1.4);
@@ -687,10 +738,19 @@ async function winFlow() {
 function loseFlow() {
   clearHint();
   play.lose();
+  if (!G.failed) { // count each try once, even if it runs out of moves again after +5
+    G.failed = true;
+    P.fail = { level: P.level, n: (P.fail.level === P.level ? P.fail.n : 0) + 1 };
+    saveP();
+  }
+  const left = S.goals.reduce((n, g) => n + Math.max(0, g.left), 0), close = left <= 3;
+  $('lose-title').textContent = close ? 'So close!' : 'Out of moves!';
   $('lose-goals').innerHTML = goalsHTML(S.goals.filter((g) => g.left > 0), true);
   $('lose-more').hidden = G.extra;
+  $('lose-more').textContent = close ? `+5 moves · just ${left} left!` : '+5 moves';
   $('lose-streak').hidden = !P.streak;
-  $('lose-streak').textContent = `Giving up ends your 🔥 ${P.streak} in a row`;
+  $('lose-streak').textContent = streakRisk();
+  $('lose-streak').classList.toggle('warn', !shieldUp());
   openModal('m-lose');
 }
 
@@ -721,12 +781,22 @@ $('lose-retry').addEventListener('click', () => { endStreak(); closeModal('m-los
 $('lose-home').addEventListener('click', () => { endStreak(); S = null; openHome(); });
 $('g-back').addEventListener('click', () => {
   if (G.busy) return;
-  $('q-msg').textContent = 'You will have to start this level again' + (P.streak ? ` and your 🔥 ${P.streak} in a row ends.` : '.');
+  $('q-msg').textContent = 'You will have to start this level again.' + (P.streak ? ' ' + streakRisk() + '.' : '');
   openModal('m-quit');
 });
 $('q-stay').addEventListener('click', () => closeModal('m-quit'));
 $('q-leave').addEventListener('click', () => { endStreak(); S = null; clearHint(); openHome(); });
 $('gift-ok').addEventListener('click', () => { unlock(); collectGift(); });
+$('fire').addEventListener('click', async () => {
+  unlock();
+  if (G.busy || !S || S.won || S.lost) return;
+  if (P.fire < 1) { play.tap(); say('Dragon fire', `Make matches to fill it up (${Math.round(P.fire * 100)}%). When it glows, tap it!`); return; }
+  P.fire = 0; saveP(); updateFire();
+  G.tool = null; $('tool-tip').hidden = true; updateTools();
+  showPraise('Dragon fire!');
+  await drive(E.tool(S, 'fire'));
+  afterMove();
+});
 
 for (const b of document.querySelectorAll('.b-set')) b.addEventListener('click', () => {
   $('s-sfx').checked = settings.sfx; $('s-music').checked = settings.music; $('s-vib').checked = settings.vib;

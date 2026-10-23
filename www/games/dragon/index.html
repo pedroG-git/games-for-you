@@ -41,6 +41,7 @@
     <div id="board"><div id="cells"></div><div id="icel"></div><div id="tiles"></div><div id="fxl"></div></div>
   </div>
   <footer id="tools">
+    <button id="fire" aria-label="Dragon fire"><svg viewBox="0 0 100 100"><use href="#prop"/></svg></button>
     <button data-tool="hammer"><svg viewBox="0 0 100 100"><use href="#hammer"/></svg><i></i></button>
     <button data-tool="arrow"><svg viewBox="0 0 100 100"><use href="#arrow"/></svg><i></i></button>
     <button data-tool="cannon"><svg viewBox="0 0 100 100"><use href="#cannon"/></svg><i></i></button>
@@ -60,6 +61,7 @@
     <h2 id="st-title">Level 1</h2>
     <p class="tag" id="st-tag" hidden>Hard level</p>
     <p class="streak" id="st-streak" hidden></p>
+    <p class="streak help" id="st-help" hidden></p>
     <p class="lbl">Goals</p>
     <div id="st-goals" class="goalrow"></div>
     <p class="lbl">Boosters</p>
@@ -85,7 +87,7 @@
 
 <div id="m-lose" class="modal" hidden>
   <div class="box">
-    <h2>Out of moves!</h2>
+    <h2 id="lose-title">Out of moves!</h2>
     <div id="lose-goals" class="goalrow"></div>
     <p class="streak warn" id="lose-streak" hidden></p>
     <button class="big" id="lose-more">+5 moves</button>

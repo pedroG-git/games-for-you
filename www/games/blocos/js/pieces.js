@@ -3,11 +3,14 @@ export const N = 8;
 
 export const COLORS = ['#ff4d5e', '#ff9a2e', '#ffd23a', '#4fd65a', '#2ec9e8', '#3f7cff', '#a35cff'];
 
-// Cell values: 0 empty, 1–7 placed block (colour k+1), 11–17 Adventures target block,
-// STONE needs two clears (first one cracks it), CRACKED needs one more.
-export const STONE = 20, CRACKED = 21;
+// Cell values: 0 empty, 1–7 placed block (colour k+1), GOLD = golden block (Classic bonus),
+// 11–17 Adventures target block, STONE needs two clears (first one cracks it), CRACKED needs one more.
+export const GOLD = 9, STONE = 20, CRACKED = 21;
+export const GOLD_COLOR = '#ffc21f';
 export const isTarget = (v) => v >= 11;
-export const colorOf = (v) => (v >= STONE ? '#9aa0b5' : v >= 11 ? COLORS[v - 11] : COLORS[v - 1]);
+export const colorOf = (v) => (v >= STONE ? '#9aa0b5' : v >= 11 ? COLORS[v - 11] : v === GOLD ? GOLD_COLOR : COLORS[v - 1]);
+/** Themes swap the block colours in place (COLORS keeps its identity, so colorOf follows). */
+export function setColors(list) { COLORS.splice(0, COLORS.length, ...list); }
 
 // Shapes drawn as text so they're easy to read; every orientation is listed (no player rotation).
 const ART = [

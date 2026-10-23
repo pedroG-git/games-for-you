@@ -456,9 +456,16 @@ export function* tap(S, i) {
   return true;
 }
 
-/** In-game boosters: they don't use a move. kind = hammer | arrow (row) | cannon (column) | shuffle. */
+/** In-game boosters: they don't use a move. kind = hammer | arrow (row) | cannon (column) | shuffle | fire.
+ *  fire = the charged dragon breath: baby dragons fly to whatever the goals still need. */
 export function* tool(S, kind, i) {
   if (kind === 'shuffle') { shuffle(S); yield { type: 'shuffle' }; return true; }
+  if (kind === 'fire') {
+    const at = pickTarget(S, new Set());
+    if (at < 0) return false;
+    yield* cascade(S, [{ t: 'prop', at, n: 4 }]);
+    return true;
+  }
   const t = { hammer: 'hammer', arrow: 'rh', cannon: 'rv' }[kind];
   yield* cascade(S, [{ t, at: i }]);
   return true;
