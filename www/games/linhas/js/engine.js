@@ -15,6 +15,11 @@ export const MAX_CARS = 3;
 // every PAX_RAMP seconds), and how long a station may stay overcrowded before the game ends.
 const PAX_START = 16, PAX_MIN = 5, PAX_RAMP = 120;
 const OVERFLOW = 50, RECOVER = 40;
+const EXPRESS = 1.4;           // express lines run this much faster
+// Rush hour (mornings and evenings) brings 1.6× the passengers; the rest of the day is a bit calmer, so a day
+// has as many passengers as before.
+const RUSH_K = 0.73, CALM_K = 1.168;
+const WEATHER_SPEED = { clear: 1, rain: 0.9, snow: 0.8, fog: 0.95 };
 const W = 1000, H = 1600;
 
 // ---------------------------------------------------------------- helpers
@@ -126,7 +131,24 @@ export function crossings(s, ids) {
   }
   return n;
 }
-const usage = (s, ids, loop) => crossings(s, loop ? [...ids, ids[0]] : ids);
+// Tunnels a route uses (some cities, like Istanbul, need two per crossing).
+const usage = (s, ids, loop) => crossings(s, loop ? [...ids, ids[0]] : ids) * (cityOf(s).tunnelCost || 1);
+
+// ---------------------------------------------------------------- weather, rush hour
+const hash = (a, b) => {
+  let h = (a ^ Math.imul(b + 0x9e37, 0x85ebca6b)) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+};
+// Each day has its weather, from the city's climate (percent chances); rain and snow slow the trains a little.
+export function weatherOf(s) {
+  const n = Math.floor(s.t / DAY), c = cityOf(s).climate || { rain: 15 };
+  if (n === 0) return 'clear';
+  const r = hash(s.seed, n) % 100, sn = c.snow || 0, rn = sn + (c.rain || 0), fg = rn + (c.fog || 0);
+  return r < sn ? 'snow' : r < rn ? 'rain' : r < fg ? 'fog' : 'clear';
+}
+export function rushHour(s) { const f = (s.t % DAY) / DAY; return (f > 0.22 && f < 0.36) || (f > 0.62 && f < 0.76); }
+const trainSpeed = (s, line) => (cityOf(s).speed || SPEED) * ((s.mods && s.mods.speed) || 1) * (line.express ? EXPRESS : 1) * WEATHER_SPEED[weatherOf(s)];
 
 export function hitStation(s, x, y, r) {
   let best = -1, bd = r * r;
@@ -210,17 +232,28 @@ function newShape(s) {
   return r < 0.5 ? 'circle' : r < 0.8 ? 'triangle' : 'square';
 }
 
-export function newGame({ city, mode = 'normal', seed = 1 } = {}) {
+export function newGame({ city, mode = 'normal', seed = 1, mods = null } = {}) {
   seed = seed >>> 0;
   if (!CITIES.some((c) => c.id === city)) city = CITIES[seed % CITIES.length].id;
   const s = {
     v: 1, city, mode, seed, rng: seed ^ 0x9e3779b9, t: 0, day: 0, week: 0, score: 0, speedHint: 1,
     view: { x: 230, y: 380, w: 540, h: 840 },
     stations: [], lines: [],
-    inv: { lines: 3, trains: 0, carriages: 0, tunnels: 3, interchanges: 0, ...(CITIES.find((c) => c.id === city).start || {}) },
+    inv: { lines: 3, trains: 0, carriages: 0, tunnels: 3, interchanges: 0, express: 0, ...(CITIES.find((c) => c.id === city).start || {}) },
+    mods: { speed: 1, busy: 1 },
     pendingUpgrade: null, over: false,
     rev: 0, nextStation: 0, nextPax: 0,
   };
+  // Challenge rules (weekly challenge): fewer lines, no tunnels, a faster or busier city...
+  if (mods) {
+    if (mods.lines) s.inv.lines = mods.lines;
+    if (mods.maxLines) s.mods.maxLines = mods.maxLines;
+    if (mods.tunnels != null) s.inv.tunnels = mods.tunnels;
+    if (mods.noTunnels) s.mods.noTunnels = true;
+    if (mods.speed) s.mods.speed = mods.speed;
+    if (mods.busy) s.mods.busy = mods.busy;
+    if (mods.express) s.inv.express = mods.express;
+  }
   for (const k of ['circle', 'triangle', 'square']) placeStation(s, k);
   s.nextStation = 16;
   s.nextPax = 2;
@@ -290,7 +323,8 @@ function arrive(s, L, tr, events) {
   st.queue = stay;
   events.push({ type: 'stop', line: L, id: st.id, n: moved });
   tr.i = ni;
-  tr.dwell = DWELL + Math.min(0.6, moved * 0.05);
+  // Interchanges have bigger platforms: boarding there is twice as quick.
+  tr.dwell = (DWELL + Math.min(0.6, moved * 0.05)) * (st.interchange ? 0.5 : 1);
 }
 
 function moveTrain(s, L, tr, dt, events) {
@@ -308,7 +342,7 @@ function moveTrain(s, L, tr, dt, events) {
     if (line.loop && g.total > 0) {
       togo = tr.dir > 0 ? (((target - tr.d) % g.total) + g.total) % g.total : (((tr.d - target) % g.total) + g.total) % g.total;
     } else togo = Math.abs(target - tr.d);
-    const speed = cityOf(s).speed || SPEED;
+    const speed = trainSpeed(s, line);
     const step = speed * left;
     if (step < togo) {
       tr.d += tr.dir * step;
@@ -522,7 +556,16 @@ export function chooseUpgrade(s, key) {
   else if (key === 'carriage') s.inv.carriages++;
   else if (key === 'tunnel') s.inv.tunnels += 2;
   else if (key === 'interchange') s.inv.interchanges++;
+  else if (key === 'express') s.inv.express = (s.inv.express || 0) + 1;
   s.pendingUpgrade = null;
+}
+
+// Turns a line into an express line (its trains run faster). Uses one spare express.
+export function makeExpress(s, lineIdx) {
+  const line = s.lines[lineIdx];
+  if (!line || line.express || !(s.inv.express > 0)) return false;
+  line.express = true; s.inv.express--;
+  return true;
 }
 
 // ---------------------------------------------------------------- simulation
@@ -535,8 +578,21 @@ function endWeek(s, events) {
     w: Math.round(w), h: Math.round(h),
   };
   s.inv.trains++;
-  const pool = ['carriage', 'tunnel', 'interchange'];
-  if (s.inv.lines < cityOf(s).colors.length) pool.push('line');
+  // City events: something changes in the city at the start of some weeks.
+  for (const r of cityOf(s).rules || []) {
+    if (r.week !== s.week + 1) continue;
+    if (r.tunnels) s.inv.tunnels += r.tunnels;
+    if (r.express) s.inv.express = (s.inv.express || 0) + r.express;
+    if (r.carriages) s.inv.carriages += r.carriages;
+    if (r.speed) s.mods.speed = ((s.mods && s.mods.speed) || 1) * r.speed;
+    if (r.busy) s.mods.busy = ((s.mods && s.mods.busy) || 1) * r.busy;
+    events.push({ type: 'rule', text: r.text, icon: r.icon || '📣' });
+  }
+  const pool = ['carriage', 'interchange'];
+  if (!(s.mods && s.mods.noTunnels)) pool.push('tunnel');
+  const maxLines = Math.min(cityOf(s).colors.length, (s.mods && s.mods.maxLines) || 99);
+  if (s.inv.lines < maxLines) pool.push('line');
+  if (s.week >= 2 && s.lines.some((l) => !l.express) && !(s.inv.express > 0)) pool.push('express');
   const a = pool.splice(Math.floor(rnd(s) * pool.length), 1)[0];
   const b = pool[Math.floor(rnd(s) * pool.length)];
   s.pendingUpgrade = { options: [a, b] };
@@ -566,7 +622,8 @@ function tick(s, dt, events) {
   }
   if (s.t >= s.nextPax) {
     spawnPax(s);
-    const perStation = Math.max(PAX_MIN, PAX_START - s.t / PAX_RAMP) * (cityOf(s).busy || 1);
+    const perStation = Math.max(PAX_MIN, PAX_START - s.t / PAX_RAMP) * (cityOf(s).busy || 1) * ((s.mods && s.mods.busy) || 1)
+      * (rushHour(s) ? RUSH_K : CALM_K);
     s.nextPax = s.t + perStation / s.stations.length;
   }
   s.lines.forEach((line, L) => line.trains.forEach((tr) => moveTrain(s, L, tr, dt, events)));

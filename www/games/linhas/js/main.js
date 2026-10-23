@@ -19,15 +19,16 @@ const OPT = {
   carriage: [() => ICON('#c-cars'), 'Carriage', 'More room on a train'],
   tunnel: [() => ICON('#c-tun'), 'Tunnel', 'Cross the river'],
   interchange: [() => ICON('#c-ich'), 'Interchange', 'Bigger, faster station'],
+  express: [() => ICON('#c-exp'), 'Express', 'Make a line faster'],
 };
 
 const pref = load(K.set) || {};
 let mode = pref.mode === 'relaxed' ? 'relaxed' : 'normal';
 for (const k of ['sfx', 'music', 'vib']) if (typeof pref[k] === 'boolean') settings[k] = pref[k];
 const look = Rn.look;
-look.night = !!pref.night; look.cb = !!pref.cb;
+look.night = !!pref.night; look.cb = !!pref.cb; look.cycle = pref.cycle !== false;
 let autoPause = !!pref.autoPause;
-const saveSettings = () => store(K.set, { sfx: settings.sfx, music: settings.music, vib: settings.vib, mode, night: look.night, cb: look.cb, autoPause });
+const saveSettings = () => store(K.set, { sfx: settings.sfx, music: settings.music, vib: settings.vib, mode, night: look.night, cb: look.cb, cycle: look.cycle, autoPause });
 const applyLook = () => { $('#game').classList.toggle('night', look.night); hudKey = ''; };
 
 let S = null, ended = false, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, toastT = 0, hudKey = '';
@@ -178,11 +179,11 @@ function begin() {
 function save() { recordBest(); if (S && !S.over) store(K.run, S); }
 setInterval(() => { if (!$('#game').hidden) save(); }, 4000);
 
-function toast(msg) {
+function toast(msg, ms = 1500) {
   const t = $('#toast');
   t.textContent = msg; t.classList.add('on');
   clearTimeout(toastT);
-  toastT = setTimeout(() => t.classList.remove('on'), 1500);
+  toastT = setTimeout(() => t.classList.remove('on'), ms);
 }
 
 function setTool(t) {
@@ -190,6 +191,7 @@ function setTool(t) {
   if (t === 'train') toast('Drag it onto a line — or tap a line');
   if (t === 'carriage') toast('Tap a train');
   if (t === 'interchange') toast('Tap a station');
+  if (t === 'express') toast('Tap a line to make it express');
   hudKey = '';
 }
 
@@ -206,6 +208,7 @@ function handle(events, now) {
       if (autoPause && !paused) { setPaused(true); toast('A station is filling up'); }
     }
     else if (ev.type === 'week') { play.week(); showUpgrade(); }
+    else if (ev.type === 'rule') ruleQ.push(ev);
     else if (ev.type === 'over') { gameOver(ev.id); break; }
   }
 }
@@ -239,6 +242,8 @@ function showUpgrade() {
       (S.weeks = S.weeks || []).push(S.score - (S.wk0 || 0));
       S.wk0 = S.score;
       modal('#upgrade', false); hudKey = ''; save();
+      // City events of the new week are told once the picker is closed.
+      ruleQ.splice(0).forEach((r, i) => setTimeout(() => { toast(`${r.icon} ${r.text}`, 3200); play.star(); }, 300 + i * 3400));
     };
     $('#up-opts').append(b);
   }
@@ -387,7 +392,7 @@ $('#b-trash').onclick = () => {
 // Tapping a spare (instead of dragging it) arms it: the next tap on the map places it.
 function tapped(kind) {
   if (!S) return;
-  const n = { train: S.inv.trains, carriage: S.inv.carriages, interchange: S.inv.interchanges }[kind];
+  const n = { train: S.inv.trains, carriage: S.inv.carriages, interchange: S.inv.interchanges, express: S.inv.express }[kind];
   if (!n) { play.locked(); toast(kind === 'train' ? 'New trains come each week' : kind === 'carriage' ? 'No carriages yet' : 'No interchanges yet'); return; }
   play.tap();
   if (ui.tool === kind) return setTool(null);
@@ -459,6 +464,7 @@ function updateCard() {
 // ---------------------------------------------------------------- HUD
 // Achievements are checked about once a second; new ones show one at a time.
 let achT = 0;
+const ruleQ = [];
 const achQ = [];
 function checkAch(force = false) {
   const now = performance.now();
@@ -470,8 +476,11 @@ setInterval(() => {
   const a = achQ.shift();
   if (a) { toast(`🏆 ${a.name}!`); play.star(); }
 }, 1900);
+const WX = { clear: '', rain: '🌧 Rain', snow: '❄️ Snow', fog: '🌫 Fog' };
 function updateHud() {
   if (!S.over) { record(S); checkAch(); }
+  const rush = E.rushHour(S), wx = (rush ? '⏰ Rush hour' : WX[E.weatherOf(S)]) || '';
+  if ($('#wx').textContent !== wx) { $('#wx').textContent = wx; $('#wx').classList.toggle('rush', rush); }
   updateCard();
   const zoomed = Rn.R.zoom.k > 1;
   if ($('#b-fit').hidden === zoomed) $('#b-fit').hidden = !zoomed;
@@ -483,7 +492,7 @@ function updateHud() {
     $('#goal').textContent = next ? `/ ${next} ★` : '★★★';
   }
   const key = [S.day, S.week, S.lines.length, S.lines.map((l) => l.color).join(), S.inv.lines, S.inv.trains, S.inv.carriages,
-    S.inv.tunnels, S.inv.interchanges, ui.sel, ui.tool, undo.length].join('|');
+    S.inv.tunnels, S.inv.interchanges, S.inv.express, ui.sel, ui.tool, undo.length].join('|');
   if (key === hudKey) return;
   hudKey = key;
   $('#dots').innerHTML = DAYS.map((d, i) => `<i class="${i < S.day ? 'on' : i === S.day ? 'now' : ''}"></i>`).join('');
@@ -521,6 +530,7 @@ function updateHud() {
   cnt('#c-cars', S.inv.carriages, 'carriage', true);
   cnt('#c-tun', S.inv.tunnels);
   cnt('#c-ich', S.inv.interchanges, 'interchange', true);
+  cnt('#c-exp', S.inv.express || 0, 'express', true);
 }
 
 // ---------------------------------------------------------------- loop
@@ -544,12 +554,14 @@ function frame(now) {
 document.querySelectorAll('.b-set').forEach((b) => b.addEventListener('click', () => {
   unlock(); play.tap();
   $('#s-sfx').checked = settings.sfx; $('#s-music').checked = settings.music; $('#s-vib').checked = settings.vib;
+  $('#s-cycle').checked = look.cycle;
   $('#s-night').checked = look.night; $('#s-cb').checked = look.cb; $('#s-auto').checked = autoPause;
   modal('#settings', true);
 }));
 $('#s-sfx').onchange = (e) => { settings.sfx = e.target.checked; saveSettings(); };
 $('#s-music').onchange = (e) => { settings.music = e.target.checked; setMusic(settings.music); saveSettings(); };
 $('#s-vib').onchange = (e) => { settings.vib = e.target.checked; saveSettings(); };
+$('#s-cycle').onchange = (e) => { look.cycle = e.target.checked; saveSettings(); };
 $('#s-night').onchange = (e) => { look.night = e.target.checked; applyLook(); saveSettings(); };
 $('#s-cb').onchange = (e) => { look.cb = e.target.checked; applyLook(); saveSettings(); previews.clear(); if (!$('#menu').hidden) renderMenu(); };
 $('#s-auto').onchange = (e) => { autoPause = e.target.checked; saveSettings(); };

@@ -45,7 +45,7 @@
   <header id="hud">
     <button class="round" id="b-back" aria-label="Back">↩</button>
     <div id="score"><span>👤</span><b id="score-n">0</b><small id="goal"></small></div>
-    <div id="week"><div id="dots"></div><small id="week-n">Week 1</small></div>
+    <div id="week"><div id="dots"></div><small id="week-n">Week 1</small><small id="wx"></small></div>
     <div id="counts">
       <button class="cnt" id="c-tun" title="Tunnels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15V9a9 7 0 0 1 18 0v6"/><path d="M7 15v-4a5 4 0 0 1 10 0v4"/><path d="M2 20c2-1.5 3-1.5 5 0s3 1.5 5 0 3-1.5 5 0 3 1.5 5 0"/></svg><i>0</i></button>
     </div>
@@ -58,6 +58,7 @@
       <div id="spares">
         <button class="cnt" id="c-trains" title="Spare trains"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 10h14"/><circle cx="9" cy="13.5" r=".6" fill="currentColor"/><circle cx="15" cy="13.5" r=".6" fill="currentColor"/><path d="M8 21l2-4M16 21l-2-4"/></svg><i>0</i></button>
         <button class="cnt" id="c-cars" title="Carriages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="11" rx="2.5"/><path d="M6 10h3M11 10h3M16 10h3"/><circle cx="7" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></svg><i>0</i></button>
+        <button class="cnt" id="c-exp" title="Express"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L5 14h6l-1 8 8-12h-6l1-8z"/></svg><i>0</i></button>
         <button class="cnt" id="c-ich" title="Interchanges"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg><i>0</i></button>
       </div>
       <span class="grow"></span>
@@ -135,6 +136,7 @@
     <label><span>🎵 Music</span><input type="checkbox" id="s-music"></label>
     <label><span>📳 Vibration</span><input type="checkbox" id="s-vib"></label>
     <label><span>🌙 Night map</span><input type="checkbox" id="s-night"></label>
+    <label><span>🌗 Day and night</span><input type="checkbox" id="s-cycle"></label>
     <label><span>🎨 Colour-blind lines</span><input type="checkbox" id="s-cb"></label>
     <label><span>⏸ Pause when a station fills up</span><input type="checkbox" id="s-auto"></label>
     <button class="ghostbtn" id="s-hints">Show the tips again</button>

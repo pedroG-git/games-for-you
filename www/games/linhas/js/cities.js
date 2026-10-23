@@ -27,6 +27,8 @@ export const COLORS = ['#e4423f', '#2f6fd6', '#f2b51d', '#2fa35b', '#8e4fc4', '#
 export const CITIES = [
   {
     id: 'lisboa', name: 'Lisboa', sub: 'Rio Tejo', unlock: null, bg: '#f3eee4', water: '#a9d3e8',
+    landmarks: [{ x: 330, y: 1100, icon: '🏰', name: 'Belém' }, { x: 600, y: 560, icon: '🚋', name: 'Elétrico 28' }],
+    climate: { rain: 8 }, rules: [{ week: 4, icon: '⛴️', text: 'Ferries across the Tejo: +2 tunnels', tunnels: 2 }],
     // The Tejo along the bottom, widening into the estuary on the right.
     waterPolys: [
       [[-20, 1265], [180, 1235], [380, 1205], [560, 1190], [720, 1150], [860, 1085], [1020, 1010], [1020, 1620], [-20, 1620]],
@@ -35,6 +37,8 @@ export const CITIES = [
   },
   {
     id: 'porto', name: 'Porto', sub: 'Rio Douro', unlock: { city: 'lisboa', score: 500 }, bg: '#f1ece6', water: '#9fcbe3',
+    landmarks: [{ x: 650, y: 900, icon: '🌉', name: 'Ponte Luís I' }, { x: 420, y: 560, icon: '⛪', name: 'Clérigos' }],
+    climate: { rain: 28, fog: 12 }, rules: [{ week: 3, icon: '🎉', text: 'São João: the city is busier from now on', busy: 0.92 }],
     // The Douro snaking across the middle of the city.
     waterPolys: [
       band([[-40, 860], [150, 820], [300, 885], [450, 830], [600, 875], [750, 805], [900, 845], [1040, 800]], 72),
@@ -43,6 +47,8 @@ export const CITIES = [
   },
   {
     id: 'berlin', name: 'Berlin', sub: 'Spree', unlock: { city: 'porto', score: 500 }, bg: '#eeeee8', water: '#a3cde0',
+    landmarks: [{ x: 520, y: 700, icon: '🗼', name: 'Fernsehturm' }, { x: 380, y: 1060, icon: '🏛️', name: 'Brandenburger Tor' }],
+    climate: { rain: 12, snow: 18 }, rules: [{ week: 4, icon: '❄️', text: 'The Spree froze over: +3 tunnels', tunnels: 3 }],
     // The Spree winding through, plus two lakes.
     waterPolys: [
       band([[-40, 560], [200, 620], [380, 700], [520, 760], [650, 740], [800, 820], [1040, 905]], 56),
@@ -53,6 +59,8 @@ export const CITIES = [
   },
   {
     id: 'london', name: 'London', sub: 'Thames · 2 tunnels', unlock: { city: 'berlin', score: 500 }, bg: '#efede9', water: '#9fc6dc',
+    landmarks: [{ x: 520, y: 930, icon: '🕰️', name: 'Big Ben' }, { x: 380, y: 700, icon: '🎡', name: 'London Eye' }],
+    climate: { rain: 35, fog: 15 }, rules: [{ week: 3, icon: '⚡', text: 'A new express line opens: drag ⚡ onto a line', express: 1 }],
     // The Thames looping through the middle. Only two tunnels to start with.
     waterPolys: [
       band([[-40, 990], [140, 950], [290, 1010], [400, 1090], [540, 1060], [620, 950], [740, 900], [850, 960], [910, 1080], [1040, 1130]], 62),
@@ -62,6 +70,8 @@ export const CITIES = [
   },
   {
     id: 'paris', name: 'Paris', sub: 'Seine · 1 interchange', unlock: { city: 'london', score: 500 }, bg: '#f2ede2', water: '#a6cfe2',
+    landmarks: [{ x: 420, y: 980, icon: '🗼', name: 'Tour Eiffel' }, { x: 640, y: 620, icon: '⛪', name: 'Notre-Dame' }],
+    climate: { rain: 20, fog: 6 }, rules: [{ week: 4, icon: '🚄', text: 'The Métro is modernised: all trains run faster', speed: 1.1 }],
     // The Seine arcing up through the city from the south-east. Starts with one interchange.
     waterPolys: [
       band([[1040, 1290], [880, 1180], [740, 1030], [600, 900], [450, 840], [300, 860], [150, 940], [-40, 1060]], 56),
@@ -71,6 +81,8 @@ export const CITIES = [
   },
   {
     id: 'newyork', name: 'New York', sub: 'Two rivers · 5 tunnels', unlock: { city: 'paris', score: 500 }, bg: '#eeece6', water: '#9cc4dc',
+    landmarks: [{ x: 520, y: 600, icon: '🌳', name: 'Central Park' }, { x: 500, y: 1300, icon: '🗽', name: 'Liberty' }],
+    climate: { rain: 15, snow: 15 }, rules: [{ week: 3, icon: '🚃', text: 'The city never sleeps: +1 carriage, and more people', carriages: 1, busy: 0.93 }],
     // Manhattan between the Hudson and the East River, the bay at the bottom. Lots of tunnels.
     waterPolys: [
       band([[330, -40], [300, 400], [270, 800], [220, 1200], [170, 1640]], 80),
@@ -82,6 +94,8 @@ export const CITIES = [
   },
   {
     id: 'tokyo', name: 'Tokyo', sub: 'Fast trains · busy', unlock: { city: 'newyork', score: 500 }, bg: '#f1eee9', water: '#a4cbe0',
+    landmarks: [{ x: 420, y: 760, icon: '🗼', name: 'Tokyo Tower' }, { x: 300, y: 1100, icon: '⛩️', name: 'Meiji Jingu' }],
+    climate: { rain: 25 }, rules: [{ week: 4, icon: '🚅', text: 'Shinkansen: drag ⚡ onto a line to make it express', express: 1 }],
     // Tokyo Bay in the south-east and the Sumida river. Trains are faster, but so are the crowds.
     waterPolys: [
       [[1040, 980], [920, 1040], [820, 1160], [760, 1320], [780, 1640], [1040, 1640]],

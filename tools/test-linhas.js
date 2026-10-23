@@ -8,6 +8,7 @@ const WEEKS = Number(process.argv[2]) || 6;
   // Greedy player: hook every unconnected station onto the nearest line end, or start a new line.
   function play(s) {
     if (s.pendingUpgrade) E.chooseUpgrade(s, s.pendingUpgrade.options[0]);
+    if (s.inv.express > 0) E.makeExpress(s, 0);
     if (s.inv.interchanges > 0) {
       const busy = [...s.stations].sort((a, b) => b.queue.length - a.queue.length)[0];
       E.makeInterchange(s, busy.id);
@@ -79,8 +80,9 @@ const WEEKS = Number(process.argv[2]) || 6;
   // Balance: a decent player (cheapest insertion of every new station) should last about 5 weeks in normal mode.
   function decent(s) {
     E.autoPlace(s);
+    if (s.inv.express > 0 && s.lines.length) E.makeExpress(s, s.lines.findIndex((l) => !l.express));
     if (s.pendingUpgrade) {
-      const pref = ['line', 'carriage', 'interchange', 'tunnel'];
+      const pref = ['line', 'carriage', 'interchange', 'tunnel', 'express'];
       const o = s.pendingUpgrade.options.slice().sort((a, b) => pref.indexOf(a) - pref.indexOf(b));
       E.chooseUpgrade(s, s.inv.tunnels < 1 && o.includes('tunnel') ? 'tunnel' : o[0]);
     }

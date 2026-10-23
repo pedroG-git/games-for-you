@@ -109,17 +109,19 @@ export function initInput(canvas, api) {
       return ti >= 0 ? { line: seg.line, train: ti } : null;
     }
     const seg = segmentAt(S, p, 30, true);
+    if (kind === 'express' && seg && S.lines[seg.line].express) return null;
     return seg ? { line: seg.line } : null;
   }
 
   function place(S, kind, target, p) {
     if (!target) {
-      api.toast(kind === 'train' ? 'Drop it on a line' : kind === 'carriage' ? 'Drop it on a train' : 'Drop it on a station');
+      api.toast(kind === 'train' ? 'Drop it on a line' : kind === 'express' ? 'Drop it on a line that is not express yet' : kind === 'carriage' ? 'Drop it on a train' : 'Drop it on a station');
       play.locked(); return false;
     }
     let ok = false;
     if (kind === 'train') { const w = toWorld(p.x, p.y); ok = E.addTrain(S, target.line, w.x, w.y); }
     else if (kind === 'carriage') ok = E.addCarriage(S, target.line, target.train);
+    else if (kind === 'express') ok = E.makeExpress(S, target.line);
     else ok = E.makeInterchange(S, target.station);
     if (ok) { play.connect(); api.changed(); } else play.locked();
     return ok;
@@ -127,10 +129,10 @@ export function initInput(canvas, api) {
 
   function applyTool(S, p) {
     const kind = ui.tool;
-    const left = { train: S.inv.trains, carriage: S.inv.carriages, interchange: S.inv.interchanges }[kind];
+    const left = { train: S.inv.trains, carriage: S.inv.carriages, interchange: S.inv.interchanges, express: S.inv.express }[kind];
     if (!left) { api.setTool(null); return; }
     const target = dropTarget(S, kind, p);
-    if (!target) { api.toast(kind === 'train' ? 'Tap a line' : kind === 'carriage' ? 'Tap a train' : 'Tap a station'); return; }
+    if (!target) { api.toast(kind === 'train' || kind === 'express' ? 'Tap a line' : kind === 'carriage' ? 'Tap a train' : 'Tap a station'); return; }
     place(S, kind, target, p);
     api.setTool(null);
   }
@@ -185,7 +187,7 @@ export function initInput(canvas, api) {
     if (S && k && !api.blocked()) place(S, c.kind, k.target, k);
   });
   addEventListener('pointercancel', () => { carry = null; ui.carry = null; });
-  for (const [sel, kind] of [['#c-trains', 'train'], ['#c-cars', 'carriage'], ['#c-ich', 'interchange']]) {
+  for (const [sel, kind] of [['#c-trains', 'train'], ['#c-cars', 'carriage'], ['#c-ich', 'interchange'], ['#c-exp', 'express']]) {
     const el = document.querySelector(sel);
     if (el) el.addEventListener('pointerdown', (e) => startCarry(kind, e));
   }

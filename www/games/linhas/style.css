@@ -289,3 +289,6 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 .ach small { color: #b9c4e0; font-size: 12.5px; }
 .ach.no span { filter: grayscale(1); opacity: .35; }
 .ach.no b { opacity: .6; }
+#wx { display: block; font-size: 11px; font-weight: 800; color: #555; min-height: 13px; }
+#wx.rush { color: #e4423f; }
+#game.night #wx { color: #c9d1e3; }

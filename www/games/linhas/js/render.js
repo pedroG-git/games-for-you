@@ -1,6 +1,6 @@
 // Canvas drawing for Linhas. Sizes are in screen pixels so the map stays readable while the city grows.
 import { CITIES, COLORS, CB_COLORS } from './cities.js';
-import { trainPose, segmentPoints, wants } from './engine.js';
+import { trainPose, segmentPoints, wants, weatherOf, DAY } from './engine.js';
 
 export const LW = 7;      // line width
 export const SR = 11;     // station radius
@@ -12,7 +12,7 @@ export const R = {
 };
 
 // Look of the map: day or night, and line colours that colour-blind players can tell apart.
-export const look = { night: false, cb: false };
+export const look = { night: false, cb: false, cycle: true };
 const THEMES = {
   day: { station: '#fff', ink: '#222', pax: '#333', core: 'rgba(255,255,255,.75)', halo: '#fff', wedge: 'rgba(40,40,50,.22)', soft: 'rgba(31,42,68,.35)' },
   night: { station: '#1c2232', ink: '#eef1f7', pax: '#d3d9e6', core: 'rgba(8,12,22,.55)', halo: '#0b0f1a', wedge: 'rgba(230,235,245,.25)', soft: 'rgba(238,241,247,.35)',
@@ -211,6 +211,39 @@ function endCap(c, li, end, pts, color) {
   R.caps.push({ line: li, end, x: tip.x, y: tip.y });
 }
 
+// 0 by day, 1 at night: dusk from 70% of the day, dawn until 12% of the next.
+function duskOf(t) {
+  const f = (t % DAY) / DAY;
+  if (f < 0.04) return 1;
+  if (f < 0.12) return 1 - (f - 0.04) / 0.08;
+  if (f < 0.7) return 0;
+  if (f < 0.85) return (f - 0.7) / 0.15;
+  return 1;
+}
+// Rain, snow or fog over the map (screen space, light enough to play through).
+function drawWeather(c, wx, now) {
+  if (wx === 'clear') return;
+  if (wx === 'fog') {
+    const g = c.createLinearGradient(0, 0, 0, R.H);
+    g.addColorStop(0, 'rgba(235,238,242,.32)'); g.addColorStop(0.5, 'rgba(235,238,242,.12)'); g.addColorStop(1, 'rgba(235,238,242,.32)');
+    c.fillStyle = g; c.fillRect(0, 0, R.W, R.H); return;
+  }
+  const n = wx === 'rain' ? 70 : 55, t = now / 1000;
+  c.strokeStyle = 'rgba(70,100,140,.28)'; c.fillStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 1.3;
+  c.beginPath();
+  for (let i = 0; i < n; i++) {
+    const r1 = ((i * 7919) % 1000) / 1000, r2 = ((i * 104729) % 1000) / 1000;
+    if (wx === 'rain') {
+      const y = ((r2 * R.H + t * (520 + r1 * 200)) % (R.H + 40)) - 20, x = ((r1 * R.W - y * 0.18) % R.W + R.W) % R.W;
+      c.moveTo(x, y); c.lineTo(x - 3, y + 14);
+    } else {
+      const y = ((r2 * R.H + t * (40 + r1 * 30)) % (R.H + 20)) - 10, x = (r1 * R.W + Math.sin(t + i) * 12 + R.W) % R.W;
+      c.moveTo(x + 2.2, y); c.arc(x, y, 2.2, 0, Math.PI * 2);
+    }
+  }
+  if (wx === 'rain') c.stroke(); else c.fill();
+}
+
 function easeBack(t) { const s = 1.7; t -= 1; return t * t * ((s + 1) * t + s) + 1; }
 
 export function draw(S, ui, now) {
@@ -230,6 +263,19 @@ export function draw(S, ui, now) {
   }
   if (water) c.fill(water);
 
+  // landmarks: faint, under everything, so the city feels like itself
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  for (const m of city.landmarks || []) {
+    const p = toScreen(m.x, m.y);
+    c.globalAlpha = 0.45; c.font = '26px system-ui, sans-serif'; c.fillText(m.icon, p.x, p.y);
+    c.globalAlpha = 0.5; c.fillStyle = T.ink; c.font = '600 10px system-ui, sans-serif'; c.fillText(m.name, p.x, p.y + 22);
+    c.globalAlpha = 1;
+  }
+
+  // day and night: evenings darken the map a little and the stations light up (not with the night look, already dark)
+  const dusk = look.night || !look.cycle ? 0 : duskOf(S.t);
+  if (dusk > 0) { c.fillStyle = `rgba(22,30,70,${0.2 * dusk})`; c.fillRect(0, 0, R.W, R.H); }
+
   // lines: each one sits on a casing in the map colour, so side-by-side lines keep a gap and crossings show
   // which line is on top. One line in focus (picked, or being edited) makes the others step back.
   c.lineCap = 'round'; c.lineJoin = 'round';
@@ -248,6 +294,9 @@ export function draw(S, ui, now) {
       c.globalAlpha = a;
       endCap(c, i, 'start', pts, paint(L.color)); endCap(c, i, 'end', pts, paint(L.color));
       c.globalAlpha = 1;
+    }
+    if (L.express) { // express line: a dashed white stripe down the middle
+      c.setLineDash([3, 9]); strokeScreen(c, pts, '#fff', 2.5, 0.9 * a); c.setLineDash([]);
     }
     if (water && a === 1) { // tunnel: where the line is under the river, it gets a pale core
       c.save(); c.clip(water);
@@ -290,12 +339,20 @@ export function draw(S, ui, now) {
       const x0 = -13 - k * 29;
       c.fillStyle = paint(L.color); c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = 1.5;
       c.beginPath(); c.roundRect ? c.roundRect(x0, -8.5, 26, 17, 4) : c.rect(x0, -8.5, 26, 17); c.fill(); c.stroke();
+      if (L.express) { c.fillStyle = 'rgba(255,255,255,.85)'; c.fillRect(x0 + 2, -1, 22, 2); }
       c.fillStyle = '#fff';
       const pax = (t.pax || []).slice(k * 6, k * 6 + 6);
       pax.forEach((sh, j) => { shapePath(c, sh, x0 + 5.5 + (j % 3) * 7.5, -3.8 + Math.floor(j / 3) * 7.6, 2.6); c.fill(); });
     }
     c.restore();
   }));
+
+  // station lights after dark
+  if (dusk > 0.05) for (const st of S.stations) {
+    const s = toScreen(st.x, st.y), g = c.createRadialGradient(s.x, s.y, SR * 0.6, s.x, s.y, SR + 18);
+    g.addColorStop(0, `rgba(255,205,110,${0.55 * dusk})`); g.addColorStop(1, 'rgba(255,205,110,0)');
+    c.fillStyle = g; c.beginPath(); c.arc(s.x, s.y, SR + 18, 0, Math.PI * 2); c.fill();
+  }
 
   // stations
   for (const st of S.stations) {
@@ -359,7 +416,7 @@ export function draw(S, ui, now) {
   // a spare being dragged: its target lights up, and the item floats above the finger
   if (ui.carry || ui.tool === 'train' || ui.tool === 'carriage') {
     const k = ui.carry, tg = k && k.target, pulse = 0.5 + 0.3 * Math.sin(now / 150);
-    if (k && k.kind === 'train' && tg && tg.line != null) strokeScreen(c, R.paths[tg.line].pts, paint(S.lines[tg.line].color), LW + 10, pulse * 0.6);
+    if (k && (k.kind === 'train' || k.kind === 'express') && tg && tg.line != null) strokeScreen(c, R.paths[tg.line].pts, paint(S.lines[tg.line].color), LW + 10, pulse * 0.6);
     if (k && k.kind === 'interchange' && tg) {
       const s = toScreen(S.stations[tg.station].x, S.stations[tg.station].y);
       c.strokeStyle = '#e4423f'; c.lineWidth = 4; c.beginPath(); c.arc(s.x, s.y, SR + 12, 0, Math.PI * 2); c.stroke();
@@ -381,10 +438,12 @@ export function draw(S, ui, now) {
       if (k.kind === 'interchange') { c.fillStyle = '#fff'; c.strokeStyle = '#222'; c.arc(0, 0, SR + 7, 0, Math.PI * 2); }
       else if (c.roundRect) c.roundRect(-17, -11, 34, 22, 5); else c.rect(-17, -11, 34, 22);
       c.fill(); c.shadowColor = 'transparent'; c.stroke();
-      if (k.kind === 'carriage') { c.fillStyle = '#fff'; c.font = 'bold 18px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('+', 0, 1); }
+      if (k.kind === 'carriage' || k.kind === 'express') { c.fillStyle = '#fff'; c.font = 'bold 18px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(k.kind === 'express' ? '⚡' : '+', 0, 1); }
       c.restore();
     }
   }
+
+  drawWeather(c, weatherOf(S), now);
 
   // floating +1
   c.textAlign = 'center'; c.font = 'bold 15px system-ui, sans-serif';
