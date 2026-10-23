@@ -1,6 +1,6 @@
 // Canvas drawing for Linhas. Sizes are in screen pixels so the map stays readable while the city grows.
 import { CITIES } from './cities.js';
-import { routePoints, trainPose, segmentPoints } from './engine.js';
+import { trainPose, segmentPoints } from './engine.js';
 
 export const LW = 7;      // line width
 export const SR = 11;     // station radius
@@ -76,25 +76,65 @@ export function shapePath(c, shape, x, y, r) {
 }
 
 // ---------------------------------------------------------------- drawing
-function strokeWorld(c, pts, color, w, alpha = 1) {
+function strokeScreen(c, pts, color, w, alpha = 1) {
   if (pts.length < 2) return;
   c.globalAlpha = alpha;
   c.strokeStyle = color; c.lineWidth = w;
   c.beginPath();
-  pts.forEach((p, i) => { const s = toScreen(p.x, p.y); i ? c.lineTo(s.x, s.y) : c.moveTo(s.x, s.y); });
+  pts.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)));
   c.stroke();
   c.globalAlpha = 1;
 }
+const strokeWorld = (c, pts, color, w, alpha) => strokeScreen(c, pts.map((p) => toScreen(p.x, p.y)), color, w, alpha);
 
-// Short T-stub past each terminal: grab it to extend the line.
+// Consecutive station pairs of a line (a loop also has the closing pair).
+function linePairs(L) {
+  const ids = L.stations, out = [];
+  for (let k = 1; k < ids.length; k++) out.push([ids[k - 1], ids[k]]);
+  if (L.loop && ids.length > 2) out.push([ids[ids.length - 1], ids[0]]);
+  return out;
+}
+const pairKey = (a, b) => (a < b ? a + '-' + b : b + '-' + a);
+
+// Lines that share a stretch of track are drawn side by side: which lines use each stretch.
+function sharing(S) {
+  const share = new Map();
+  S.lines.forEach((L, li) => linePairs(L).forEach(([a, b]) => {
+    const k = pairKey(a, b);
+    if (!share.has(k)) share.set(k, []);
+    if (!share.get(k).includes(li)) share.get(k).push(li);
+  }));
+  return share;
+}
+// Screen offset of line li on the stretch a-b.
+function offsetFor(S, share, li, a, b) {
+  const list = share.get(pairKey(a, b));
+  if (!list || list.length < 2) return { x: 0, y: 0 };
+  const lo = S.stations[Math.min(a, b)], hi = S.stations[Math.max(a, b)];
+  const dx = hi.x - lo.x, dy = hi.y - lo.y, l = Math.hypot(dx, dy) || 1;
+  const o = (list.indexOf(li) - (list.length - 1) / 2) * (LW + 2);
+  return { x: (-dy / l) * o, y: (dx / l) * o };
+}
+function linePath(S, share, L, li) {
+  const out = [];
+  for (const [a, b] of linePairs(L)) {
+    const off = offsetFor(S, share, li, a, b);
+    for (const p of segmentPoints(S.stations[a], S.stations[b])) {
+      const q = toScreen(p.x, p.y);
+      out.push({ x: q.x + off.x, y: q.y + off.y });
+    }
+  }
+  return out;
+}
+
+// Short T-stub past each terminal: grab it to extend the line. pts are in screen pixels.
 function endCap(c, li, end, pts, color) {
-  const p = end === 'start' ? pts[0] : pts[pts.length - 1];
+  const sp = end === 'start' ? pts[0] : pts[pts.length - 1];
   let q = null;
   const order = end === 'start' ? pts : pts.slice().reverse();
-  for (const o of order) if (Math.hypot(o.x - p.x, o.y - p.y) > 0.5) { q = o; break; }
-  const sp = toScreen(p.x, p.y);
+  for (const o of order) if (Math.hypot(o.x - sp.x, o.y - sp.y) > 0.5) { q = o; break; }
   let dx = 0, dy = -1;
-  if (q) { const sq = toScreen(q.x, q.y); const L = Math.hypot(sp.x - sq.x, sp.y - sq.y) || 1; dx = (sp.x - sq.x) / L; dy = (sp.y - sq.y) / L; }
+  if (q) { const L = Math.hypot(sp.x - q.x, sp.y - q.y) || 1; dx = (sp.x - q.x) / L; dy = (sp.y - q.y) / L; }
   const tip = { x: sp.x + dx * 26, y: sp.y + dy * 26 };
   c.strokeStyle = color; c.lineWidth = LW;
   c.beginPath(); c.moveTo(sp.x, sp.y); c.lineTo(tip.x, tip.y); c.stroke();
@@ -123,14 +163,21 @@ export function draw(S, ui, now) {
   // lines
   c.lineCap = 'round'; c.lineJoin = 'round';
   R.caps = [];
+  const share = sharing(S);
   S.lines.forEach((L, i) => {
-    let pts = [];
-    try { pts = routePoints(S, i); } catch (e) { /* engine mid-update */ }
+    const pts = linePath(S, share, L, i);
     const dim = ui.preview && ui.preview.line === i ? 0.25 : 1;
-    if (ui.sel === i) strokeWorld(c, pts, '#fff', LW + 8, 0.9);
-    strokeWorld(c, pts, L.color, LW, dim);
+    if (ui.sel === i) strokeScreen(c, pts, '#fff', LW + 8, 0.9);
+    strokeScreen(c, pts, L.color, LW, dim);
     if (!L.loop && pts.length > 1 && dim === 1) { endCap(c, i, 'start', pts, L.color); endCap(c, i, 'end', pts, L.color); }
   });
+
+  // first-game hint: a dashed line pulsing between the first two stations
+  if (ui.hint === 'draw' && S.stations.length > 1 && !ui.preview) {
+    c.setLineDash([2, 14]); c.lineDashOffset = -now / 40;
+    strokeScreen(c, segmentPoints(S.stations[0], S.stations[1]).map((p) => toScreen(p.x, p.y)), '#e4423f', LW, 0.5 + 0.3 * Math.sin(now / 250));
+    c.setLineDash([]);
+  }
 
   // preview of the line being drawn
   if (ui.preview) {
@@ -143,21 +190,26 @@ export function draw(S, ui, now) {
     strokeWorld(c, pts, P.bad ? '#d33' : P.color, LW, P.bad ? 0.8 : 0.85);
   }
 
-  // trains
+  // trains: one rounded car per carriage, a little wider than the line, passengers as white shapes
   S.lines.forEach((L, li) => L.trains.forEach((t, ti) => {
     let pose;
     try { pose = trainPose(S, li, ti); } catch (e) { return; }
     if (!pose) return;
+    const n = L.stations.length;
+    let prev = t.i - t.dir;
+    if (L.loop) prev = (prev + n) % n;
+    else prev = Math.max(0, Math.min(n - 1, prev));
+    const off = n > 1 && prev !== t.i ? offsetFor(S, share, li, L.stations[prev], L.stations[t.i]) : { x: 0, y: 0 };
     const s = toScreen(pose.x, pose.y);
-    c.save(); c.translate(s.x, s.y); c.rotate(pose.angle || 0);
+    c.save(); c.translate(s.x + off.x, s.y + off.y); c.rotate(pose.angle || 0);
     const cars = Math.max(1, t.cars || 1);
     for (let k = 0; k < cars; k++) {
-      const x0 = -11 - k * 24;
-      c.fillStyle = L.color;
-      c.beginPath(); c.roundRect ? c.roundRect(x0, -7, 22, 14, 3) : c.rect(x0, -7, 22, 14); c.fill();
+      const x0 = -13 - k * 29;
+      c.fillStyle = L.color; c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = 1.5;
+      c.beginPath(); c.roundRect ? c.roundRect(x0, -8.5, 26, 17, 4) : c.rect(x0, -8.5, 26, 17); c.fill(); c.stroke();
       c.fillStyle = '#fff';
       const pax = (t.pax || []).slice(k * 6, k * 6 + 6);
-      pax.forEach((sh, j) => { shapePath(c, sh, x0 + 4 + (j % 3) * 7, -3.5 + Math.floor(j / 3) * 7, 2.4); c.fill(); });
+      pax.forEach((sh, j) => { shapePath(c, sh, x0 + 5.5 + (j % 3) * 7.5, -3.8 + Math.floor(j / 3) * 7.6, 2.6); c.fill(); });
     }
     c.restore();
   }));
@@ -170,7 +222,8 @@ export function draw(S, ui, now) {
     if (p0 != null) { const t = (now - p0) / 450; if (t >= 1) delete R.pops[st.id]; else k = Math.max(0.01, easeBack(t)); }
     const r = SR * k;
     if (st.overflow > 0) {
-      c.fillStyle = 'rgba(40,40,50,.22)';
+      const hot = st.overflow > 0.5;
+      c.fillStyle = hot ? `rgba(214,51,51,${0.25 + 0.12 * Math.sin(now / 140)})` : 'rgba(40,40,50,.22)';
       c.beginPath(); c.moveTo(s.x, s.y); c.arc(s.x, s.y, r + 16, -Math.PI / 2, -Math.PI / 2 + st.overflow * Math.PI * 2); c.closePath(); c.fill();
     }
     if (R.overId === st.id) {

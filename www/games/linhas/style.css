@@ -111,6 +111,17 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
   font-weight: 700; font-size: 15px; opacity: 0; transition: opacity .25s; pointer-events: none;
 }
 #toast.on { opacity: 1; }
+.cnt svg { width: 20px; height: 20px; }
+
+/* first-game hints, just above the bottom bar */
+#hint {
+  position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 112px); z-index: 2; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 16px;
+  background: #fff; color: #222; font-weight: 700; font-size: 15px; text-align: center;
+  box-shadow: 0 3px 0 rgba(0,0,0,.12), 0 6px 18px rgba(0,0,0,.12); pointer-events: none;
+  animation: hint-bob 1.6s ease-in-out infinite;
+}
+@keyframes hint-bob { 50% { transform: translateX(-50%) translateY(-4px); } }
 
 /* ---------------------------------------------------------------- modals */
 .modal {

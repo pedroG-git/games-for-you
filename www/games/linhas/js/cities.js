@@ -34,7 +34,7 @@ export const CITIES = [
     colors: COLORS,
   },
   {
-    id: 'porto', name: 'Porto', sub: 'Rio Douro', unlock: { city: 'lisboa', score: 300 }, bg: '#f1ece6', water: '#9fcbe3',
+    id: 'porto', name: 'Porto', sub: 'Rio Douro', unlock: { city: 'lisboa', score: 500 }, bg: '#f1ece6', water: '#9fcbe3',
     // The Douro snaking across the middle of the city.
     waterPolys: [
       band([[-40, 860], [150, 820], [300, 885], [450, 830], [600, 875], [750, 805], [900, 845], [1040, 800]], 72),
@@ -42,7 +42,7 @@ export const CITIES = [
     colors: COLORS,
   },
   {
-    id: 'berlin', name: 'Berlin', sub: 'Spree', unlock: { city: 'porto', score: 300 }, bg: '#eeeee8', water: '#a3cde0',
+    id: 'berlin', name: 'Berlin', sub: 'Spree', unlock: { city: 'porto', score: 500 }, bg: '#eeeee8', water: '#a3cde0',
     // The Spree winding through, plus two lakes.
     waterPolys: [
       band([[-40, 560], [200, 620], [380, 700], [520, 760], [650, 740], [800, 820], [1040, 905]], 56),

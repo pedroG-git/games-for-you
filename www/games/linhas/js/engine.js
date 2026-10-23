@@ -5,11 +5,16 @@ import { CITIES } from './cities.js';
 export const SHAPES = ['circle', 'triangle', 'square', 'diamond', 'star', 'cross', 'pentagon']; // first 3 common, rest rare
 export const DAY = 20;        // game seconds per day; a week is 7 days
 export const CAPACITY = 6;    // station queue limit (interchange: 12); a train car holds 6
-const SPEED = 80;             // train speed, world units per second
+const SPEED = 95;             // train speed, world units per second
 const DWELL = 0.6;            // seconds a train waits at each stop
 const TRANSFER = 1000;        // routing cost of changing lines (vs 1 per stop)
+const SLACK = 3;              // passengers also take a route up to this many stops longer than the best
 const MIN_GAP = 90;           // minimum distance between stations
 const MAX_CARS = 3;
+// Difficulty: seconds between new passengers at each station (from PAX_START down to PAX_MIN, one second less
+// every PAX_RAMP seconds), and how long a station may stay overcrowded before the game ends.
+const PAX_START = 16, PAX_MIN = 5, PAX_RAMP = 120;
+const OVERFLOW = 50, RECOVER = 40;
 const W = 1000, H = 1600;
 
 // ---------------------------------------------------------------- helpers
@@ -33,7 +38,10 @@ function inPoly(x, y, poly) {
 const inWater = (city, x, y) => city.waterPolys.some((p) => inPoly(x, y, p));
 
 // ---------------------------------------------------------------- geometry
+// Between two stations the bend always sits on the same side, whichever way the line runs,
+// so lines sharing a stretch of track stay parallel.
 export function segmentPoints(a, b) {
+  if (Number.isInteger(a.id) && Number.isInteger(b.id) && a.id > b.id) return segmentPoints(b, a).reverse();
   const dx = b.x - a.x, dy = b.y - a.y, ax = Math.abs(dx), ay = Math.abs(dy);
   const bend = ax > ay
     ? { x: a.x + Math.sign(dx) * (ax - ay), y: a.y }
@@ -271,7 +279,10 @@ function arrive(s, L, tr, events) {
   const stay = [];
   for (const k of st.queue) {
     const c = cost(r, k, st.id, L);
-    if (tr.pax.length < room && Number.isFinite(c) && c === bestAt(r, k, st.id) && cost(r, k, next, L) + 1 === c) {
+    // This line must be heading the right way, and be no more than SLACK stops (and no extra change) worse than the best.
+    const b = bestAt(r, k, st.id);
+    const good = Number.isFinite(c) && c <= b + SLACK && Math.floor(c / TRANSFER) === Math.floor(b / TRANSFER);
+    if (tr.pax.length < room && good && cost(r, k, next, L) + 1 === c) {
       tr.pax.push(k); moved++;
     } else stay.push(k);
   }
@@ -444,15 +455,15 @@ function endWeek(s, events) {
   events.push({ type: 'week', options: [a, b] });
 }
 
+// A new passenger wants the shape of another random station, so common shapes are wanted more often than rare ones.
 function spawnPax(s) {
-  const shapes = [...new Set(s.stations.map((st) => st.shape))];
   const relaxed = s.mode === 'relaxed';
   for (let tries = 0; tries < 6; tries++) {
     const st = s.stations[Math.floor(rnd(s) * s.stations.length)];
     if (relaxed && st.queue.length >= cap(st) + 4) continue;
-    const opts = shapes.filter((k) => k !== st.shape);
+    const opts = s.stations.filter((o) => o.shape !== st.shape);
     if (!opts.length) return;
-    st.queue.push(opts[Math.floor(rnd(s) * opts.length)]);
+    st.queue.push(opts[Math.floor(rnd(s) * opts.length)].shape);
     return;
   }
 }
@@ -467,14 +478,14 @@ function tick(s, dt, events) {
   }
   if (s.t >= s.nextPax) {
     spawnPax(s);
-    const perStation = Math.max(4, 13 - s.t / 80);
+    const perStation = Math.max(PAX_MIN, PAX_START - s.t / PAX_RAMP);
     s.nextPax = s.t + perStation / s.stations.length;
   }
   s.lines.forEach((line, L) => line.trains.forEach((tr) => moveTrain(s, L, tr, dt, events)));
   for (const st of s.stations) {
     const before = st.overflow;
-    if (st.queue.length > cap(st)) st.overflow += dt / 45;
-    else st.overflow = Math.max(0, st.overflow - dt / 80);
+    if (st.queue.length > cap(st)) st.overflow += dt / OVERFLOW;
+    else st.overflow = Math.max(0, st.overflow - dt / RECOVER);
     if (s.mode === 'relaxed') st.overflow = Math.min(0.95, st.overflow);
     if (before < 0.5 && st.overflow >= 0.5) events.push({ type: 'warn', id: st.id });
     if (st.overflow >= 1 && !s.over) {

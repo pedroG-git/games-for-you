@@ -8,7 +8,7 @@ import { initInput } from './input.js';
 const $ = (s) => document.querySelector(s);
 const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
-const K = { best: 'linhas-best', daily: 'linhas-daily', set: 'linhas-settings', run: 'linhas-run' };
+const K = { best: 'linhas-best', daily: 'linhas-daily', set: 'linhas-settings', run: 'linhas-run', tut: 'linhas-tut' };
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const OPT = {
   line: ['🛤️', 'New line', 'One more colour'],
@@ -24,7 +24,8 @@ Object.assign(settings, pref);
 const saveSettings = () => store(K.set, { sfx: settings.sfx, music: settings.music, vib: settings.vib, mode });
 
 let S = null, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, toastT = 0, hudKey = '';
-const ui = { preview: null, tool: null, sel: null };
+const ui = { preview: null, tool: null, sel: null, hint: null };
+const tut = load(K.tut) || {};
 
 const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const cityOf = (id) => CITIES.find((c) => c.id === id) || CITIES[0];
@@ -169,6 +170,7 @@ function gameOver(id) {
   }
   $('#over-title').textContent = id >= 0 ? 'Overcrowded!' : 'Last stop!';
   $('#over-score').textContent = S.score;
+  $('#over-stats').textContent = `${cityOf(S.city).name} · week ${S.week + 1} · ${S.stations.length} stations`;
   $('#over-best').textContent = isBest && S.score > 0 ? '👑 New best!' : `👑 Best ${best}`;
   setTimeout(() => { if (S && S.over) modal('#over', true); }, id >= 0 ? 1400 : 0);
   isBest && S.score > 0 ? play.best() : play.over();
@@ -211,8 +213,32 @@ $('#c-ich').onclick = () => {
 $('#c-trains').onclick = () => toast(`${S.inv.trains} spare trains`);
 $('#c-tun').onclick = () => toast(`${S.inv.tunnels} tunnels left`);
 
+// ---------------------------------------------------------------- first-game hints
+const HINTS = {
+  draw: 'Drag from one station to another to build a line',
+  extend: 'Drag the ⊢ end of a line onto a new station',
+  remove: 'Tap a coloured dot below to pick a line, then 🗑 to remove it',
+};
+function updateHint() {
+  const done = (k) => { if (!tut[k]) { tut[k] = true; store(K.tut, tut); } };
+  if (S.lines.length) done('draw');
+  if (S.lines.some((l) => l.stations.length > 2)) done('extend');
+  if (ui.sel != null) done('remove');
+  let h = null;
+  const loose = S.stations.some((st) => !S.lines.some((l) => l.stations.includes(st.id)));
+  if (!tut.draw) h = 'draw';
+  else if (!tut.extend && loose && S.t > 8) h = 'extend';
+  else if (!tut.remove && S.week >= 1 && S.lines.length >= S.inv.lines) h = 'remove';
+  if (ui.preview || S.over || paused) h = null;
+  ui.hint = h;
+  const el = $('#hint');
+  if (el.hidden !== !h) el.hidden = !h;
+  if (h && el.textContent !== HINTS[h]) el.textContent = HINTS[h];
+}
+
 // ---------------------------------------------------------------- HUD
 function updateHud() {
+  updateHint();
   $('#score-n').textContent = S.score;
   const key = [S.day, S.week, S.lines.length, S.lines.map((l) => l.color).join(), S.inv.lines, S.inv.trains, S.inv.carriages,
     S.inv.tunnels, S.inv.interchanges, ui.sel, ui.tool].join('|');
@@ -293,3 +319,5 @@ initInput($('#cv'), {
 });
 show('menu');
 requestAnimationFrame(frame);
+// For automated browser tests: index.html?debug
+if (location.search.includes('debug')) window.LINHAS = { get: () => S, E, R: Rn.R, toScreen: Rn.toScreen, start, ui };
