@@ -528,7 +528,7 @@ function updateHud() {
   };
   cnt('#c-trains', S.inv.trains, 'train', true);
   cnt('#c-cars', S.inv.carriages, 'carriage', true);
-  cnt('#c-tun', S.inv.tunnels);
+  cnt('#c-tun', S.inv.tunnels, null, !!cityOf(S.city).ferry);
   cnt('#c-ich', S.inv.interchanges, 'interchange', true);
   cnt('#c-exp', S.inv.express || 0, 'express', true);
 }

@@ -298,7 +298,12 @@ export function draw(S, ui, now) {
     if (L.express) { // express line: a dashed white stripe down the middle
       c.setLineDash([3, 9]); strokeScreen(c, pts, '#fff', 2.5, 0.9 * a); c.setLineDash([]);
     }
-    if (water && a === 1) { // tunnel: where the line is under the river, it gets a pale core
+    if (water && city.ferry) { // ferry: over the water the line becomes a dashed route
+      c.save(); c.clip(water);
+      strokeScreen(c, pts, T.water || city.water, LW + 5, a);
+      c.setLineDash([LW * 1.4, LW * 0.9]); strokeScreen(c, pts, paint(L.color), LW - 2, a); c.setLineDash([]);
+      c.restore();
+    } else if (water && a === 1) { // tunnel: where the line is under the river, it gets a pale core
       c.save(); c.clip(water);
       strokeScreen(c, pts, T.core, LW - 4);
       c.restore();

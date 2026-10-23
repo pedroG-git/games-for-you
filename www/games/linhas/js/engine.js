@@ -40,7 +40,14 @@ function inPoly(x, y, poly) {
   }
   return inside;
 }
-const inWater = (city, x, y) => city.waterPolys.some((p) => inPoly(x, y, p));
+// Each polygon's bounding box, so most points skip the full test.
+const boxes = new WeakMap();
+const boxOf = (p) => {
+  let b = boxes.get(p);
+  if (!b) { const xs = p.map((q) => q[0]), ys = p.map((q) => q[1]); b = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; boxes.set(p, b); }
+  return b;
+};
+const inWater = (city, x, y) => city.waterPolys.some((p) => { const b = boxOf(p); return x >= b[0] && y >= b[1] && x <= b[2] && y <= b[3] && inPoly(x, y, p); });
 
 // ---------------------------------------------------------------- geometry
 // Between two stations the bend always sits on the same side, whichever way the line runs,
@@ -114,25 +121,37 @@ export function trainPose(s, lineIdx, trainIdx) {
   return { x: p.x, y: p.y, angle: tr.dir < 0 ? p.angle + Math.PI : p.angle };
 }
 
+// Water crossings of one segment, cached: stations never move.
+const wetCache = new Map();
+function segCrossings(city, a0, b0) {
+  const key = `${city.id}|${a0.x},${a0.y}|${b0.x},${b0.y}`;
+  let n = wetCache.get(key);
+  if (n !== undefined) return n;
+  n = 0;
+  const pts = segmentPoints(a0, b0);
+  let wet = false;
+  for (let k = 1; k < pts.length; k++) {
+    const a = pts[k - 1], b = pts[k], steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 6));
+    for (let j = 1; j <= steps; j++) {
+      const w = inWater(city, a.x + (b.x - a.x) * (j / steps), a.y + (b.y - a.y) * (j / steps));
+      if (w && !wet) n++;
+      wet = w;
+    }
+  }
+  if (wetCache.size > 20000) wetCache.clear();
+  wetCache.set(key, n);
+  return n;
+}
 export function crossings(s, ids) {
   const city = cityOf(s);
   let n = 0;
-  for (let i = 1; i < ids.length; i++) {
-    const pts = segmentPoints(s.stations[ids[i - 1]], s.stations[ids[i]]);
-    let wet = false;
-    for (let k = 1; k < pts.length; k++) {
-      const a = pts[k - 1], b = pts[k], steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 6));
-      for (let j = 1; j <= steps; j++) {
-        const w = inWater(city, a.x + (b.x - a.x) * (j / steps), a.y + (b.y - a.y) * (j / steps));
-        if (w && !wet) n++;
-        wet = w;
-      }
-    }
-  }
+  for (let i = 1; i < ids.length; i++) n += segCrossings(city, s.stations[ids[i - 1]], s.stations[ids[i]]);
   return n;
 }
 // Tunnels a route uses (some cities, like Istanbul, need two per crossing).
-const usage = (s, ids, loop) => crossings(s, loop ? [...ids, ids[0]] : ids) * (cityOf(s).tunnelCost || 1);
+// Hong Kong has ferries: crossing the water is free, but slow.
+const usage = (s, ids, loop) => cityOf(s).ferry ? 0 : crossings(s, loop ? [...ids, ids[0]] : ids) * (cityOf(s).tunnelCost || 1);
+const FERRY = 0.55;
 
 // ---------------------------------------------------------------- weather, rush hour
 const hash = (a, b) => {
@@ -342,7 +361,8 @@ function moveTrain(s, L, tr, dt, events) {
     if (line.loop && g.total > 0) {
       togo = tr.dir > 0 ? (((target - tr.d) % g.total) + g.total) % g.total : (((tr.d - target) % g.total) + g.total) % g.total;
     } else togo = Math.abs(target - tr.d);
-    const speed = trainSpeed(s, line);
+    let speed = trainSpeed(s, line);
+    if (cityOf(s).ferry) { const p = pointAt(g, tr.d); if (inWater(cityOf(s), p.x, p.y)) speed *= FERRY; }
     const step = speed * left;
     if (step < togo) {
       tr.d += tr.dir * step;
@@ -589,7 +609,7 @@ function endWeek(s, events) {
     events.push({ type: 'rule', text: r.text, icon: r.icon || '📣' });
   }
   const pool = ['carriage', 'interchange'];
-  if (!(s.mods && s.mods.noTunnels)) pool.push('tunnel');
+  if (!(s.mods && s.mods.noTunnels) && !cityOf(s).ferry) pool.push('tunnel');
   const maxLines = Math.min(cityOf(s).colors.length, (s.mods && s.mods.maxLines) || 99);
   if (s.inv.lines < maxLines) pool.push('line');
   if (s.week >= 2 && s.lines.some((l) => !l.express) && !(s.inv.express > 0)) pool.push('express');

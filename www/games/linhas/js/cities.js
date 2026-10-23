@@ -22,6 +22,13 @@ function lake(cx, cy, rx, ry, n = 22) {
   return p;
 }
 
+// A canal ring: points on an ellipse from angle a0 to a1 (radians).
+function arc(cx, cy, rx, ry, a0, a1, n = 14) {
+  const p = [];
+  for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * (i / n); p.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]); }
+  return p;
+}
+
 export const COLORS = ['#e4423f', '#2f6fd6', '#f2b51d', '#2fa35b', '#8e4fc4', '#f0782d', '#2bb3c0'];
 
 export const CITIES = [
@@ -102,6 +109,91 @@ export const CITIES = [
       band([[560, -40], [590, 300], [630, 600], [690, 860], [800, 1060]], 42),
     ],
     speed: 125, busy: 0.8,
+    colors: COLORS,
+  },
+  {
+    id: 'madrid', name: 'Madrid', sub: 'Manzanares · dry city', unlock: { city: 'tokyo', score: 500 }, bg: '#f4ede1', water: '#a9d0e0',
+    landmarks: [{ x: 330, y: 760, icon: '🏰', name: 'Palacio Real' }, { x: 690, y: 930, icon: '🌳', name: 'El Retiro' }],
+    climate: { rain: 6 }, rules: [{ week: 3, icon: '🚃', text: 'Cercanías: +1 carriage', carriages: 1 }],
+    // Hardly any water: the little Manzanares in the west and the Retiro pond.
+    waterPolys: [
+      band([[170, -40], [215, 400], [165, 800], [230, 1200], [300, 1640]], 34),
+      lake(700, 830, 55, 34),
+    ],
+    start: { tunnels: 1 },
+    colors: COLORS,
+  },
+  {
+    id: 'roma', name: 'Roma', sub: 'Tevere', unlock: { city: 'madrid', score: 500 }, bg: '#f3eadb', water: '#a6cde0',
+    landmarks: [{ x: 640, y: 990, icon: '🏟️', name: 'Colosseo' }, { x: 580, y: 700, icon: '⛲', name: 'Fontana di Trevi' }],
+    climate: { rain: 10 }, rules: [{ week: 4, icon: '⛪', text: 'Pilgrims arrive for the Jubilee: the city is busier', busy: 0.9 }],
+    // The Tiber snaking down the west side of the centre.
+    waterPolys: [
+      band([[400, -40], [430, 300], [350, 560], [310, 760], [410, 920], [340, 1120], [390, 1350], [310, 1640]], 46),
+    ],
+    colors: COLORS,
+  },
+  {
+    id: 'amsterdam', name: 'Amsterdam', sub: 'Canals · 7 tunnels', unlock: { city: 'roma', score: 500 }, bg: '#efede6', water: '#9ec7dd',
+    landmarks: [{ x: 470, y: 960, icon: '🖼️', name: 'Rijksmuseum' }, { x: 500, y: 540, icon: '🚲', name: 'Dam' }],
+    climate: { rain: 30, fog: 10 }, rules: [{ week: 4, icon: '🌉', text: 'New bridges over the grachten: +3 tunnels', tunnels: 3 }],
+    // The IJ at the top, three canal rings around the centre and the Amstel flowing in from the south.
+    waterPolys: [
+      band([[-40, 420], [300, 445], [600, 405], [1040, 430]], 90),
+      band(arc(500, 440, 200, 210, 0, Math.PI), 22),
+      band(arc(500, 440, 290, 300, 0, Math.PI), 22),
+      band(arc(500, 440, 380, 400, 0, Math.PI), 22),
+      band([[560, 1640], [590, 1300], [545, 1050], [560, 840]], 40),
+    ],
+    start: { tunnels: 7 },
+    colors: COLORS,
+  },
+  {
+    id: 'rio', name: 'Rio de Janeiro', sub: 'Bay and beaches', unlock: { city: 'amsterdam', score: 500 }, bg: '#f2efe3', water: '#8fcbe0',
+    landmarks: [{ x: 300, y: 880, icon: '⛰️', name: 'Corcovado' }, { x: 580, y: 1220, icon: '🏖️', name: 'Copacabana' }],
+    climate: { rain: 18 }, rules: [{ week: 3, icon: '🎭', text: 'Carnaval! The city is busier from now on', busy: 0.9 }],
+    // The Atlantic along the bottom, Guanabara Bay on the right and the Lagoa in between.
+    waterPolys: [
+      [[-20, 1300], [200, 1265], [350, 1330], [520, 1285], [700, 1345], [1020, 1255], [1020, 1620], [-20, 1620]],
+      [[1020, 300], [830, 380], [760, 620], [800, 900], [880, 1080], [1020, 1120]],
+      lake(420, 1150, 90, 55),
+    ],
+    colors: COLORS,
+  },
+  {
+    id: 'saopaulo', name: 'São Paulo', sub: 'Megacity · 4 lines · busy', unlock: { city: 'rio', score: 500 }, bg: '#efede8', water: '#a2c9dc',
+    landmarks: [{ x: 560, y: 880, icon: '🏙️', name: 'Avenida Paulista' }, { x: 500, y: 1120, icon: '🌳', name: 'Ibirapuera' }],
+    climate: { rain: 22, fog: 6 }, rules: [{ week: 4, icon: '⚡', text: 'A new express line: drag ⚡ onto a line', express: 1 }],
+    // The Tietê across the north and the Pinheiros down the west. A huge, busy city.
+    waterPolys: [
+      band([[-40, 420], [250, 460], [500, 430], [750, 470], [1040, 440]], 40),
+      band([[255, 460], [225, 800], [260, 1150], [200, 1640]], 34),
+    ],
+    start: { lines: 4 }, busy: 0.85,
+    colors: COLORS,
+  },
+  {
+    id: 'istanbul', name: 'İstanbul', sub: 'Bosphorus · tunnels cost 2', unlock: { city: 'saopaulo', score: 500 }, bg: '#f2ece2', water: '#97c3dc',
+    landmarks: [{ x: 420, y: 920, icon: '🕌', name: 'Ayasofya' }, { x: 470, y: 590, icon: '🗼', name: 'Galata' }],
+    climate: { rain: 18, snow: 6, fog: 6 }, rules: [{ week: 4, icon: '🚇', text: 'Marmaray opens under the Bosphorus: +4 tunnels', tunnels: 4 }],
+    // Europe and Asia: the wide Bosphorus, the Golden Horn and the Sea of Marmara. Every crossing needs two tunnels.
+    waterPolys: [
+      band([[640, -40], [610, 300], [570, 600], [610, 900], [550, 1200], [510, 1420]], 80),
+      band([[575, 760], [430, 700], [300, 725], [140, 640]], 34),
+      [[-20, 1390], [300, 1350], [500, 1390], [800, 1365], [1020, 1405], [1020, 1620], [-20, 1620]],
+    ],
+    start: { tunnels: 6 }, tunnelCost: 2,
+    colors: COLORS,
+  },
+  {
+    id: 'hongkong', name: 'Hong Kong', sub: 'Harbour · ferries', unlock: { city: 'istanbul', score: 500 }, bg: '#eff0ec', water: '#98c6dd',
+    landmarks: [{ x: 360, y: 1110, icon: '⛰️', name: 'Victoria Peak' }, { x: 560, y: 700, icon: '⛴️', name: 'Star Ferry' }],
+    climate: { rain: 30, fog: 10 }, rules: [{ week: 3, icon: '✈️', text: 'The Airport Express opens: drag ⚡ onto a line', express: 1 }],
+    // Victoria Harbour between Kowloon and the island. No tunnels needed: lines cross by ferry, slowly.
+    waterPolys: [
+      band([[-40, 880], [200, 840], [400, 865], [600, 830], [800, 870], [1040, 840]], 130),
+    ],
+    start: { tunnels: 0 }, ferry: true, busy: 0.9,
     colors: COLORS,
   },
 ];
