@@ -188,6 +188,8 @@ function startLevel(mode, n, diff, day = null) {
 }
 
 function startBoard() {
+  // A saved game whose tray ended up empty would be stuck: deal fresh pieces.
+  if (!Array.isArray(S.tray) || S.tray.every((t) => !t)) { S.tray = deal(S.grid, !S.adv); S.pending = null; save(); }
   $('board').classList.remove('dead');
   show('app');
   layout();
@@ -404,16 +406,16 @@ function place(i, row, col) {
     return;
   }
 
-  let deal = false;
+  let fresh = false; // not "deal": that would hide the deal() function below
   if (S.tray.every((t) => !t)) {
-    deal = true;
+    fresh = true;
     S.undo.dealt = true;
     if (S.pending) { S.tray = S.pending; S.pending = null; } else { S.tray = deal(S.grid, !a); S.undoReady = true; }
     setTimeout(() => play.deal(), 150);
   }
   checkOver();
   save();
-  renderAll(deal);
+  renderAll(fresh);
 }
 
 function undo() {
