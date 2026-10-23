@@ -132,6 +132,13 @@
 
   const h = new Date().getHours();
   $('hello').textContent = h < 5 ? 'Good night!' : h < 12 ? 'Good morning!' : h < 19 ? 'Good afternoon!' : 'Good evening!';
+  // What's waiting today, in one line under the title.
+  const waiting = window.GAMES.filter((g) => badgeOf(g));
+  if (waiting.length) {
+    $('hello').nextSibling.textContent = waiting.length === 1
+      ? ` Something's waiting in ${waiting[0].name} today.`
+      : ` Something's waiting in ${waiting.length} games today.`;
+  }
   $('version').textContent = `Version ${current}`;
 
   const parse = (v) => String(v).replace(/^v/, '').split('.').map((x) => parseInt(x, 10) || 0);

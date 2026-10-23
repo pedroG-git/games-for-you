@@ -82,6 +82,9 @@ h1 small { font-size: .62em; color: var(--red); vertical-align: .14em; }
   background: var(--red); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink);
   display: grid; place-items: center;
 }
+/* a slow ring around the play button, so the eye finds it */
+.last .play { animation: ring 2.4s ease-out 1s infinite; }
+@keyframes ring { 0% { box-shadow: 0 3px 0 var(--ink), 0 0 0 0 color-mix(in srgb, var(--red) 55%, transparent); } 70%, 100% { box-shadow: 0 3px 0 var(--ink), 0 0 0 12px transparent; } }
 .play::after { content: ""; margin-left: 4px; border-style: solid; border-width: 10px 0 10px 16px; border-color: transparent transparent transparent var(--cream); }
 
 /* ---------------------------------------------------------------- "more games" heading: a label between two ink lines */
@@ -96,7 +99,7 @@ h1 small { font-size: .62em; color: var(--red); vertical-align: .14em; }
 
 /* ---------------------------------------------------------------- game cards */
 main {
-  flex: 1;
+  flex: 1; container-type: inline-size;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, calc(50% - 7px)), 1fr)); gap: 18px 14px;
   padding: 22px 16px 10px; align-content: start;
 }
@@ -147,6 +150,21 @@ main {
   background: rgba(0, 0, 0, .28); border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .25);
 }
 .tile:has(.progress) small { margin-bottom: 10px; }
+/* two columns with an odd number of games: the last one gets the whole row, as a wide card */
+@container (max-width: 477px) {
+  .tile:last-child:nth-child(odd) {
+    grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; column-gap: 16px;
+    align-content: center; justify-items: start; text-align: left; padding: 14px 16px;
+    background: linear-gradient(transparent 45%, rgba(0, 0, 0, .2)), radial-gradient(circle at 56px 50%, color-mix(in srgb, var(--c) 65%, #fff) 0, var(--c) 160px);
+  }
+  /* the icon spans the text rows; name and line meet in the middle, so the words sit centred beside it */
+  .tile:last-child:nth-child(odd) img { grid-row: 1 / span 2; width: 74px; height: 74px; }
+  .tile:last-child:nth-child(odd):has(.progress) img { grid-row: 1 / span 3; }
+  .tile:last-child:nth-child(odd) b { align-self: end; margin-top: 0; padding-right: 30px; }
+  .tile:last-child:nth-child(odd) small { align-self: start; margin-bottom: 0; }
+  .tile:last-child:nth-child(odd):has(.progress) small { align-self: center; }
+  .tile:last-child:nth-child(odd) .progress { align-self: start; margin-top: 8px; }
+}
 
 /* keyboard / switch access: a clear ring on whatever is focused */
 a:focus-visible, button:focus-visible { outline: 4px solid var(--red); outline-offset: 4px; }
@@ -154,7 +172,7 @@ a:focus-visible, button:focus-visible { outline: 4px solid var(--red); outline-o
 @keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.92); } }
 @keyframes fade { from { opacity: 0; } }
 .back .tile, .back .last { animation: fade .18s ease-out both; }
-@media (prefers-reduced-motion: reduce) { .tile, .last, .tile em { animation: none; } .leaving main, .leaving .last { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tile, .last, .tile em, .last .play { animation: none; } .leaving main, .leaving .last { transition: none; } }
 
 /* ---------------------------------------------------------------- big screens: content stays a comfortable width */
 #update, .last { margin-left: max(16px, calc(50% - 364px)); margin-right: max(16px, calc(50% - 364px)); }
