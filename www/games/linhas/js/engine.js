@@ -242,6 +242,18 @@ function placeStation(s, shape) {
   return null;
 }
 
+export const inWaterAt = (s, x, y) => inWater(cityOf(s), x, y);
+// Creative mode: a station where you tap. Returns it, or null on water, off the map or too close to another.
+export function addStation(s, x, y, shape) {
+  const v = s.view;
+  if (x < v.x + 20 || y < v.y + 20 || x > v.x + v.w - 20 || y > v.y + v.h - 20) return null;
+  if (inWater(cityOf(s), x, y)) return null;
+  if (s.stations.some((st) => Math.hypot(st.x - x, st.y - y) < MIN_GAP * 0.7)) return null;
+  const st = { id: s.stations.length, x: Math.round(x), y: Math.round(y), shape, queue: [], interchange: false, overflow: 0 };
+  s.stations.push(st);
+  return st;
+}
+
 function newShape(s) {
   if (s.week >= 1 && rnd(s) < 0.1) {
     const rare = SHAPES.slice(3).filter((k) => s.stations.filter((st) => st.shape === k).length < 2);
@@ -272,6 +284,13 @@ export function newGame({ city, mode = 'normal', seed = 1, mods = null } = {}) {
     if (mods.speed) s.mods.speed = mods.speed;
     if (mods.busy) s.mods.busy = mods.busy;
     if (mods.express) s.inv.express = mods.express;
+    if (mods.goal) { s.goal = mods.goal; s.deadline = mods.weeks || 0; } // puzzles: this many home before the end of week `weeks`
+    s.spec = mods;
+  }
+  // Creative: everything to build with, no game over, and you place the stations yourself.
+  if (mode === 'creative') {
+    Object.assign(s.inv, { lines: CITIES.find((c) => c.id === city).colors.length, trains: 6, carriages: 8, tunnels: 99, interchanges: 4, express: 2 });
+    s.view = { x: 60, y: 120, w: 880, h: 1360 };
   }
   for (const k of ['circle', 'triangle', 'square']) placeStation(s, k);
   s.nextStation = 16;
@@ -591,6 +610,7 @@ export function makeExpress(s, lineIdx) {
 // ---------------------------------------------------------------- simulation
 function endWeek(s, events) {
   s.week++;
+  if (s.deadline && s.week >= s.deadline) { s.over = true; events.push({ type: 'over', id: -1 }); return; }
   const v = s.view, cx = v.x + v.w / 2, cy = v.y + v.h / 2;
   const w = Math.min(W, v.w * 1.12), h = Math.min(H, v.h * 1.12);
   s.view = {
@@ -608,6 +628,7 @@ function endWeek(s, events) {
     if (r.busy) s.mods.busy = ((s.mods && s.mods.busy) || 1) * r.busy;
     events.push({ type: 'rule', text: r.text, icon: r.icon || '📣' });
   }
+  if (s.mode === 'creative') { s.inv.carriages++; return; }
   const pool = ['carriage', 'interchange'];
   if (!(s.mods && s.mods.noTunnels) && !cityOf(s).ferry) pool.push('tunnel');
   const maxLines = Math.min(cityOf(s).colors.length, (s.mods && s.mods.maxLines) || 99);
@@ -621,7 +642,7 @@ function endWeek(s, events) {
 
 // A new passenger wants the shape of another random station, so common shapes are wanted more often than rare ones.
 function spawnPax(s) {
-  const relaxed = s.mode === 'relaxed';
+  const relaxed = s.mode === 'relaxed' || s.mode === 'creative';
   for (let tries = 0; tries < 6; tries++) {
     const st = s.stations[Math.floor(rnd(s) * s.stations.length)];
     if (relaxed && st.queue.length >= cap(st) + 4) continue;
@@ -635,7 +656,7 @@ function spawnPax(s) {
 function tick(s, dt, events) {
   s.t += dt;
   s.day = Math.floor(s.t / DAY) % 7;
-  if (s.t >= s.nextStation) {
+  if (s.t >= s.nextStation && s.mode !== 'creative') {
     const st = placeStation(s, newShape(s));
     if (st) events.push({ type: 'station', id: st.id });
     s.nextStation = s.t + Math.max(9, 22 - s.week * 2);
@@ -651,7 +672,7 @@ function tick(s, dt, events) {
     const before = st.overflow;
     if (st.queue.length > cap(st)) st.overflow += dt / OVERFLOW;
     else st.overflow = Math.max(0, st.overflow - dt / RECOVER);
-    if (s.mode === 'relaxed') st.overflow = Math.min(0.95, st.overflow);
+    if (s.mode === 'relaxed' || s.mode === 'creative') st.overflow = Math.min(0.95, st.overflow);
     if (before < 0.5 && st.overflow >= 0.5) events.push({ type: 'warn', id: st.id });
     if (st.overflow >= 1 && !s.over) {
       st.overflow = 1;
@@ -660,6 +681,7 @@ function tick(s, dt, events) {
       return;
     }
   }
+  if (s.goal && s.score >= s.goal && !s.over) { s.won = true; s.over = true; events.push({ type: 'over', id: -2 }); return; }
   if (Math.floor(s.t / (DAY * 7)) > s.week) endWeek(s, events);
 }
 

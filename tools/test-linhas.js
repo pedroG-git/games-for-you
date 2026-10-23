@@ -153,6 +153,27 @@ const WEEKS = Number(process.argv[2]) || 6;
     if (!E.storeTrain(s, 1, 1) || s.inv.trains !== 1 || s.inv.carriages !== 1) fails.push('storeTrain: spares not returned');
   }
 
+  // Challenges: every puzzle can be solved by the decent player on its fixed map, weekly challenges run, creative never ends.
+  const CH = await import('../www/games/linhas/js/challenges.js');
+  for (const p of CH.PUZZLES) {
+    const s = E.newGame({ city: p.city, mode: 'puzzle', seed: p.seed, mods: { ...p.mods, goal: p.goal, weeks: p.weeks } });
+    while (!s.over) { decent(s); for (let i = 0; i < 10; i++) E.step(s, 0.1); }
+    if (!s.won) fails.push(`puzzle ${p.id}: decent player only got ${s.score}/${p.goal} (week ${s.week})`);
+  }
+  for (let w = 202601; w <= 202652; w++) {
+    const c = CH.weekly(w), s = E.newGame({ city: c.city, mode: 'weekly', seed: c.seed, mods: c.mods });
+    if (s.city !== c.city || c.twists.length !== 2 || c.twists[0] === c.twists[1]) fails.push(`weekly ${w}: bad challenge`);
+    for (let i = 0; i < 200 && !s.over; i++) { decent(s); E.step(s, 1); }
+    if (s.score <= 0 && !s.over) fails.push(`weekly ${w}: nothing delivered`);
+  }
+  {
+    const s = E.newGame({ city: 'roma', mode: 'creative', seed: 3 });
+    const n0 = s.stations.length;
+    if (!E.addStation(s, 700, 500, 'star') || E.addStation(s, 700, 520, 'star')) fails.push('creative: addStation spacing');
+    for (let i = 0; i < 6000; i++) { E.step(s, 0.1); if (s.pendingUpgrade) fails.push('creative: upgrade picker'); }
+    if (s.over || s.stations.length !== n0 + 1) fails.push(`creative: over ${s.over}, stations ${s.stations.length}`);
+  }
+
   const d = E.newGame({ mode: 'daily', seed: 20261023 });
   if (d.city !== CITIES[20261023 % CITIES.length].id) fails.push('daily: wrong city');
   if (fails.length) { console.error('FAIL\n' + fails.join('\n')); process.exit(1); }

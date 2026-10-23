@@ -112,7 +112,7 @@ export const CITIES = [
     colors: COLORS,
   },
   {
-    id: 'madrid', name: 'Madrid', sub: 'Manzanares · dry city', unlock: { city: 'tokyo', score: 500 }, bg: '#f4ede1', water: '#a9d0e0',
+    id: 'madrid', dryOk: true, name: 'Madrid', sub: 'Manzanares · dry city', unlock: { city: 'tokyo', score: 500 }, bg: '#f4ede1', water: '#a9d0e0',
     landmarks: [{ x: 330, y: 760, icon: '🏰', name: 'Palacio Real' }, { x: 690, y: 930, icon: '🌳', name: 'El Retiro' }],
     climate: { rain: 6 }, rules: [{ week: 3, icon: '🚃', text: 'Cercanías: +1 carriage', carriages: 1 }],
     // Hardly any water: the little Manzanares in the west and the Retiro pond.
@@ -149,7 +149,7 @@ export const CITIES = [
     colors: COLORS,
   },
   {
-    id: 'rio', name: 'Rio de Janeiro', sub: 'Bay and beaches', unlock: { city: 'amsterdam', score: 500 }, bg: '#f2efe3', water: '#8fcbe0',
+    id: 'rio', dryOk: true, name: 'Rio de Janeiro', sub: 'Bay and beaches', unlock: { city: 'amsterdam', score: 500 }, bg: '#f2efe3', water: '#8fcbe0',
     landmarks: [{ x: 300, y: 880, icon: '⛰️', name: 'Corcovado' }, { x: 580, y: 1220, icon: '🏖️', name: 'Copacabana' }],
     climate: { rain: 18 }, rules: [{ week: 3, icon: '🎭', text: 'Carnaval! The city is busier from now on', busy: 0.9 }],
     // The Atlantic along the bottom, Guanabara Bay on the right and the Lagoa in between.
@@ -161,7 +161,7 @@ export const CITIES = [
     colors: COLORS,
   },
   {
-    id: 'saopaulo', name: 'São Paulo', sub: 'Megacity · 4 lines · busy', unlock: { city: 'rio', score: 500 }, bg: '#efede8', water: '#a2c9dc',
+    id: 'saopaulo', dryOk: true, name: 'São Paulo', sub: 'Megacity · 4 lines · busy', unlock: { city: 'rio', score: 500 }, bg: '#efede8', water: '#a2c9dc',
     landmarks: [{ x: 560, y: 880, icon: '🏙️', name: 'Avenida Paulista' }, { x: 500, y: 1120, icon: '🌳', name: 'Ibirapuera' }],
     climate: { rain: 22, fog: 6 }, rules: [{ week: 4, icon: '⚡', text: 'A new express line: drag ⚡ onto a line', express: 1 }],
     // The Tietê across the north and the Pinheiros down the west. A huge, busy city.

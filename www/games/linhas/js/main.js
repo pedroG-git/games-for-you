@@ -6,11 +6,15 @@ import * as Rn from './render.js';
 import { initInput } from './input.js';
 import { record, openReplay } from './replay.js';
 import { ACH, got, check, streak, calendar } from './achieve.js';
+import { weekly, weekId, PUZZLES } from './challenges.js';
 
 const $ = (s) => document.querySelector(s);
 const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
-const K = { best: 'linhas-best', daily: 'linhas-daily', set: 'linhas-settings', run: 'linhas-run', tut: 'linhas-tut' };
+const K = { best: 'linhas-best', daily: 'linhas-daily', set: 'linhas-settings', run: 'linhas-run', tut: 'linhas-tut', chal: 'linhas-chal' };
+// Normal, Relaxed and Daily count for bests, stars and unlocking; challenges keep their own records.
+const STD = (st) => st.mode === 'normal' || st.mode === 'relaxed' || st.mode === 'daily';
+const chalRec = () => { const c = load(K.chal) || {}; return { week: c.week || {}, puz: c.puz || {} }; };
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 // Icons shared with the bottom bar (index.html).
 const ICON = (id) => document.querySelector(id + ' svg').outerHTML;
@@ -33,7 +37,7 @@ const applyLook = () => { $('#game').classList.toggle('night', look.night); hudK
 
 let S = null, ended = false, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, toastT = 0, hudKey = '';
 let undo = [], best0 = 0, cheered = false, shownScore = -1;
-const ui = { preview: null, tool: null, sel: null, hint: null, carry: null, info: null }; // info: { station, until } after a tap on a station
+const ui = { preview: null, tool: null, sel: null, hint: null, carry: null, info: null, shape: 'circle' }; // info: { station, until } after a tap on a station
 let tut = load(K.tut) || {};
 
 const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
@@ -49,6 +53,11 @@ const isLocked = (c, all) => !!c.unlock && cityBest(c.unlock.city, all) < c.unlo
 // Bests are saved while you play, not only when a game ends, so leaving a game early still counts.
 function recordBest(st = S) {
   if (!st || !(st.score > 0)) return;
+  if (st.mode === 'weekly') {
+    const c = chalRec();
+    if (!(c.week.seed === st.seed && c.week.score >= st.score)) { c.week = { seed: st.seed, score: st.score }; store(K.chal, c); }
+  }
+  if (!STD(st)) return;
   if (st.mode === 'daily') {
     const d = load(K.daily);
     if (!(d && d.date === st.seed && d.score >= st.score)) store(K.daily, { date: st.seed, score: st.score });
@@ -57,6 +66,8 @@ function recordBest(st = S) {
   if ((all[k] || 0) < st.score) { all[k] = st.score; store(K.best, all); }
 }
 function bestSoFar(st) {
+  if (st.mode === 'weekly') { const w = chalRec().week; return w.seed === st.seed ? w.score : 0; }
+  if (!STD(st)) return 0;
   if (st.mode === 'daily') { const d = load(K.daily); return d && d.date === st.seed ? d.score : 0; }
   return (load(K.best) || {})[bestKey(st)] || 0;
 }
@@ -124,6 +135,8 @@ function renderMenu() {
   const run3 = streak();
   $('#m-daily-sub').textContent = `${cityOf(CITIES[t % CITIES.length].id).name} · ` + (d && d.date === t ? `👑 ${d.score}` : 'new today')
     + (run3 > 0 ? ` · 🔥 ${run3} day${run3 > 1 ? 's' : ''}` : '');
+  const solved = PUZZLES.filter((p) => chalRec().puz[p.id]).length;
+  $('#m-chal-sub').textContent = `${cityOf(weekly().city).name} this week · ${solved}/${PUZZLES.length} puzzles`;
   const have = got();
   $('#m-ach-sub').textContent = `${ACH.filter((a) => have[a.id]).length} of ${ACH.length}`;
   const run = load(K.run);
@@ -158,10 +171,45 @@ $('#m-cont').onclick = () => {
 };
 
 // ---------------------------------------------------------------- game
-function start(city, m, seed) {
-  S = E.newGame({ city, mode: m, seed });
+function start(city, m, seed, mods = null, puz = null) {
+  S = E.newGame({ city, mode: m, seed, mods });
+  if (puz) S.puz = puz;
   begin();
 }
+// Play again: the same challenge, or a new map in the same city and mode.
+function again() {
+  const seed = S.mode === 'daily' ? today() : S.mode === 'weekly' ? weekId() : S.mode === 'puzzle' ? S.seed : (Math.random() * 1e9) | 0;
+  start(S.city, S.mode, seed, S.mode === 'weekly' ? weekly(seed).mods : S.spec || null, S.puz);
+}
+
+// ---------------------------------------------------------------- challenges
+let creCity = 0;
+function openChal() {
+  const w = weekly(), rec = chalRec(), mine = rec.week.seed === w.seed ? rec.week.score : 0;
+  $('#ch-week').innerHTML = `<span>🗓️</span><div><b>${cityOf(w.city).name}</b><small>${w.twists.map((t) => t.icon + ' ' + t.text).join(' · ')}</small></div><em>${mine ? '👑 ' + mine : 'Play'}</em>`;
+  $('#ch-week').onclick = () => { play.tap(); modal('#chal', false); start(w.city, 'weekly', w.seed, w.mods); };
+  $('#ch-puz').innerHTML = '';
+  PUZZLES.forEach((p, i) => {
+    const done = rec.puz[p.id], open = i === 0 || rec.puz[PUZZLES[i - 1].id];
+    const b = document.createElement('button');
+    b.className = 'ach chal-row' + (done ? ' done' : '') + (open ? '' : ' locked');
+    b.innerHTML = `<span>${open ? p.icon : '🔒'}</span><div><b>${i + 1}. ${p.name} · ${cityOf(p.city).name}</b><small>${p.text}</small></div><em>${done ? '✓' : open ? '🎯 ' + p.goal : ''}</em>`;
+    b.onclick = () => {
+      play.tap();
+      if (!open) { toast('Solve the puzzle before this one first'); return; }
+      modal('#chal', false); start(p.city, 'puzzle', p.seed, { ...p.mods, goal: p.goal, weeks: p.weeks }, p.id);
+    };
+    $('#ch-puz').append(b);
+  });
+  const cyc = () => { $('#ch-city').textContent = CITIES[creCity].name; };
+  $('#ch-prev').onclick = () => { play.tap(); creCity = (creCity + CITIES.length - 1) % CITIES.length; cyc(); };
+  $('#ch-next').onclick = () => { play.tap(); creCity = (creCity + 1) % CITIES.length; cyc(); };
+  $('#ch-go').onclick = () => { play.tap(); modal('#chal', false); start(CITIES[creCity].id, 'creative', (Math.random() * 1e9) | 0); };
+  cyc();
+  modal('#chal', true);
+}
+$('#m-chal').onclick = () => { unlock(); play.tap(); openChal(); };
+$('#chal-close').onclick = () => { play.tap(); modal('#chal', false); };
 function begin() {
   show('game');
   Rn.reset(S);
@@ -218,9 +266,9 @@ function cheer(n) {
   const el = $('#score');
   el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
   const was = S.score - n;
-  const star = GOALS.findIndex((g) => was < g && S.score >= g);
+  const star = STD(S) ? GOALS.findIndex((g) => was < g && S.score >= g) : -1;
   if (star >= 0) { toast(`${'★'.repeat(star + 1)}  Star ${star + 1} of 3!`); play.star(); return; }
-  const opened = CITIES.find((c) => c.unlock && c.unlock.city === S.city && was < c.unlock.score && S.score >= c.unlock.score && cityBest(S.city) < c.unlock.score);
+  const opened = STD(S) && CITIES.find((c) => c.unlock && c.unlock.city === S.city && was < c.unlock.score && S.score >= c.unlock.score && cityBest(S.city) < c.unlock.score);
   if (opened) { recordBest(); toast(`🔓 ${opened.name} unlocked!`); play.star(); return; }
   if (!cheered && best0 > 0 && was <= best0 && S.score > best0) { cheered = true; toast('👑 New best!'); play.best(); }
 }
@@ -261,24 +309,33 @@ function gameOver(id) {
   const had = starsFor(best0);
   recordBest();
   const best = Math.max(best0, S.score), isBest = S.score > best0;
-  $('#over-title').textContent = id >= 0 ? 'Overcrowded!' : 'Last stop!';
+  const puz = PUZZLES.find((p) => p.id === S.puz);
+  if (S.won && puz) {
+    const c = chalRec(), first = !c.puz[puz.id];
+    c.puz[puz.id] = Math.max(c.puz[puz.id] || 0, Date.now()); store(K.chal, c);
+    const next = PUZZLES[PUZZLES.indexOf(puz) + 1];
+    if (first && next) setTimeout(() => toast(`🔓 Puzzle ${PUZZLES.indexOf(next) + 1} unlocked`, 2200), 900);
+  }
+  $('#over-title').textContent = S.won ? '🎉 Solved!' : S.deadline && id === -1 && S.week >= S.deadline ? "Time's up!" : id >= 0 ? 'Overcrowded!' : 'Last stop!';
   $('#over-score').textContent = S.score;
   $('#over-stats').textContent = `${cityOf(S.city).name} · week ${S.week + 1} · ${S.stations.length} stations`;
   $('#over-best').textContent = isBest && S.score > 0 ? '👑 New best!' : `👑 Best ${best}`;
   const stars = starsFor(S.score);
-  $('#over-stars').innerHTML = starRow(stars, Math.max(0, stars - had));
+  $('#over-stars').innerHTML = STD(S) ? starRow(stars, Math.max(0, stars - had)) : '';
   // Passengers per week, the last (unfinished) week included.
   const weeks = (S.weeks || []).concat(S.score - (S.wk0 || 0)).slice(-12), top = Math.max(1, ...weeks);
   const first = (S.weeks || []).length + 1 - weeks.length + 1;
   $('#over-chart').innerHTML = weeks.map((n, i) => `<div><b style="height:${Math.max(3, Math.round((n / top) * 100))}%"></b><small>${first + i}</small></div>`).join('');
   $('#over-chart').hidden = weeks.length < 2;
   const next = GOALS.find((g) => S.score < g);
-  $('#over-sub').textContent = next ? `Passengers home · next ★ at ${next}` : 'Passengers home';
+  $('#over-sub').textContent = S.goal ? `Passengers home · goal ${S.goal}` : !STD(S) ? 'Passengers home' : next ? `Passengers home · next ★ at ${next}` : 'Passengers home';
+  if (S.goal) $('#over-best').textContent = S.won ? `✓ ${puz ? puz.name : 'Puzzle'} solved` : `${S.goal - S.score} short of the goal`;
+  if (S.mode === 'creative') $('#over-best').textContent = '🎨 Creative';
   setTimeout(() => { if (S && S.over) modal('#over', true); }, id >= 0 ? 1400 : 0);
-  isBest && S.score > 0 ? play.best() : play.over();
+  (isBest && S.score > 0) || S.won ? play.best() : play.over();
 }
 
-$('#o-again').onclick = () => { play.tap(); start(S.city, S.mode, S.mode === 'daily' ? today() : (Math.random() * 1e9) | 0); };
+$('#o-again').onclick = () => { play.tap(); again(); };
 $('#o-replay').onclick = () => { play.tap(); modal('#over', false); openReplay(S, $, toast); };
 $('#rp-close').onclick = () => { play.tap(); modal('#replay', false); modal('#over', true); };
 $('#o-menu').onclick = () => { play.tap(); modal('#over', false); show('menu'); };
@@ -311,7 +368,7 @@ function disarm() {
   armed = null;
 }
 $('#p-restart').onclick = (e) => confirmTap(e.currentTarget, 'Tap again to restart', () => {
-  play.tap(); modal('#pause', false); start(S.city, S.mode, S.mode === 'daily' ? today() : (Math.random() * 1e9) | 0);
+  play.tap(); modal('#pause', false); again();
 });
 $('#p-end').onclick = (e) => confirmTap(e.currentTarget, 'Tap again to end', () => { modal('#pause', false); setPaused(false); gameOver(-1); });
 $('#b-speed').onclick = () => {
@@ -398,6 +455,12 @@ function tapped(kind) {
   if (ui.tool === kind) return setTool(null);
   setTool(kind);
 }
+$('#c-shape').onclick = () => {
+  play.tap();
+  const all = Object.keys(GLYPH);
+  ui.shape = all[(all.indexOf(ui.shape) + 1) % all.length]; hudKey = '';
+  toast(`Next station: ${GLYPH[ui.shape]} ${ui.shape}`);
+};
 $('#c-tun').onclick = () => toast(`${S.inv.tunnels} tunnels left`);
 
 // ---------------------------------------------------------------- first-game hints
@@ -470,6 +533,7 @@ function checkAch(force = false) {
   const now = performance.now();
   if (!force && now - achT < 1000) return;
   achT = now;
+  if (S.mode === 'creative') return;
   achQ.push(...check(S, { night: look.night, stars: starsFor(Math.max(bestSoFar(S), S.score)) }));
 }
 setInterval(() => {
@@ -489,14 +553,16 @@ function updateHud() {
     shownScore = S.score;
     $('#score-n').textContent = S.score;
     const next = GOALS.find((g) => S.score < g);
-    $('#goal').textContent = next ? `/ ${next} ★` : '★★★';
+    $('#goal').textContent = S.goal ? `/ ${S.goal} 🎯` : !STD(S) ? '' : next ? `/ ${next} ★` : '★★★';
   }
   const key = [S.day, S.week, S.lines.length, S.lines.map((l) => l.color).join(), S.inv.lines, S.inv.trains, S.inv.carriages,
-    S.inv.tunnels, S.inv.interchanges, S.inv.express, ui.sel, ui.tool, undo.length].join('|');
+    S.inv.tunnels, S.inv.interchanges, S.inv.express, ui.sel, ui.tool, undo.length, ui.shape, S.mode].join('|');
   if (key === hudKey) return;
   hudKey = key;
   $('#dots').innerHTML = DAYS.map((d, i) => `<i class="${i < S.day ? 'on' : i === S.day ? 'now' : ''}"></i>`).join('');
-  $('#week-n').textContent = `Week ${S.week + 1}`;
+  $('#week-n').textContent = S.mode === 'creative' ? `🎨 Week ${S.week + 1}` : S.deadline ? `Week ${S.week + 1} of ${S.deadline}` : `Week ${S.week + 1}`;
+  $('#c-shape').hidden = S.mode !== 'creative';
+  $('#c-shape span').textContent = GLYPH[ui.shape];
   const city = cityOf(S.city);
   const chips = $('#chips');
   chips.innerHTML = '';
@@ -587,6 +653,14 @@ initInput($('#cv'), {
   changed: () => { hudKey = ''; save(); },
   edited,
   tapped,
+  // Creative mode: a tap on an empty spot adds a station of the chosen shape.
+  place: (x, y) => {
+    if (S.mode !== 'creative') return false;
+    const st = E.addStation(S, x, y, ui.shape);
+    if (!st) { toast(E.inWaterAt(S, x, y) ? 'Not on the water' : 'Too close to another station'); play.locked(); return true; }
+    Rn.pop(st.id, performance.now()); play.station(); save();
+    return true;
+  },
   blocked: () => !$('#pause').hidden || !S || S.over || !!S.pendingUpgrade || !$('#settings').hidden,
 });
 show('menu');

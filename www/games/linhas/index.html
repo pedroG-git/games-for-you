@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="../../shared/nav.css">
 <script src="../../shared/nav.js"></script>
-<script>GFY.back([['#ach', '#ach-close'], ['#replay', '#rp-close'], ['#settings', '#b-close'], ['#over', '#o-menu'], ['#upgrade', null], ['#pause', '#p-close'], ['#frozen', '#f-resume'], ['#mapview', '#mv-back'], ['#game', '#b-back']]);</script>
+<script>GFY.back([['#chal', '#chal-close'], ['#ach', '#ach-close'], ['#replay', '#rp-close'], ['#settings', '#b-close'], ['#over', '#o-menu'], ['#upgrade', null], ['#pause', '#p-close'], ['#frozen', '#f-resume'], ['#mapview', '#mv-back'], ['#game', '#b-back']]);</script>
 </head>
 <body>
 <div id="menu" class="screen">
@@ -27,7 +27,28 @@
   </nav>
   <div id="cities"></div>
   <button class="mode-btn daily" id="m-daily"><b>📅 Daily</b><small id="m-daily-sub"></small></button>
+  <button class="mode-btn chal" id="m-chal"><b>🎯 Challenges</b><small id="m-chal-sub"></small></button>
   <button class="mode-btn" id="m-ach"><b>🏆 Achievements</b><small id="m-ach-sub"></small></button>
+</div>
+
+<div id="chal" class="modal" hidden>
+  <div class="box">
+    <h2>Challenges</h2>
+    <div id="chal-list">
+      <p class="lbl">Weekly challenge · new every Monday</p>
+      <button class="ach chal-row" id="ch-week"></button>
+      <p class="lbl">Puzzles · reach the goal in time</p>
+      <div id="ch-puz"></div>
+      <p class="lbl">Creative · build anything, tap the map to add stations</p>
+      <div class="ach chal-row" id="ch-cre">
+        <span>🎨</span>
+        <div><b>Creative</b><small>No game over, everything unlocked</small></div>
+        <div class="cyc"><button id="ch-prev" aria-label="Previous city">‹</button><em id="ch-city"></em><button id="ch-next" aria-label="Next city">›</button></div>
+        <button class="go" id="ch-go">Build</button>
+      </div>
+    </div>
+    <button class="ghostbtn" id="chal-close">Back</button>
+  </div>
 </div>
 
 <div id="ach" class="modal" hidden>
@@ -47,6 +68,7 @@
     <div id="score"><span>👤</span><b id="score-n">0</b><small id="goal"></small></div>
     <div id="week"><div id="dots"></div><small id="week-n">Week 1</small><small id="wx"></small></div>
     <div id="counts">
+      <button class="cnt shape" id="c-shape" hidden title="Shape of the next station"><span>●</span></button>
       <button class="cnt" id="c-tun" title="Tunnels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15V9a9 7 0 0 1 18 0v6"/><path d="M7 15v-4a5 4 0 0 1 10 0v4"/><path d="M2 20c2-1.5 3-1.5 5 0s3 1.5 5 0 3-1.5 5 0 3 1.5 5 0"/></svg><i>0</i></button>
     </div>
   </header>

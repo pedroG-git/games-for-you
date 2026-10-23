@@ -268,11 +268,13 @@ export function initInput(canvas, api) {
       const seg = segmentAt(S, p);
       if (seg) drag = { kind: 'reroute', line: seg.line, k: seg.k, target: -1, color: S.lines[seg.line].color };
     }
+    if (!drag && S.mode === 'creative') drag = { kind: 'place' };
     if (!drag) return;
     drag.before = E.routesOf(S);
     drag.p0 = p; drag.was = was; ui.info = info;
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     drag.cursor = toWorld(p.x, p.y);
+    if (drag.kind === 'place') return;
     play.tap();
     preview(S);
   });
@@ -284,6 +286,7 @@ export function initInput(canvas, api) {
     if (!drag.moved && Math.hypot(p.x - drag.p0.x, p.y - drag.p0.y) > 10) drag.moved = true;
     if (drag.full && drag.moved) { drag = null; ui.preview = null; api.toast('No free line'); play.locked(); return; }
     drag.cursor = toWorld(p.x, p.y);
+    if (drag.kind === 'place') return;
     const id = stationAt(S, p);
     if (drag.kind === 'reroute') {
       const L = S.lines[drag.line];
@@ -316,6 +319,7 @@ export function initInput(canvas, api) {
       if (ui.sel != null) api.toast('Tap a station to take it off · 🗑 removes the line');
       api.changed(); return;
     }
+    if (d.kind === 'place') { if (!d.moved) { const w = toWorld(d.p0.x, d.p0.y); api.place(w.x, w.y); api.changed(); } return; }
     let r = null;
     if (d.kind === 'new') {
       // A tap on a station shows where its passengers want to go.

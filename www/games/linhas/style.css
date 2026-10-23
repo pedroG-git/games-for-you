@@ -62,6 +62,7 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 .mode-btn small { font-size: 14px; font-weight: 700; }
 .mode-btn.daily { background: #2f6fd6; box-shadow: 0 5px 0 #1d4790; }
 .mode-btn.cont { background: #2fa35b; box-shadow: 0 5px 0 #1d6b3a; }
+.mode-btn.chal { background: #8e4fc4; box-shadow: 0 5px 0 #5e2f86; }
 
 /* ---------------------------------------------------------------- game */
 #game { position: fixed; inset: 0; background: #f3eee4; }
@@ -238,9 +239,10 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 #game.viewing #bar, #game.viewing #hud > :not(#b-back):not(#score) { visibility: hidden; }
 
 /* spares waiting to be dragged onto the map */
-#spares { display: flex; gap: 6px; }
-#spares .cnt { height: 48px; min-width: 52px; padding: 0 9px; border-radius: 14px; touch-action: none; }
-#spares .cnt svg { width: 22px; height: 22px; }
+#spares { display: flex; gap: 5px; min-width: 0; }
+#spares .cnt { height: 48px; min-width: 46px; padding: 0 7px; border-radius: 14px; touch-action: none; }
+#spares .cnt svg { width: 21px; height: 21px; }
+#bar .row:has(#spares .cnt:not(.gone):nth-child(4)) { gap: 6px; }
 #spares .cnt:not(.empty) { background: #1f2a44; color: #fff; animation: ready 1.4s ease-in-out infinite; }
 @keyframes ready { 50% { box-shadow: 0 0 0 5px rgba(228,66,63,.35), 0 2px 0 rgba(0,0,0,.15); } }
 #bar .row { flex-wrap: wrap; }
@@ -276,7 +278,21 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 #settings label span { text-align: left; }
 
 /* achievements */
-#ach .box { max-height: 88vh; }
+#ach .box, #chal .box { max-height: 88vh; }
+#chal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; text-align: left; min-height: 0; flex: 1; }
+#chal-list .lbl { margin: 8px 0 0; text-align: left; }
+#ch-puz { display: flex; flex-direction: column; gap: 6px; }
+.chal-row { width: 100%; color: inherit; font: inherit; text-align: left; }
+.chal-row > div:nth-child(2) { flex: 1; min-width: 0; }
+.chal-row em { font-style: normal; font-weight: 800; font-size: 13px; color: #ffd36b; white-space: nowrap; }
+.chal-row.done em { color: #7ee2a0; }
+.chal-row.locked { opacity: .45; }
+#ch-cre { flex-wrap: wrap; }
+#ch-cre .cyc { display: flex; align-items: center; gap: 4px; }
+#ch-cre .cyc button { width: 30px; height: 30px; border-radius: 9px; background: rgba(255,255,255,.12); color: #fff; font-size: 20px; line-height: 1; }
+#ch-cre .cyc em { min-width: 86px; text-align: center; color: #fff; }
+#ch-cre .go { padding: 7px 14px; border-radius: 10px; background: #e4423f; color: #fff; font-weight: 800; }
+.cnt.shape span { font-size: 22px; line-height: 1; }
 #ach-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 #ach-cal i { height: 26px; border-radius: 7px; background: rgba(255,255,255,.08); font: 700 11px/1 system-ui; font-style: normal;
   display: flex; align-items: center; justify-content: center; color: #8d98b5; }
