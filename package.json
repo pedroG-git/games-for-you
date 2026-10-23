@@ -1,6 +1,6 @@
 {
   "name": "games-for-you",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "private": true,
   "description": "Games for you - offline Android game collection",
   "scripts": {
