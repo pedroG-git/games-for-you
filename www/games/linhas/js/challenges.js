@@ -43,5 +43,5 @@ export const PUZZLES = [
   { id: 'p5', icon: '⚡', name: 'Express Métro', city: 'paris', seed: 21, goal: 750, weeks: 5, text: 'Two express lines, never more than 4 lines. 750 in 5 weeks.', mods: { express: 2, maxLines: 4 } },
   { id: 'p6', icon: '⛴️', name: 'Harbour hop', city: 'hongkong', seed: 9, goal: 600, weeks: 5, text: 'Ferries only, at most 3 lines. 600 home in 5 weeks.', mods: { maxLines: 3 } },
   { id: 'p7', icon: '🕌', name: 'Two continents', city: 'istanbul', seed: 5, goal: 400, weeks: 5, text: 'Tunnels cost double. 400 home in 5 weeks.', mods: {} },
-  { id: 'p8', icon: '🌷', name: 'Canal maze', city: 'amsterdam', seed: 20, goal: 600, weeks: 6, text: 'Bridges are precious. 600 home in 6 weeks.', mods: { tunnels: 5 } },
+  { id: 'p8', icon: '🌷', name: 'Canal maze', city: 'amsterdam', seed: 22, goal: 600, weeks: 6, text: 'Bridges are precious. 600 home in 6 weeks.', mods: { tunnels: 5 } },
 ];

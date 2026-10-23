@@ -13,7 +13,7 @@ const MIN_GAP = 90;           // minimum distance between stations
 export const MAX_CARS = 3;
 // Difficulty: seconds between new passengers at each station (from PAX_START down to PAX_MIN, one second less
 // every PAX_RAMP seconds), and how long a station may stay overcrowded before the game ends.
-const PAX_START = 16, PAX_MIN = 5, PAX_RAMP = 120;
+const PAX_START = 15.5, PAX_MIN = 5, PAX_RAMP = 120; // 15.5: stations take turns (see spawnPax), which is fairer and so a little easier
 const OVERFLOW = 50, RECOVER = 40;
 const EXPRESS = 1.4;           // express lines run this much faster
 // Rush hour (mornings and evenings) brings 1.6× the passengers; the rest of the day is a bit calmer, so a day
@@ -812,8 +812,14 @@ function endWeek(s, events) {
 // A new passenger wants the shape of another random station, so common shapes are wanted more often than rare ones.
 function spawnPax(s) {
   const relaxed = s.mode === 'relaxed' || s.mode === 'creative';
+  // Stations take turns, in a shuffled order (a "bag", as in Tetris): just as many passengers as pure chance, but no
+  // station gets several in a row by bad luck, and a new station waits for the next round, so it can be linked first.
   for (let tries = 0; tries < 6; tries++) {
-    const st = s.stations[Math.floor(rnd(s) * s.stations.length)];
+    if (!s.bag || !s.bag.length) {
+      s.bag = s.stations.map((x) => x.id);
+      for (let i = s.bag.length - 1; i > 0; i--) { const j = Math.floor(rnd(s) * (i + 1)); [s.bag[i], s.bag[j]] = [s.bag[j], s.bag[i]]; }
+    }
+    const st = s.stations[s.bag.pop()];
     if (relaxed && st.queue.length >= cap(st) + 4) continue;
     const opts = s.stations.filter((o) => o.shape !== st.shape);
     if (!opts.length) return;
