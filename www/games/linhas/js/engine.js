@@ -10,7 +10,7 @@ const DWELL = 0.6;            // seconds a train waits at each stop
 const TRANSFER = 1000;        // routing cost of changing lines (vs 1 per stop)
 const SLACK = 3;              // passengers also take a route up to this many stops longer than the best
 const MIN_GAP = 90;           // minimum distance between stations
-const MAX_CARS = 3;
+export const MAX_CARS = 3;
 // Difficulty: seconds between new passengers at each station (from PAX_START down to PAX_MIN, one second less
 // every PAX_RAMP seconds), and how long a station may stay overcrowded before the game ends.
 const PAX_START = 16, PAX_MIN = 5, PAX_RAMP = 120;
@@ -217,7 +217,7 @@ export function newGame({ city, mode = 'normal', seed = 1 } = {}) {
     v: 1, city, mode, seed, rng: seed ^ 0x9e3779b9, t: 0, day: 0, week: 0, score: 0, speedHint: 1,
     view: { x: 230, y: 380, w: 540, h: 840 },
     stations: [], lines: [],
-    inv: { lines: 3, trains: 0, carriages: 0, tunnels: 3, interchanges: 0 },
+    inv: { lines: 3, trains: 0, carriages: 0, tunnels: 3, interchanges: 0, ...(CITIES.find((c) => c.id === city).start || {}) },
     pendingUpgrade: null, over: false,
     rev: 0, nextStation: 0, nextPax: 0,
   };
@@ -306,13 +306,14 @@ function moveTrain(s, L, tr, dt, events) {
     if (line.loop && g.total > 0) {
       togo = tr.dir > 0 ? (((target - tr.d) % g.total) + g.total) % g.total : (((tr.d - target) % g.total) + g.total) % g.total;
     } else togo = Math.abs(target - tr.d);
-    const step = SPEED * left;
+    const speed = cityOf(s).speed || SPEED;
+    const step = speed * left;
     if (step < togo) {
       tr.d += tr.dir * step;
       if (line.loop) tr.d = ((tr.d % g.total) + g.total) % g.total;
       return;
     }
-    left -= togo / SPEED;
+    left -= togo / speed;
     tr.d = target;
     arrive(s, L, tr, events);
   }
@@ -401,6 +402,33 @@ export function removeLine(s, lineIdx) {
   s.rev++;
 }
 
+// Undo support: the routes of all lines, and putting them back. Trains and passengers stay where they are.
+export function routesOf(s) {
+  return s.lines.map((l) => ({ color: l.color, stations: l.stations.slice(), loop: l.loop }));
+}
+export function restoreRoutes(s, snap) {
+  const keep = new Set(snap.map((r) => r.color));
+  for (let i = s.lines.length - 1; i >= 0; i--) if (!keep.has(s.lines[i].color)) removeLine(s, i);
+  // Tunnels only move between the pool and the lines, so the order of the edits doesn't matter.
+  s.inv.tunnels += 1000;
+  const lines = s.inv.lines;
+  s.inv.lines = Math.max(lines, snap.length);
+  for (const r of snap) {
+    let i = s.lines.findIndex((l) => l.color === r.color);
+    if (i < 0) {
+      i = s.lines.length;
+      if (!setLine(s, i, r.stations).ok) continue;
+      s.lines[i].color = r.color; // removeLine kept all but one train, setLine just gave it a new one
+    } else setLine(s, i, r.stations);
+    setLoop(s, i, r.loop);
+  }
+  s.inv.lines = lines;
+  s.inv.tunnels -= 1000;
+  const order = snap.map((r) => r.color);
+  s.lines.sort((a, b) => order.indexOf(a.color) - order.indexOf(b.color));
+  s.rev++;
+}
+
 export function makeInterchange(s, id) {
   const st = s.stations[id];
   if (!st || st.interchange || s.inv.interchanges <= 0) return false;
@@ -409,6 +437,26 @@ export function makeInterchange(s, id) {
   return true;
 }
 
+// Spare trains and carriages wait until the player drags them somewhere.
+// A train dropped near (x, y) starts on the line at the closest point, heading on to the next stop.
+export function addTrain(s, lineIdx, x, y) {
+  const line = s.lines[lineIdx];
+  if (!line || s.inv.trains <= 0) return false;
+  const g = geom(s, line), d = project(g, x, y), ns = nextStop(g, d, 1, line.loop);
+  line.trains.push({ d, dir: ns.dir, cars: 1, pax: [], dwell: 0, i: ns.i });
+  s.inv.trains--;
+  return true;
+}
+export function addCarriage(s, lineIdx, trainIdx) {
+  const tr = s.lines[lineIdx] && s.lines[lineIdx].trains[trainIdx];
+  if (!tr || s.inv.carriages <= 0 || tr.cars >= MAX_CARS) return false;
+  tr.cars++;
+  s.inv.carriages--;
+  return true;
+}
+
+// Puts every spare train and carriage where it's needed most (used by the test bots).
+export function autoPlace(s) { placeSpares(s); }
 function placeSpares(s) {
   while (s.inv.trains > 0 && s.lines.length) {
     const line = busiestLine(s);
@@ -433,7 +481,6 @@ export function chooseUpgrade(s, key) {
   else if (key === 'tunnel') s.inv.tunnels += 2;
   else if (key === 'interchange') s.inv.interchanges++;
   s.pendingUpgrade = null;
-  placeSpares(s);
 }
 
 // ---------------------------------------------------------------- simulation
@@ -446,7 +493,6 @@ function endWeek(s, events) {
     w: Math.round(w), h: Math.round(h),
   };
   s.inv.trains++;
-  placeSpares(s);
   const pool = ['carriage', 'tunnel', 'interchange'];
   if (s.inv.lines < cityOf(s).colors.length) pool.push('line');
   const a = pool.splice(Math.floor(rnd(s) * pool.length), 1)[0];
@@ -478,7 +524,7 @@ function tick(s, dt, events) {
   }
   if (s.t >= s.nextPax) {
     spawnPax(s);
-    const perStation = Math.max(PAX_MIN, PAX_START - s.t / PAX_RAMP);
+    const perStation = Math.max(PAX_MIN, PAX_START - s.t / PAX_RAMP) * (cityOf(s).busy || 1);
     s.nextPax = s.t + perStation / s.stations.length;
   }
   s.lines.forEach((line, L) => line.trains.forEach((tr) => moveTrain(s, L, tr, dt, events)));

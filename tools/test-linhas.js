@@ -78,6 +78,7 @@ const WEEKS = Number(process.argv[2]) || 6;
   }
   // Balance: a decent player (cheapest insertion of every new station) should last about 5 weeks in normal mode.
   function decent(s) {
+    E.autoPlace(s);
     if (s.pendingUpgrade) {
       const pref = ['line', 'carriage', 'interchange', 'tunnel'];
       const o = s.pendingUpgrade.options.slice().sort((a, b) => pref.indexOf(a) - pref.indexOf(b));
@@ -120,6 +121,22 @@ const WEEKS = Number(process.argv[2]) || 6;
     const med = weeks[3];
     console.log(`${c.id.padEnd(7)} balance: decent player lasts ${weeks.map((w) => w.toFixed(1)).join(' ')} weeks`);
     if (med < 3.5 || med > 12) fails.push(`${c.id}: balance off, median ${med.toFixed(1)} weeks (want 3.5-12)`);
+  }
+
+  // Undo: removing or shortening lines and then restoring the routes gives back the same map, trains and tunnels.
+  for (let seed = 1; seed <= 24; seed++) {
+    const s = E.newGame({ city: CITIES[seed % CITIES.length].id, mode: 'normal', seed });
+    for (let i = 0; i < 300 + seed * 20 && !s.over; i++) { decent(s); E.step(s, 1); }
+    if (s.over || !s.lines.length) continue;
+    const trains = () => s.lines.reduce((n, l) => n + l.trains.length, 0) + s.inv.trains;
+    const snap = E.routesOf(s), T = trains(), tun = s.inv.tunnels;
+    const last = s.lines.length - 1;
+    if (seed % 3 === 0) E.removeLine(s, 0);
+    else if (seed % 3 === 1 && s.lines[last].stations.length > 2) E.setLine(s, last, s.lines[last].stations.slice(1));
+    else { E.removeLine(s, last); if (s.lines.length) E.removeLine(s, 0); }
+    E.restoreRoutes(s, snap);
+    if (JSON.stringify(E.routesOf(s)) !== JSON.stringify(snap)) fails.push(`undo ${seed}: routes differ`);
+    if (trains() !== T || s.inv.tunnels !== tun) fails.push(`undo ${seed}: trains ${trains()}/${T}, tunnels ${s.inv.tunnels}/${tun}`);
   }
 
   const d = E.newGame({ mode: 'daily', seed: 20261023 });

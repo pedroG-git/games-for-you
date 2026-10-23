@@ -47,6 +47,14 @@ export const play = {
   pick() { pluck(79, 0.12); pluck(84, 0.1, 0.06); buzz(12); },
   over() { [67, 64, 60, 55].forEach((n, i) => pluck(n, 0.13, i * 0.22, sfxBus, 0.9)); buzz(60); },
   best() { [72, 76, 79, 84, 88, 91].forEach((n, i) => pluck(n, 0.12, i * 0.08, sfxBus, 0.8)); },
+  // Drawing a line: each station added plays the next note up the scale, so a long line climbs.
+  link(n = 2) {
+    const P = [60, 62, 64, 67, 69, 72, 74, 76, 79, 81, 84, 86, 88, 91];
+    pluck(P[Math.min(P.length - 1, Math.max(0, n - 2))], 0.12, 0, sfxBus, 0.4); buzz(6);
+  },
+  unlink(n = 2) { tone(520 - n * 10, 0.08, 0.07, 'triangle', 0, 0.7); },
+  star() { [79, 84, 88, 91].forEach((n, i) => pluck(n, 0.12, i * 0.07, sfxBus, 0.9)); buzz([12, 40, 12]); },
+  undo() { tone(600, 0.1, 0.08, 'triangle', 0, 0.6); },
   locked() { tone(200, 0.12, 0.1, 'square', 0, 0.8); buzz(15); },
 };
 

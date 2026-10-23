@@ -51,4 +51,46 @@ export const CITIES = [
     ],
     colors: COLORS,
   },
+  {
+    id: 'london', name: 'London', sub: 'Thames · 2 tunnels', unlock: { city: 'berlin', score: 500 }, bg: '#efede9', water: '#9fc6dc',
+    // The Thames looping through the middle. Only two tunnels to start with.
+    waterPolys: [
+      band([[-40, 990], [140, 950], [290, 1010], [400, 1090], [540, 1060], [620, 950], [740, 900], [850, 960], [910, 1080], [1040, 1130]], 62),
+    ],
+    start: { tunnels: 2 },
+    colors: COLORS,
+  },
+  {
+    id: 'paris', name: 'Paris', sub: 'Seine · 1 interchange', unlock: { city: 'london', score: 500 }, bg: '#f2ede2', water: '#a6cfe2',
+    // The Seine arcing up through the city from the south-east. Starts with one interchange.
+    waterPolys: [
+      band([[1040, 1290], [880, 1180], [740, 1030], [600, 900], [450, 840], [300, 860], [150, 940], [-40, 1060]], 56),
+    ],
+    start: { interchanges: 1 },
+    colors: COLORS,
+  },
+  {
+    id: 'newyork', name: 'New York', sub: 'Two rivers · 5 tunnels', unlock: { city: 'paris', score: 500 }, bg: '#eeece6', water: '#9cc4dc',
+    // Manhattan between the Hudson and the East River, the bay at the bottom. Lots of tunnels.
+    waterPolys: [
+      band([[330, -40], [300, 400], [270, 800], [220, 1200], [170, 1640]], 80),
+      band([[790, -40], [760, 320], [720, 700], [740, 1000], [820, 1240], [1040, 1380]], 56),
+      lake(120, 1560, 300, 170),
+    ],
+    start: { tunnels: 5 },
+    colors: COLORS,
+  },
+  {
+    id: 'tokyo', name: 'Tokyo', sub: 'Fast trains · busy', unlock: { city: 'newyork', score: 500 }, bg: '#f1eee9', water: '#a4cbe0',
+    // Tokyo Bay in the south-east and the Sumida river. Trains are faster, but so are the crowds.
+    waterPolys: [
+      [[1040, 980], [920, 1040], [820, 1160], [760, 1320], [780, 1640], [1040, 1640]],
+      band([[560, -40], [590, 300], [630, 600], [690, 860], [800, 1060]], 42),
+    ],
+    speed: 125, busy: 0.8,
+    colors: COLORS,
+  },
 ];
+
+// Stars for each city: passengers delivered in one game.
+export const GOALS = [300, 800, 1500];

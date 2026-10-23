@@ -264,6 +264,36 @@ export function draw(S, ui, now) {
     for (const st of S.stations) if (!st.interchange) { const s = toScreen(st.x, st.y); c.beginPath(); c.arc(s.x, s.y, SR + 10 + Math.sin(now / 150) * 2, 0, Math.PI * 2); c.stroke(); }
   }
 
+  // a spare being dragged: its target lights up, and the item floats above the finger
+  if (ui.carry || ui.tool === 'train' || ui.tool === 'carriage') {
+    const k = ui.carry, T = k && k.target, pulse = 0.5 + 0.3 * Math.sin(now / 150);
+    if (k && k.kind === 'train' && T) strokeScreen(c, linePath(S, share, S.lines[T.line], T.line), S.lines[T.line].color, LW + 10, pulse * 0.6);
+    if (k && k.kind === 'interchange' && T) {
+      const s = toScreen(S.stations[T.station].x, S.stations[T.station].y);
+      c.strokeStyle = '#e4423f'; c.lineWidth = 4; c.beginPath(); c.arc(s.x, s.y, SR + 12, 0, Math.PI * 2); c.stroke();
+    }
+    if ((k && k.kind === 'carriage') || ui.tool === 'carriage') {
+      S.lines.forEach((L, li) => L.trains.forEach((t, ti) => {
+        const q = trainPose(S, li, ti); if (!q) return;
+        const s = toScreen(q.x, q.y), on = T && T.line === li && T.train === ti;
+        c.strokeStyle = on ? '#e4423f' : 'rgba(31,42,68,.35)'; c.lineWidth = on ? 4 : 2;
+        c.beginPath(); c.arc(s.x, s.y, on ? 26 : 22, 0, Math.PI * 2); c.stroke();
+      }));
+    }
+    if (k) {
+      const col = T && T.line != null ? S.lines[T.line].color : '#1f2a44';
+      c.save(); c.translate(k.x, k.y); c.globalAlpha = T ? 1 : 0.6;
+      c.fillStyle = col; c.strokeStyle = '#fff'; c.lineWidth = 3;
+      c.shadowColor = 'rgba(0,0,0,.3)'; c.shadowBlur = 10; c.shadowOffsetY = 4;
+      c.beginPath();
+      if (k.kind === 'interchange') { c.fillStyle = '#fff'; c.strokeStyle = '#222'; c.arc(0, 0, SR + 7, 0, Math.PI * 2); }
+      else if (c.roundRect) c.roundRect(-17, -11, 34, 22, 5); else c.rect(-17, -11, 34, 22);
+      c.fill(); c.shadowColor = 'transparent'; c.stroke();
+      if (k.kind === 'carriage') { c.fillStyle = '#fff'; c.font = 'bold 18px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('+', 0, 1); }
+      c.restore();
+    }
+  }
+
   // floating +1
   c.textAlign = 'center'; c.font = 'bold 15px system-ui, sans-serif';
   R.floats = R.floats.filter((f) => now - f.t0 < 900);

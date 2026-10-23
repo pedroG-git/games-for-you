@@ -4,10 +4,11 @@ import { CITIES } from './cities.js';
 import { R, toWorld, toScreen } from './render.js';
 import { play } from './audio.js';
 
-const HIT = 26;        // px: how close a finger must be to a station
+const HIT = 28;        // px: how close a finger must be to a station (about 9.6 mm across, Parhi et al. 2006)
+const CAP_HIT = 30;    // px: grabbing the end of a line
 const REASON = { tunnels: 'Not enough tunnels', lines: 'No free line', short: 'Line too short' };
 
-// api: { get() → state, ui, toast(msg), changed(), blocked() → bool, setTool(t) }
+// api: { get() → state, ui, toast(msg), changed(), edited(routesBefore), blocked() → bool, setTool(t), tapped(kind) }
 export function initInput(canvas, api) {
   let drag = null;
   const ui = api.ui;
@@ -24,13 +25,15 @@ export function initInput(canvas, api) {
     return out;
   }
 
-  function segmentAt(S, p) {
-    let best = null, bd = 14;
+  // The line segment under p. Near stations it only counts when `ends` is set (dropping a train there is fine,
+  // but grabbing there should start a new line instead).
+  function segmentAt(S, p, reach = 18, ends = false) {
+    let best = null, bd = reach;
     S.lines.forEach((L, li) => pairs(L).forEach(([a, b], k) => {
       const A = st(S, a), B = st(S, b);
       if (!A || !B) return;
       const sa = toScreen(A.x, A.y), sb = toScreen(B.x, B.y);
-      if (Math.hypot(p.x - sa.x, p.y - sa.y) < 22 || Math.hypot(p.x - sb.x, p.y - sb.y) < 22) return;
+      if (!ends && (Math.hypot(p.x - sa.x, p.y - sa.y) < 22 || Math.hypot(p.x - sb.x, p.y - sb.y) < 22)) return;
       const pts = E.segmentPoints(A, B).map((q) => toScreen(q.x, q.y));
       for (let i = 0; i < pts.length - 1; i++) {
         const d = distSeg(p, pts[i], pts[i + 1]);
@@ -81,27 +84,84 @@ export function initInput(canvas, api) {
     ui.preview = { line: drag.kind === 'new' ? -1 : drag.line, color: drag.color, pts: pts.filter(Boolean), bad };
   }
 
-  function applyTool(S, p) {
-    if (ui.tool === 'carriage') {
-      let hit = null, bd = 34;
-      S.lines.forEach((L, li) => L.trains.forEach((t, ti) => {
-        const q = E.trainPose(S, li, ti); if (!q) return;
-        const s = toScreen(q.x, q.y), d = Math.hypot(s.x - p.x, s.y - p.y);
-        if (d < bd) { bd = d; hit = [li, ti]; }
-      }));
-      if (!hit) { api.toast('Tap a train'); return; }
-      if (S.inv.carriages <= 0) { play.locked(); api.setTool(null); return; }
-      if (E.addCarriage) E.addCarriage(S, hit[0], hit[1]);
-      else { S.lines[hit[0]].trains[hit[1]].cars++; S.inv.carriages--; }
-      play.connect();
-    } else if (ui.tool === 'interchange') {
+  // Where a spare train, carriage or interchange would go if let go at p.
+  function dropTarget(S, kind, p) {
+    if (kind === 'interchange') {
       const id = stationAt(S, p);
-      if (id < 0) { api.toast('Tap a station'); return; }
-      if (E.makeInterchange) E.makeInterchange(S, id);
-      play.connect();
+      return id >= 0 && !st(S, id).interchange ? { station: id } : null;
     }
+    if (kind === 'carriage') {
+      let hit = null, bd = 40;
+      S.lines.forEach((L, li) => L.trains.forEach((t, ti) => {
+        if (t.cars >= E.MAX_CARS) return;
+        const q = E.trainPose(S, li, ti); if (!q) return;
+        const sp = toScreen(q.x, q.y), d = Math.hypot(sp.x - p.x, sp.y - p.y);
+        if (d < bd) { bd = d; hit = { line: li, train: ti }; }
+      }));
+      if (hit) return hit;
+      // On a line but not on a train: the train of that line with the fewest carriages.
+      const seg = segmentAt(S, p, 30, true);
+      if (!seg) return null;
+      const T = S.lines[seg.line].trains;
+      let ti = -1;
+      T.forEach((t, i) => { if (t.cars < E.MAX_CARS && (ti < 0 || t.cars < T[ti].cars)) ti = i; });
+      return ti >= 0 ? { line: seg.line, train: ti } : null;
+    }
+    const seg = segmentAt(S, p, 30, true);
+    return seg ? { line: seg.line } : null;
+  }
+
+  function place(S, kind, target, p) {
+    if (!target) {
+      api.toast(kind === 'train' ? 'Drop it on a line' : kind === 'carriage' ? 'Drop it on a train' : 'Drop it on a station');
+      play.locked(); return false;
+    }
+    let ok = false;
+    if (kind === 'train') { const w = toWorld(p.x, p.y); ok = E.addTrain(S, target.line, w.x, w.y); }
+    else if (kind === 'carriage') ok = E.addCarriage(S, target.line, target.train);
+    else ok = E.makeInterchange(S, target.station);
+    if (ok) { play.connect(); api.changed(); } else play.locked();
+    return ok;
+  }
+
+  function applyTool(S, p) {
+    const kind = ui.tool;
+    const left = { train: S.inv.trains, carriage: S.inv.carriages, interchange: S.inv.interchanges }[kind];
+    if (!left) { api.setTool(null); return; }
+    const target = dropTarget(S, kind, p);
+    if (!target) { api.toast(kind === 'train' ? 'Tap a line' : kind === 'carriage' ? 'Tap a train' : 'Tap a station'); return; }
+    place(S, kind, target, p);
     api.setTool(null);
-    api.changed();
+  }
+
+  // Dragging a spare from the bar: the item floats a little above the finger so you can see where it lands.
+  const LIFT = 36;
+  let carry = null;
+  function startCarry(kind, e) {
+    const S = api.get();
+    if (!S || api.blocked() || drag || carry) return;
+    carry = { kind, x0: e.clientX, y0: e.clientY, moved: false };
+  }
+  addEventListener('pointermove', (e) => {
+    if (!carry) return;
+    const S = api.get();
+    if (!S) { carry = null; ui.carry = null; return; }
+    if (!carry.moved && Math.hypot(e.clientX - carry.x0, e.clientY - carry.y0) < 10) return;
+    if (!carry.moved) { carry.moved = true; play.tap(); api.setTool(null); }
+    const r = canvas.getBoundingClientRect(), p = { x: e.clientX - r.left, y: e.clientY - r.top - LIFT };
+    ui.carry = { kind: carry.kind, x: p.x, y: p.y, target: dropTarget(S, carry.kind, p) };
+  });
+  addEventListener('pointerup', () => {
+    if (!carry) return;
+    const c = carry, S = api.get(), k = ui.carry;
+    carry = null; ui.carry = null;
+    if (!c.moved) { api.tapped(c.kind); return; }
+    if (S && k && !api.blocked()) place(S, c.kind, k.target, k);
+  });
+  addEventListener('pointercancel', () => { carry = null; ui.carry = null; });
+  for (const [sel, kind] of [['#c-trains', 'train'], ['#c-cars', 'carriage'], ['#c-ich', 'interchange']]) {
+    const el = document.querySelector(sel);
+    if (el) el.addEventListener('pointerdown', (e) => startCarry(kind, e));
   }
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -115,8 +175,9 @@ export function initInput(canvas, api) {
       if (id >= 0 && L.stations.includes(id)) {
         const ids = L.stations.filter((x) => x !== id);
         if (ids.length < 2) { api.toast('A line needs two stations — use 🗑 to remove it'); play.locked(); return; }
+        const before = E.routesOf(S);
         const r = E.setLine(S, ui.sel, ids);
-        if (r.ok) play.remove();
+        if (r.ok) { play.remove(); api.edited(before); }
         else { api.toast(REASON[r.reason] || "Can't do that"); play.locked(); }
         api.changed();
         return;
@@ -125,7 +186,7 @@ export function initInput(canvas, api) {
     ui.sel = null;
 
     for (const cap of R.caps) {
-      if (Math.hypot(cap.x - p.x, cap.y - p.y) > 24) continue;
+      if (Math.hypot(cap.x - p.x, cap.y - p.y) > CAP_HIT) continue;
       const L = S.lines[cap.line];
       let ids = L.stations.slice();
       if (cap.end === 'start') ids.reverse();
@@ -144,6 +205,7 @@ export function initInput(canvas, api) {
       if (seg) drag = { kind: 'reroute', line: seg.line, k: seg.k, target: -1, color: S.lines[seg.line].color };
     }
     if (!drag) return;
+    drag.before = E.routesOf(S);
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     drag.cursor = toWorld(p.x, p.y);
     play.tap();
@@ -158,14 +220,16 @@ export function initInput(canvas, api) {
     const id = stationAt(S, p);
     if (drag.kind === 'reroute') {
       const L = S.lines[drag.line];
-      drag.target = id >= 0 && !L.stations.includes(id) ? id : -1;
+      const t = id >= 0 && !L.stations.includes(id) ? id : -1;
+      if (t >= 0 && t !== drag.target) play.link(L.stations.length + 1);
+      drag.target = t;
     } else {
       const ids = drag.ids, n = ids.length;
       if (id >= 0) {
         if (id === ids[n - 1]) { /* still on the terminal */ }
-        else if (n >= 2 && id === ids[n - 2]) { ids.pop(); drag.loop = false; play.tap(); }
-        else if (n >= 3 && id === ids[0]) { if (!drag.loop) play.tap(); drag.loop = true; }
-        else if (!ids.includes(id)) { ids.push(id); drag.loop = false; play.tap(); }
+        else if (n >= 2 && id === ids[n - 2]) { ids.pop(); drag.loop = false; play.unlink(ids.length); }
+        else if (n >= 3 && id === ids[0]) { if (!drag.loop) play.link(n + 1); drag.loop = true; }
+        else if (!ids.includes(id)) { ids.push(id); drag.loop = false; play.link(ids.length); }
       } else if (drag.loop) {
         const f = st(S, ids[0]), s = toScreen(f.x, f.y);
         if (Math.hypot(s.x - p.x, s.y - p.y) > HIT * 1.6) drag.loop = false;
@@ -185,7 +249,7 @@ export function initInput(canvas, api) {
       if (r && r.ok && d.loop) E.setLoop(S, d.line, true);
     } else if (d.kind === 'extend') {
       const ids = d.end === 'start' ? d.ids.slice().reverse() : d.ids.slice();
-      if (ids.length < 2) { E.removeLine(S, d.line); play.remove(); api.changed(); return; }
+      if (ids.length < 2) { E.removeLine(S, d.line); play.remove(); api.edited(d.before); api.changed(); return; }
       const same = ids.join() === S.lines[d.line].stations.join();
       if (same && !d.loop) return;
       r = same ? { ok: true } : E.setLine(S, d.line, ids);
@@ -196,7 +260,7 @@ export function initInput(canvas, api) {
       ids.splice(d.k + 1, 0, d.target);
       r = E.setLine(S, d.line, ids);
     }
-    if (!r || r.ok) play.connect();
+    if (!r || r.ok) { play.connect(); api.edited(d.before); }
     else { api.toast(REASON[r.reason] || "Can't build that"); play.locked(); }
     api.changed();
   }

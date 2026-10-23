@@ -1,5 +1,5 @@
 // Linhas: screens, game loop, saves and HUD.
-import { CITIES } from './cities.js';
+import { CITIES, GOALS } from './cities.js';
 import * as E from './engine.js';
 import { settings, unlock, setMusic, play } from './audio.js';
 import * as Rn from './render.js';
@@ -26,12 +26,19 @@ Object.assign(settings, pref);
 const saveSettings = () => store(K.set, { sfx: settings.sfx, music: settings.music, vib: settings.vib, mode });
 
 let S = null, ended = false, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, toastT = 0, hudKey = '';
-const ui = { preview: null, tool: null, sel: null, hint: null };
+let undo = [], best0 = 0, cheered = false, shownScore = -1;
+const ui = { preview: null, tool: null, sel: null, hint: null, carry: null };
 const tut = load(K.tut) || {};
 
 const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const cityOf = (id) => CITIES.find((c) => c.id === id) || CITIES[0];
 const bestKey = (st) => (st.mode === 'relaxed' ? st.city + '-relaxed' : st.city);
+const starsFor = (score) => GOALS.filter((g) => score >= g).length;
+const starRow = (n, fresh = 0) => GOALS.map((_, i) => (i < n ? `<b class="${i >= n - fresh ? 'new' : ''}" style="animation-delay:${0.25 + (i - n + fresh) * 0.18}s">★</b>` : '<i>★</i>')).join('');
+function bestSoFar(st) {
+  if (st.mode === 'daily') { const d = load(K.daily); return d && d.date === today() ? d.score : 0; }
+  return (load(K.best) || {})[bestKey(st)] || 0;
+}
 
 // ---------------------------------------------------------------- screens
 function show(name) {
@@ -58,6 +65,7 @@ function renderMenu() {
     const b = document.createElement('button');
     b.className = 'city' + (locked ? ' locked' : '');
     b.innerHTML = waterSvg(c) + `<b>${c.name}</b><small>${c.sub || ''}</small><span class="best">👑 ${bestOf(c)}</span>`
+      + `<span class="stars">${starRow(starsFor(bestOf(c)))}</span>`
       + (locked ? `<span class="lock">🔒 ${c.unlock.score} in ${cityOf(c.unlock.city).name}</span>` : '');
     b.onclick = () => {
       unlock();
@@ -101,7 +109,9 @@ function begin() {
   show('game');
   Rn.reset(S);
   paused = false; speed = 1; hudKey = ''; ended = false;
-  ui.preview = null; ui.tool = null; ui.sel = null;
+  undo = []; best0 = bestSoFar(S); cheered = false; shownScore = -1;
+  $('#game').classList.remove('viewing'); $('#mapview').hidden = true;
+  ui.preview = null; ui.tool = null; ui.sel = null; ui.carry = null;
   for (const id of ['#pause', '#upgrade', '#over', '#settings']) modal(id, false);
   $('#frozen').hidden = true; $('#game').classList.remove('frozen'); $('#b-pause').classList.remove('on');
   $('#b-speed').textContent = '▶';
@@ -121,6 +131,7 @@ function toast(msg) {
 
 function setTool(t) {
   ui.tool = t;
+  if (t === 'train') toast('Drag it onto a line — or tap a line');
   if (t === 'carriage') toast('Tap a train');
   if (t === 'interchange') toast('Tap a station');
   hudKey = '';
@@ -131,6 +142,7 @@ function handle(events, now) {
     if (ev.type === 'station') { Rn.pop(ev.id, now); play.station(); }
     else if (ev.type === 'deliver') {
       Rn.float(ev.x, ev.y, '+' + (ev.n || 1), now);
+      cheer(ev.n || 1);
       if (now - lastDeliver > 90) { play.deliver(); lastDeliver = now; }
     } else if (ev.type === 'warn') play.warn();
     else if (ev.type === 'week') { play.week(); showUpgrade(); }
@@ -138,10 +150,22 @@ function handle(events, now) {
   }
 }
 
+// Feedback while playing: the score bumps, and reaching a star or beating your best gets its own moment.
+function cheer(n) {
+  const el = $('#score');
+  el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+  const was = S.score - n;
+  const star = GOALS.findIndex((g) => was < g && S.score >= g);
+  if (star >= 0) { toast(`${'★'.repeat(star + 1)}  Star ${star + 1} of 3!`); play.star(); return; }
+  if (!cheered && best0 > 0 && was <= best0 && S.score > best0) { cheered = true; toast('👑 New best!'); play.best(); }
+}
+
 function showUpgrade() {
   const U = S.pendingUpgrade;
   if (!U) return;
   $('#up-title').textContent = `Week ${S.week + 1}`;
+  const got = S.score - (S.wk0 || 0);
+  $('#up-week').textContent = `Last week: ${got} passenger${got === 1 ? '' : 's'} home`;
   $('#up-opts').innerHTML = '';
   for (const key of U.options) {
     const [ic, name, sub] = OPT[key] || [() => '⭐', key, ''];
@@ -150,6 +174,7 @@ function showUpgrade() {
     b.innerHTML = `<span>${ic()}</span><b>${name}</b><small>${sub}</small>`;
     b.onclick = () => {
       E.chooseUpgrade(S, key); play.pick();
+      S.wk0 = S.score;
       modal('#upgrade', false); hudKey = ''; save();
     };
     $('#up-opts').append(b);
@@ -164,6 +189,7 @@ function gameOver(id) {
   Rn.R.overId = id;
   localStorage.removeItem(K.run);
   let best, isBest = false;
+  const had = starsFor(best0);
   if (S.mode === 'daily') {
     const t = today(), d = load(K.daily);
     best = d && d.date === t ? d.score : 0;
@@ -177,12 +203,25 @@ function gameOver(id) {
   $('#over-score').textContent = S.score;
   $('#over-stats').textContent = `${cityOf(S.city).name} · week ${S.week + 1} · ${S.stations.length} stations`;
   $('#over-best').textContent = isBest && S.score > 0 ? '👑 New best!' : `👑 Best ${best}`;
+  const stars = starsFor(S.score);
+  $('#over-stars').innerHTML = starRow(stars, Math.max(0, stars - had));
+  const next = GOALS.find((g) => S.score < g);
+  $('#over-sub').textContent = next ? `Passengers home · next ★ at ${next}` : 'Passengers home';
   setTimeout(() => { if (S && S.over) modal('#over', true); }, id >= 0 ? 1400 : 0);
   isBest && S.score > 0 ? play.best() : play.over();
 }
 
 $('#o-again').onclick = () => { play.tap(); start(S.city, S.mode, S.mode === 'daily' ? today() : (Math.random() * 1e9) | 0); };
 $('#o-menu').onclick = () => { play.tap(); modal('#over', false); show('menu'); };
+// The finished network on its own, before going back to the results.
+$('#o-map').onclick = () => {
+  play.tap(); modal('#over', false);
+  $('#mapview-t').textContent = `${cityOf(S.city).name} · ${S.score} home`;
+  $('#mapview').hidden = false; $('#game').classList.add('viewing');
+};
+$('#mv-back').onclick = () => {
+  play.tap(); $('#mapview').hidden = true; $('#game').classList.remove('viewing'); modal('#over', true);
+};
 $('#b-back').onclick = () => { play.tap(); save(); show('menu'); };
 $('#b-pause').onclick = () => { play.tap(); setPaused(!paused); };
 $('#p-resume').onclick = () => { play.tap(); setPaused(false); };
@@ -207,22 +246,35 @@ function setPaused(on) {
   if (on) save();
 }
 
+// Undo: every map change keeps the routes from before it, so a slip of the finger costs nothing.
+function edited(before) {
+  if (JSON.stringify(before) === JSON.stringify(E.routesOf(S))) return;
+  undo.push(before);
+  if (undo.length > 30) undo.shift();
+  hudKey = '';
+}
+$('#b-undo').onclick = () => {
+  if (!S || S.over || S.pendingUpgrade) return;
+  const snap = undo.pop();
+  if (!snap) { play.locked(); toast('Nothing to undo'); return; }
+  E.restoreRoutes(S, snap); play.undo();
+  ui.sel = null; ui.tool = null; hudKey = ''; save();
+};
 $('#b-trash').onclick = () => {
   if (ui.sel == null || !S.lines[ui.sel]) return;
-  E.removeLine(S, ui.sel); play.remove();
+  const before = E.routesOf(S);
+  E.removeLine(S, ui.sel); play.remove(); edited(before);
   ui.sel = null; hudKey = ''; save();
 };
-$('#c-cars').onclick = () => {
+// Tapping a spare (instead of dragging it) arms it: the next tap on the map places it.
+function tapped(kind) {
   if (!S) return;
-  if (S.inv.carriages <= 0) { play.locked(); toast('No carriages yet'); return; }
-  play.tap(); setTool(ui.tool === 'carriage' ? null : 'carriage');
-};
-$('#c-ich').onclick = () => {
-  if (!S) return;
-  if (S.inv.interchanges <= 0) { play.locked(); toast('No interchanges yet'); return; }
-  play.tap(); setTool(ui.tool === 'interchange' ? null : 'interchange');
-};
-$('#c-trains').onclick = () => toast(`${S.inv.trains} spare trains`);
+  const n = { train: S.inv.trains, carriage: S.inv.carriages, interchange: S.inv.interchanges }[kind];
+  if (!n) { play.locked(); toast(kind === 'train' ? 'New trains come each week' : kind === 'carriage' ? 'No carriages yet' : 'No interchanges yet'); return; }
+  play.tap();
+  if (ui.tool === kind) return setTool(null);
+  setTool(kind);
+}
 $('#c-tun').onclick = () => toast(`${S.inv.tunnels} tunnels left`);
 
 // ---------------------------------------------------------------- first-game hints
@@ -230,6 +282,7 @@ const HINTS = {
   draw: 'Drag from one station to another to build a line',
   extend: 'Drag the ⊢ end of a line onto a new station',
   remove: 'Tap a coloured dot below to pick a line, then 🗑 to remove it',
+  train: 'Drag the new train from below onto a busy line',
 };
 let hintFor = null, hintT = 0;
 function updateHint() {
@@ -237,9 +290,11 @@ function updateHint() {
   if (S.lines.length) done('draw');
   if (S.lines.some((l) => l.stations.length > 2)) done('extend');
   if (ui.sel != null) done('remove');
+  if (S.lines.some((l) => l.trains.length > 1)) done('train');
   let h = null;
   const loose = S.stations.some((st) => !S.lines.some((l) => l.stations.includes(st.id)));
   if (!tut.draw) h = 'draw';
+  else if (!tut.train && S.inv.trains > 0) h = 'train';
   else if (!tut.extend && loose && S.t > 8) h = 'extend';
   else if (!tut.remove && S.week >= 1 && S.lines.length >= S.inv.lines) h = 'remove';
   // The optional hints go away by themselves after a while, the first one stays until a line is drawn.
@@ -247,7 +302,7 @@ function updateHint() {
     if (hintFor !== h) { hintFor = h; hintT = S.t; }
     if (S.t - hintT > 12) { done(h); h = null; }
   }
-  if (ui.preview || S.over || paused) h = null;
+  if (ui.preview || ui.carry || S.over || paused) h = null;
   ui.hint = h;
   const el = $('#hint');
   if (el.hidden !== !h) el.hidden = !h;
@@ -257,9 +312,14 @@ function updateHint() {
 // ---------------------------------------------------------------- HUD
 function updateHud() {
   updateHint();
-  $('#score-n').textContent = S.score;
+  if (shownScore !== S.score) {
+    shownScore = S.score;
+    $('#score-n').textContent = S.score;
+    const next = GOALS.find((g) => S.score < g);
+    $('#goal').textContent = next ? `/ ${next} ★` : '★★★';
+  }
   const key = [S.day, S.week, S.lines.length, S.lines.map((l) => l.color).join(), S.inv.lines, S.inv.trains, S.inv.carriages,
-    S.inv.tunnels, S.inv.interchanges, ui.sel, ui.tool].join('|');
+    S.inv.tunnels, S.inv.interchanges, ui.sel, ui.tool, undo.length].join('|');
   if (key === hudKey) return;
   hudKey = key;
   $('#dots').innerHTML = DAYS.map((d, i) => `<i class="${i < S.day ? 'on' : i === S.day ? 'now' : ''}"></i>`).join('');
@@ -282,16 +342,19 @@ function updateHud() {
     chips.append(b);
   }
   $('#b-trash').hidden = ui.sel == null || !S.lines[ui.sel];
-  const cnt = (id, n, tool) => {
+  $('#b-undo').classList.toggle('off', !undo.length);
+  // Spare trains and carriages are placed by themselves, so their counters only show while some are waiting.
+  const cnt = (id, n, tool, hideEmpty) => {
     const b = $(id);
     b.querySelector('i').textContent = n;
     b.classList.toggle('empty', !n);
+    b.classList.toggle('gone', !!hideEmpty && !n);
     b.classList.toggle('on', !!tool && ui.tool === tool);
   };
-  cnt('#c-trains', S.inv.trains);
-  cnt('#c-cars', S.inv.carriages, 'carriage');
+  cnt('#c-trains', S.inv.trains, 'train', true);
+  cnt('#c-cars', S.inv.carriages, 'carriage', true);
   cnt('#c-tun', S.inv.tunnels);
-  cnt('#c-ich', S.inv.interchanges, 'interchange');
+  cnt('#c-ich', S.inv.interchanges, 'interchange', true);
 }
 
 // ---------------------------------------------------------------- loop
@@ -305,7 +368,7 @@ function frame(now) {
     try { ev = E.step(S, dt * speed); } catch (e) { console.error(e); }
     handle(ev, now);
   }
-  if (S.pendingUpgrade && $('#upgrade').hidden) showUpgrade();
+  if (S.pendingUpgrade && !S.over && $('#upgrade').hidden) showUpgrade();
   if (S.over && !ended) { const st = S.stations.find((x) => x.overflow >= 1); gameOver(st ? st.id : -1); }
   Rn.draw(S, ui, now);
   updateHud();
@@ -336,6 +399,8 @@ initInput($('#cv'), {
   toast,
   setTool,
   changed: () => { hudKey = ''; save(); },
+  edited,
+  tapped,
   blocked: () => !$('#pause').hidden || !S || S.over || !!S.pendingUpgrade || !$('#settings').hidden,
 });
 show('menu');
