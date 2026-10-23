@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="../../shared/nav.css">
 <script src="../../shared/nav.js"></script>
-<script>GFY.back([['#settings', '#b-close'], ['#over', '#o-menu'], ['#upgrade', null], ['#pause', '#p-close'], ['#frozen', '#f-resume'], ['#mapview', '#mv-back'], ['#game', '#b-back']]);</script>
+<script>GFY.back([['#ach', '#ach-close'], ['#replay', '#rp-close'], ['#settings', '#b-close'], ['#over', '#o-menu'], ['#upgrade', null], ['#pause', '#p-close'], ['#frozen', '#f-resume'], ['#mapview', '#mv-back'], ['#game', '#b-back']]);</script>
 </head>
 <body>
 <div id="menu" class="screen">
@@ -27,6 +27,17 @@
   </nav>
   <div id="cities"></div>
   <button class="mode-btn daily" id="m-daily"><b>📅 Daily</b><small id="m-daily-sub"></small></button>
+  <button class="mode-btn" id="m-ach"><b>🏆 Achievements</b><small id="m-ach-sub"></small></button>
+</div>
+
+<div id="ach" class="modal" hidden>
+  <div class="box">
+    <h2>Achievements</h2>
+    <p class="lbl" id="ach-streak"></p>
+    <div id="ach-cal"></div>
+    <div id="ach-list"></div>
+    <button class="ghostbtn" id="ach-close">Back</button>
+  </div>
 </div>
 
 <div id="game" class="screen" hidden>

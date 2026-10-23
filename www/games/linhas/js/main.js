@@ -5,6 +5,7 @@ import { settings, unlock, setMusic, play, trainStop } from './audio.js';
 import * as Rn from './render.js';
 import { initInput } from './input.js';
 import { record, openReplay } from './replay.js';
+import { ACH, got, check, streak, calendar } from './achieve.js';
 
 const $ = (s) => document.querySelector(s);
 const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
@@ -119,7 +120,11 @@ function renderMenu() {
   }
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
   const d = load(K.daily), t = today();
-  $('#m-daily-sub').textContent = `${cityOf(CITIES[t % CITIES.length].id).name} · ` + (d && d.date === t ? `👑 ${d.score}` : 'new today');
+  const run3 = streak();
+  $('#m-daily-sub').textContent = `${cityOf(CITIES[t % CITIES.length].id).name} · ` + (d && d.date === t ? `👑 ${d.score}` : 'new today')
+    + (run3 > 0 ? ` · 🔥 ${run3} day${run3 > 1 ? 's' : ''}` : '');
+  const have = got();
+  $('#m-ach-sub').textContent = `${ACH.filter((a) => have[a.id]).length} of ${ACH.length}`;
   const run = load(K.run);
   const ok = run && !run.over && run.stations;
   $('#m-cont').hidden = !ok;
@@ -135,6 +140,15 @@ $('#m-daily').onclick = () => {
   const t = today();
   start(CITIES[t % CITIES.length].id, 'daily', t);
 };
+$('#m-ach').onclick = () => {
+  unlock(); play.tap();
+  const have = got(), n = streak(), t = today();
+  $('#ach-streak').textContent = n ? `🔥 Daily streak: ${n} day${n > 1 ? 's' : ''} in a row` : 'Play the Daily challenge to start a streak';
+  $('#ach-cal').innerHTML = calendar(14).map((c) => `<i class="${c.played ? 'on' : ''}${c.day === t ? ' today' : ''}">${c.date.getDate()}</i>`).join('');
+  $('#ach-list').innerHTML = ACH.map((a) => `<div class="ach${have[a.id] ? '' : ' no'}"><span>${a.icon}</span><div><b>${a.name}</b><small>${a.desc}</small></div></div>`).join('');
+  modal('#ach', true);
+};
+$('#ach-close').onclick = () => { play.tap(); modal('#ach', false); };
 $('#m-cont').onclick = () => {
   unlock(); play.tap();
   const run = load(K.run);
@@ -236,6 +250,7 @@ function gameOver(id) {
   ended = true;
   S.over = true;
   record(S, true);
+  checkAch(true);
   Rn.R.overId = id;
   localStorage.removeItem(K.run);
   const had = starsFor(best0);
@@ -322,6 +337,7 @@ function undoTo(n) {
   if (!S || S.over || S.pendingUpgrade) return;
   if (!undo.length) { play.locked(); toast('Nothing to undo'); return; }
   const snap = undo.splice(Math.max(0, undo.length - n))[0];
+  S.undos = (S.undos || 0) + 1;
   E.restoreRoutes(S, snap); play.undo();
   ui.sel = null; ui.tool = null; hudKey = ''; save();
 }
@@ -441,8 +457,21 @@ function updateCard() {
 }
 
 // ---------------------------------------------------------------- HUD
+// Achievements are checked about once a second; new ones show one at a time.
+let achT = 0;
+const achQ = [];
+function checkAch(force = false) {
+  const now = performance.now();
+  if (!force && now - achT < 1000) return;
+  achT = now;
+  achQ.push(...check(S, { night: look.night, stars: starsFor(Math.max(bestSoFar(S), S.score)) }));
+}
+setInterval(() => {
+  const a = achQ.shift();
+  if (a) { toast(`🏆 ${a.name}!`); play.star(); }
+}, 1900);
 function updateHud() {
-  if (!S.over) record(S);
+  if (!S.over) { record(S); checkAch(); }
   updateCard();
   const zoomed = Rn.R.zoom.k > 1;
   if ($('#b-fit').hidden === zoomed) $('#b-fit').hidden = !zoomed;

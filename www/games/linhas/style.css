@@ -274,3 +274,18 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 #over-chart small { font-size: 10px; color: #9aa6bf; font-weight: 700; }
 @keyframes grow { from { transform: scaleY(0); } }
 #settings label span { text-align: left; }
+
+/* achievements */
+#ach .box { max-height: 88vh; }
+#ach-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+#ach-cal i { height: 26px; border-radius: 7px; background: rgba(255,255,255,.08); font: 700 11px/1 system-ui; font-style: normal;
+  display: flex; align-items: center; justify-content: center; color: #8d98b5; }
+#ach-cal i.on { background: #e4423f; color: #fff; }
+#ach-cal i.today { outline: 2px solid #fff; }
+#ach-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; text-align: left; min-height: 0; flex: 1; }
+.ach { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.06); }
+.ach span { font-size: 24px; width: 30px; text-align: center; }
+.ach b { display: block; font-size: 15px; }
+.ach small { color: #b9c4e0; font-size: 12.5px; }
+.ach.no span { filter: grayscale(1); opacity: .35; }
+.ach.no b { opacity: .6; }
