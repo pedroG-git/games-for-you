@@ -14,6 +14,8 @@
 
   const read = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
   const day = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const num = (x) => Math.max(0, Math.floor(+x || 0));
   // Small "something is waiting today" badges. Each returns [emoji, label], or '' when nothing is waiting.
   // The games write these keys themselves; a missing or broken key never breaks the home screen.
   const BADGES = {
@@ -31,9 +33,48 @@
       const d = read('linhas-daily'), t = new Date();
       return d && d.date === t.getFullYear() * 10000 + (t.getMonth() + 1) * 100 + t.getDate() ? '' : ['📅', 'Daily challenge'];
     },
+    // Only once the game has been started, so a game never tried doesn't nag.
+    mahjong() {
+      const s = read('mahjong-save');
+      return s && s.level >= 2 && !(s.daily && s.daily[iso(new Date())]) ? ['📅', 'Daily puzzle'] : '';
+    },
+    paciencia() {
+      const s = read('paciencia-v1');
+      const played = s && s.stats && Object.values(s.stats).some((x) => x && x.played > 0);
+      return played && !(s.daily && s.daily[iso(new Date())]) ? ['📅', 'Game of the day'] : '';
+    },
+    garden() {
+      const s = read('flower-garden-v1');
+      return s && s.seenIntro && s.daily && s.daily.last !== day(new Date()) ? ['🎁', 'Daily gift'] : '';
+    },
+  };
+  // How far each game has got, shown on its card. Read from the games' own saves; '' shows nothing.
+  const LINHAS_GOALS = [300, 800, 1500]; // the star scores in games/linhas/js/cities.js
+  const PROGRESS = {
+    bus() { const s = read('bus-save'); return s && s.wins > 0 ? `Level ${num(s.level)}` : ''; },
+    dragon() { const s = read('dragon-save'); return s && s.level > 1 ? `Level ${num(s.level)}` : ''; },
+    mahjong() { const s = read('mahjong-save'); return s && s.level > 1 ? `Level ${num(s.level)}` : ''; },
+    garden() { const s = read('flower-garden-v1'); return s && s.level > 1 ? `Level ${num(s.level)}` : ''; },
+    blocos() { const b = num(read('blocos-best')); return b ? `👑 ${b.toLocaleString('en')}` : ''; },
+    paciencia() {
+      const s = read('paciencia-v1');
+      const won = s && s.stats ? Object.values(s.stats).reduce((a, x) => a + num(x && x.won), 0) : 0;
+      return won ? `🏆 ${won} won` : '';
+    },
+    linhas() {
+      // Each city's best in any mode (Normal, Relaxed, Daily), like the game's own stars.
+      const city = {};
+      for (const [k, v] of Object.entries(read('linhas-best') || {})) {
+        const c = k.replace(/-(relaxed|daily)$/, '');
+        city[c] = Math.max(city[c] || 0, num(v));
+      }
+      const stars = Object.values(city).reduce((a, v) => a + LINHAS_GOALS.filter((g) => v >= g).length, 0);
+      return stars ? `★ ${stars}` : '';
+    },
   };
   const folder = (g) => g.path.split('/')[1];
   const badgeOf = (g) => { try { return (BADGES[folder(g)] || (() => ''))(); } catch { return ''; } };
+  const progressOf = (g) => { try { return (PROGRESS[folder(g)] || (() => ''))(); } catch { return ''; } };
 
   // Most recently played first; games never played keep their order below.
   const played = read('gfy-played') || {};
@@ -48,16 +89,24 @@
     a.style.setProperty('--c', g.color);
     a.style.setProperty('--i', i);
     a.innerHTML = '<img alt=""><b></b><small></small>';
-    const badge = badgeOf(g);
+    const badge = badgeOf(g), progress = progressOf(g);
     if (badge) {
       const em = document.createElement('em');
       em.textContent = badge[0];
       em.title = badge[1];
       a.append(em);
     }
+    if (progress) {
+      const p = document.createElement('span');
+      p.className = 'progress';
+      p.textContent = progress;
+      a.append(p);
+    }
     a.querySelector('img').src = g.icon;
     a.querySelector('b').textContent = g.name;
     a.querySelector('small').textContent = g.tag || '';
+    // Read aloud as one sentence: name, what it is, how far, what's waiting.
+    a.setAttribute('aria-label', [g.name, g.tag, progress, badge && badge[1]].filter(Boolean).join('. '));
     a.addEventListener('click', open);
     $('games').append(a);
   });
@@ -72,8 +121,9 @@
     a.style.setProperty('--c', last.color);
     a.querySelector('img').src = last.icon;
     a.querySelector('b').textContent = last.name;
-    const lb = badgeOf(last);
-    if (lb) a.querySelector('small').textContent = `Keep playing · ${lb[0]}`;
+    const lb = badgeOf(last), lp = progressOf(last);
+    a.querySelector('small').textContent = ['Keep playing', lp, lb && lb[0]].filter(Boolean).join(' · ');
+    a.setAttribute('aria-label', ['Keep playing ' + last.name, lp, lb && lb[1]].filter(Boolean).join('. '));
     a.addEventListener('click', open);
     a.hidden = false;
   }
