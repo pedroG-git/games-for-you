@@ -1,7 +1,7 @@
 // Linhas: screens, game loop, saves and HUD.
 import { CITIES, GOALS } from './cities.js';
 import * as E from './engine.js';
-import { settings, unlock, setMusic, play } from './audio.js';
+import { settings, unlock, setMusic, play, trainStop } from './audio.js';
 import * as Rn from './render.js';
 import { initInput } from './input.js';
 
@@ -180,7 +180,8 @@ function setTool(t) {
 
 function handle(events, now) {
   for (const ev of events || []) {
-    if (ev.type === 'station') { Rn.pop(ev.id, now); play.station(); }
+    if (ev.type === 'stop') trainStop(ev.line, S.stations[ev.id].shape, ev.n > 0);
+    else if (ev.type === 'station') { Rn.pop(ev.id, now); play.station(); }
     else if (ev.type === 'deliver') {
       Rn.float(ev.x, ev.y, '+' + (ev.n || 1), now);
       cheer(ev.n || 1);

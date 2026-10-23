@@ -288,6 +288,7 @@ function arrive(s, L, tr, events) {
     } else stay.push(k);
   }
   st.queue = stay;
+  events.push({ type: 'stop', line: L, id: st.id, n: moved });
   tr.i = ni;
   tr.dwell = DWELL + Math.min(0.6, moved * 0.05);
 }

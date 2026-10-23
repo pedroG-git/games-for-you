@@ -66,6 +66,23 @@ const BEAT = 60 / 72 / 2; // eighth notes at 72 bpm
 let seedR = 7;
 const rnd = () => (seedR = (seedR * 16807) % 2147483647) / 2147483647;
 
+// The network plays along: every line is an instrument, and each train stop plays a note on it
+// (its pitch from the station's shape), held back to the next beat so it always lands in time.
+const VOICES = [
+  { o: 0, type: 'sine', dur: 1.1, vol: 0.05 },
+  { o: 12, type: 'triangle', dur: 0.35, vol: 0.03 },
+  { o: -12, type: 'sine', dur: 1.6, vol: 0.06 },
+  { o: 7, type: 'triangle', dur: 0.6, vol: 0.028 },
+  { o: 12, type: 'sine', dur: 0.8, vol: 0.035 },
+  { o: -5, type: 'triangle', dur: 0.9, vol: 0.03 },
+  { o: 19, type: 'sine', dur: 0.4, vol: 0.022 },
+];
+const SHAPE_STEP = { circle: 0, triangle: 2, square: 4, diamond: 1, star: 5, cross: 3, pentagon: 6 };
+const waiting = new Map(); // line → note waiting for the next beat (one per line per beat, newest wins)
+export function trainStop(line, shape, busy) {
+  if (!ctx || !settings.music) return;
+  waiting.set(line, { line, shape, busy });
+}
 function scheduleMusic() {
   while (nextBeat < ctx.currentTime + 0.3) {
     const when = nextBeat - ctx.currentTime;
@@ -75,7 +92,15 @@ function scheduleMusic() {
       tone(note(ch[0] - 12), BEAT * 14, 0.035, 'sine', when, 0, musicBus);
       for (const n of ch) tone(note(n), BEAT * 10, 0.012, 'triangle', when, 0, musicBus);
     }
-    if (step % 2 === 0 && rnd() < 0.3) pluck(SCALE[Math.floor(rnd() * SCALE.length)], 0.03, when, musicBus, 1.2);
+    if (waiting.size) {
+      for (const w of waiting.values()) {
+        const v = VOICES[w.line % VOICES.length], deg = (SHAPE_STEP[w.shape] ?? 0) + (bar % 2);
+        const n = SCALE[deg % SCALE.length] + v.o - 12;
+        tone(note(n), v.dur, v.vol * (w.busy ? 1.25 : 1), v.type, when, 0, musicBus);
+        if (w.busy) tone(note(n + 12), v.dur * 0.4, v.vol * 0.3, 'triangle', when, 0, musicBus);
+      }
+      waiting.clear();
+    } else if (step % 2 === 0 && rnd() < 0.3) pluck(SCALE[Math.floor(rnd() * SCALE.length)], 0.03, when, musicBus, 1.2);
     nextBeat += BEAT; beat++;
   }
 }
