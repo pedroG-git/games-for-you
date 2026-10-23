@@ -1,7 +1,6 @@
 // Home screen: game tiles + "new version" check against GitHub Releases
 (() => {
   const REPO = 'pedroG-git/games-for-you';
-  const APK = 'games-for-you.apk';
   const $ = (id) => document.getElementById(id);
   const current = window.APP_VERSION || '0.0.0';
 
@@ -47,8 +46,8 @@
     return false;
   }
 
-  // Always the newest published APK, so an update never stops at an in-between version.
-  const LATEST = `https://github.com/${REPO}/releases/latest/download/${APK}`;
+  // The download page on the website: it always offers the newest APK, so an update never stops at an in-between version.
+  const SITE = 'https://pedrog-git.github.io/games-for-you/';
   let downloadUrl = '';
   // Latest version: GitHub Pages first (no rate limit), GitHub API as a fallback.
   async function latest() {
@@ -56,14 +55,13 @@
       const r = await fetch(`https://pedrog-git.github.io/games-for-you/version.json?t=${Date.now()}`, { cache: 'no-store' });
       if (r.ok) {
         const { version } = await r.json();
-        if (version) return { version, url: LATEST };
+        if (version) return { version, url: SITE };
       }
     } catch {}
     const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     const rel = await r.json();
-    const asset = (rel.assets || []).find((x) => x.name === APK);
-    return { version: rel.tag_name, url: asset ? LATEST : rel.html_url };
+    return { version: rel.tag_name, url: SITE };
   }
 
   async function check(manual) {
@@ -83,7 +81,7 @@
     }
   }
 
-  // Opens the APK in the phone's browser, which downloads it; tapping the download installs the update.
+  // Opens the website in the phone's browser; its download button gets the newest APK, tapping the download installs it.
   $('updateBtn').addEventListener('click', () => downloadUrl && (location.href = downloadUrl));
   $('check').addEventListener('click', () => check(true));
   check(false);
