@@ -118,6 +118,8 @@ const pairKey = (a, b) => (a < b ? a + '-' + b : b + '-' + a);
 
 // Every line is cut into straight runs. Runs of different lines that lie on top of each other (same direction, same
 // track, overlapping) form a corridor, and every line in a corridor gets its own lane, so no line hides another.
+// Lanes are ordered so lines don't cross over each other: a line that leaves the corridor to one side runs on that
+// side, and lines that turn a corner together keep their order (left stays left), however the track turns.
 export const GAP = LW + 3; // px between the centres of side-by-side lines: leaves a visible gap
 let laneCache = { key: '', runs: [] };
 function lanes(S) {
@@ -132,7 +134,8 @@ function lanes(S) {
       let ux = (B.x - A.x) / len, uy = (B.y - A.y) / len;
       if (ux < -1e-6 || (Math.abs(ux) <= 1e-6 && uy < 0)) { ux = -ux; uy = -uy; } // same direction for both ways
       const t0 = A.x * ux + A.y * uy, t1 = B.x * ux + B.y * uy;
-      runs.push({ li, k, A, B, ux, uy, c: A.y * ux - A.x * uy, lo: Math.min(t0, t1), hi: Math.max(t0, t1), lane: 0 });
+      runs.push({ li, k, A, B, ux, uy, c: A.y * ux - A.x * uy, lo: Math.min(t0, t1), hi: Math.max(t0, t1), lane: 0,
+        s: (B.x - A.x) * ux + (B.y - A.y) * uy > 0 ? 1 : -1 }); // s: runs along (1) or against (-1) its direction u
     }
   }));
   const up = runs.map((_, i) => i), find = (i) => (up[i] === i ? i : (up[i] = find(up[i])));
@@ -143,9 +146,63 @@ function lanes(S) {
   }
   const groups = new Map();
   runs.forEach((r, i) => { const g = find(i); if (!groups.has(g)) groups.set(g, new Set()); groups.get(g).add(r.li); });
+  // Each line's runs in travel order: the run before and after each one (a loop wraps around).
+  const prev = new Array(runs.length).fill(-1), next = new Array(runs.length).fill(-1);
+  for (let i = 1; i < runs.length; i++) if (runs[i].li === runs[i - 1].li) { prev[i] = i - 1; next[i - 1] = i; }
+  S.lines.forEach((L, li) => {
+    if (!L.loop) return;
+    const own = runs.map((r, i) => (r.li === li ? i : -1)).filter((i) => i >= 0);
+    if (own.length > 2) { prev[own[0]] = own[own.length - 1]; next[own[own.length - 1]] = own[0]; }
+  });
+  // Side: where a line goes when it leaves its corridor (+1 towards the normal n = (-uy, ux), -1 away from it).
+  const side = new Map();
   runs.forEach((r, i) => {
-    const list = [...groups.get(find(i))].sort((x, y) => x - y);
-    r.lane = (list.indexOf(r.li) - (list.length - 1) / 2) * GAP;
+    const g = find(i);
+    let v = 0;
+    for (const [j, out] of [[next[i], 1], [prev[i], -1]]) {
+      if (j < 0 || find(j) === g) continue;
+      const q = runs[j], dx = (q.B.x - q.A.x) * out, dy = (q.B.y - q.A.y) * out; // pointing away from this run
+      const d = -r.uy * dx + r.ux * dy;
+      if (Math.abs(d) > 1e-6) v += Math.sign(d);
+    }
+    const key = g + '|' + r.li;
+    side.set(key, (side.get(key) || 0) + v);
+  });
+  // Turning a corner together: the lane order flips with the frame when the two runs point opposite ways (s·s' < 0).
+  // Every corridor gets a flip so that shared corners agree, spreading out from the biggest corridors.
+  const links = new Map();
+  runs.forEach((r, i) => {
+    const j = next[i];
+    if (j < 0) return;
+    const g = find(i), h = find(j);
+    if (g === h) return;
+    const key = g + '>' + h;
+    if (!links.has(key)) links.set(key, { g, h, sign: r.s * runs[j].s, n: 0 });
+    links.get(key).n++;
+  });
+  const adj = new Map();
+  for (const l of links.values()) {
+    if (l.n < 2) continue; // only corners that at least two lines turn together
+    for (const [a, b] of [[l.g, l.h], [l.h, l.g]]) { if (!adj.has(a)) adj.set(a, []); adj.get(a).push([b, l.sign]); }
+  }
+  const flip = new Map();
+  for (const g of [...groups.keys()].sort((a, b) => groups.get(b).size - groups.get(a).size)) {
+    if (flip.has(g)) continue;
+    flip.set(g, 1);
+    const q = [g];
+    while (q.length) {
+      const a = q.shift();
+      for (const [b, sg] of adj.get(a) || []) if (!flip.has(b)) { flip.set(b, flip.get(a) * sg); q.push(b); }
+    }
+  }
+  const order = new Map();
+  for (const [g, set] of groups) {
+    const f = flip.get(g);
+    order.set(g, [...set].sort((x, y) => f * ((side.get(g + '|' + x) || 0) - (side.get(g + '|' + y) || 0)) || x - y));
+  }
+  runs.forEach((r, i) => {
+    const g = find(i), list = order.get(g), f = flip.get(g);
+    r.lane = f * (list.indexOf(r.li) - (list.length - 1) / 2) * GAP;
   });
   laneCache = { key, runs };
   return runs;

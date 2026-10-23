@@ -52,10 +52,9 @@ export function initInput(canvas, api) {
 
   function newIds(S) {
     if (drag.kind === 'reroute') {
-      const L = S.lines[drag.line], ids = L.stations.slice();
-      if (drag.target < 0) return ids;
-      ids.splice(drag.k + 1, 0, drag.target);
-      return ids;
+      const L = S.lines[drag.line];
+      if (drag.target < 0) return L.stations.slice();
+      return E.insertIds(S, drag.line, drag.k, drag.target);
     }
     return drag.end === 'start' ? drag.ids.slice().reverse() : drag.ids.slice();
   }
@@ -70,13 +69,20 @@ export function initInput(canvas, api) {
   function preview(S) {
     let pts;
     if (drag.kind === 'reroute') {
-      const L = S.lines[drag.line], ids = L.stations.slice();
-      const mid = drag.target >= 0 ? st(S, drag.target) : drag.cursor;
-      pts = ids.slice(0, drag.k + 1).map((id) => st(S, id));
-      pts.push(mid);
-      const rest = drag.k + 1 < ids.length ? ids.slice(drag.k + 1) : [ids[0]];
-      pts.push(...rest.map((id) => st(S, id)));
-      if (L.loop && drag.k + 1 < ids.length && ids[0] !== ids[ids.length - 1]) pts.push(st(S, ids[0]));
+      const L = S.lines[drag.line];
+      if (drag.target >= 0) {
+        // the line as it will be built (the station may go in elsewhere on the line, to keep it untangled)
+        const ids = newIds(S);
+        pts = ids.map((id) => st(S, id));
+        if (L.loop) pts.push(st(S, ids[0]));
+      } else {
+        const ids = L.stations.slice();
+        pts = ids.slice(0, drag.k + 1).map((id) => st(S, id));
+        pts.push(drag.cursor);
+        const rest = drag.k + 1 < ids.length ? ids.slice(drag.k + 1) : [ids[0]];
+        pts.push(...rest.map((id) => st(S, id)));
+        if (L.loop && drag.k + 1 < ids.length) pts.push(st(S, ids[0]));
+      }
     } else {
       pts = drag.ids.map((id) => st(S, id));
       pts.push(drag.loop ? st(S, drag.ids[0]) : drag.cursor);
@@ -336,9 +342,7 @@ export function initInput(canvas, api) {
       if (r && r.ok && d.loop) E.setLoop(S, d.line, true);
     } else {
       if (d.target < 0) return;
-      const ids = S.lines[d.line].stations.slice();
-      ids.splice(d.k + 1, 0, d.target);
-      r = E.setLine(S, d.line, ids);
+      r = E.setLine(S, d.line, E.insertIds(S, d.line, d.k, d.target));
     }
     if (!r || r.ok) { play.connect(); api.edited(d.before); }
     else { api.toast(REASON[r.reason] || "Can't build that"); play.locked(); }

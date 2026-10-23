@@ -229,17 +229,52 @@ function bestAt(r, k, st) {
 }
 
 // ---------------------------------------------------------------- game setup
+// A fair spot for a new station: of several random dry spots, the one that sits best in the city. Not crammed
+// against another station, not stranded far from all of them, not on top of a line (it would look connected), and
+// not cut off by water while there are no tunnels left.
 function placeStation(s, shape) {
-  const city = cityOf(s), v = s.view;
-  for (let tries = 0; tries < 60; tries++) {
-    const x = v.x + 40 + rnd(s) * (v.w - 80), y = v.y + 40 + rnd(s) * (v.h - 80);
+  const city = cityOf(s), v = s.view, cands = [];
+  for (let tries = 0; tries < 80 && cands.length < 12; tries++) {
+    const x = Math.round(v.x + 40 + rnd(s) * (v.w - 80)), y = Math.round(v.y + 40 + rnd(s) * (v.h - 80));
     if ([[0, 0], [30, 0], [-30, 0], [0, 30], [0, -30]].some(([ox, oy]) => inWater(city, x + ox, y + oy))) continue;
     if (s.stations.some((st) => Math.hypot(st.x - x, st.y - y) < MIN_GAP)) continue;
-    const st = { id: s.stations.length, x: Math.round(x), y: Math.round(y), shape, queue: [], interchange: false, overflow: 0 };
-    s.stations.push(st);
-    return st;
+    cands.push({ x, y });
   }
-  return null;
+  let best = null, bs = -Infinity;
+  for (const c of cands) {
+    const sc = spotScore(s, city, c) + rnd(s) * 30; // a little chance, so the map doesn't look planned
+    if (sc > bs) { bs = sc; best = c; }
+  }
+  if (!best) return null;
+  const st = { id: s.stations.length, x: best.x, y: best.y, shape, queue: [], interchange: false, overflow: 0 };
+  s.stations.push(st);
+  return st;
+}
+function spotScore(s, city, c) {
+  if (!s.stations.length) return 0;
+  const near = s.stations.map((st) => ({ st, d: Math.hypot(st.x - c.x, st.y - c.y) })).sort((a, b) => a.d - b.d);
+  const d = near[0].d;
+  let sc = -Math.abs(d - 170) * 0.6;                    // about two gaps from its nearest neighbour
+  if (d > 280) sc -= (d - 280) * 2;                     // never far out on its own
+  if (d < 120) sc -= (120 - d) * 2;                     // nor squeezed in
+  // Lines: a station right on (or beside) a track looks connected when it isn't, and makes inserting it messy.
+  let dl = Infinity;
+  for (const line of s.lines) {
+    const pts = geom(s, line).pts;
+    for (let i = 1; i < pts.length; i++) dl = Math.min(dl, segDist(c, pts[i - 1], pts[i]));
+  }
+  if (dl < 45) sc -= (45 - dl) * 4;
+  // Water: with no tunnels left, a station with no dry way to its neighbours can't be reached at all.
+  if (!city.ferry && (city.waterPolys || []).length) {
+    const dry = near.slice(0, 3).filter((o) => segCrossings(city, c, o.st) === 0).length;
+    if (!dry) sc -= s.inv.tunnels > 0 ? 40 : 400;
+  }
+  return sc;
+}
+function segDist(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+  const f = l2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0;
+  return Math.hypot(p.x - (a.x + dx * f), p.y - (a.y + dy * f));
 }
 
 export const inWaterAt = (s, x, y) => inWater(cityOf(s), x, y);
@@ -259,8 +294,13 @@ function newShape(s) {
     const rare = SHAPES.slice(3).filter((k) => s.stations.filter((st) => st.shape === k).length < 2);
     if (rare.length) return rare[Math.floor(rnd(s) * rare.length)];
   }
-  const r = rnd(s);
-  return r < 0.5 ? 'circle' : r < 0.8 ? 'triangle' : 'square';
+  // Common shapes keep close to 50/30/20: the one furthest below its share is the likeliest, so a map never ends
+  // up with seven circles and one lonely square.
+  const share = { circle: 0.5, triangle: 0.3, square: 0.2 }, n = s.stations.length + 1;
+  const w = Object.entries(share).map(([k, p]) => [k, Math.max(0.05, p * n - s.stations.filter((st) => st.shape === k).length + 0.5)]);
+  let r = rnd(s) * w.reduce((a, [, x]) => a + x, 0);
+  for (const [k, x] of w) if ((r -= x) < 0) return k;
+  return 'circle';
 }
 
 export function newGame({ city, mode = 'normal', seed = 1, mods = null } = {}) {
@@ -425,6 +465,68 @@ export function wants(s, id) {
     w.n++;
   }
   return out;
+}
+
+// Where a station dragged onto piece k of a line should go in. Usually right there, but not when another place on
+// the line (or a free end) avoids a crossing or a long detour: inserting must not tangle the line.
+// Returns the new list of station ids.
+export function insertIds(s, lineIdx, k, id) {
+  const line = s.lines[lineIdx], ids = line.stations, n = ids.length;
+  const P = (i) => s.stations[i], len = (a, b) => pathLen(segmentPoints(P(a), P(b)));
+  const opts = [];
+  const pairsN = line.loop ? n : n - 1;
+  for (let j = 0; j < pairsN; j++) {
+    const a = ids[j], b = ids[(j + 1) % n];
+    const out = ids.slice(); out.splice(j + 1, 0, id);
+    opts.push({ ids: out, extra: len(a, id) + len(id, b) - len(a, b), mine: j === k });
+  }
+  if (!line.loop) {
+    opts.push({ ids: [id, ...ids], extra: len(id, ids[0]) });
+    opts.push({ ids: [...ids, id], extra: len(ids[n - 1], id) });
+  }
+  for (const o of opts) o.tangle = tangles(s, lineIdx, o.ids, line.loop);
+  const mine = opts.find((o) => o.mine) || opts[0];
+  let best = mine;
+  for (const o of opts) {
+    if (o.tangle < best.tangle || (o.tangle === best.tangle && o !== best && o.extra < best.extra * (best === mine ? 0.6 : 1))) best = o;
+  }
+  return best.ids;
+}
+const pathLen = (pts) => pts.reduce((d, p, i) => (i ? d + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) : 0), 0);
+// How tangled a route would be: each time it crosses itself counts 3, each crossing of another line 1.
+function tangles(s, lineIdx, ids, loop) {
+  const segs = (list, lp) => {
+    const out = [], l = lp ? [...list, list[0]] : list;
+    for (let i = 1; i < l.length; i++) {
+      const p = segmentPoints(s.stations[l[i - 1]], s.stations[l[i]]);
+      for (let j = 1; j < p.length; j++) out.push([p[j - 1], p[j], i]);
+    }
+    return out;
+  };
+  const mine = segs(ids, loop);
+  let n = 0;
+  for (let i = 0; i < mine.length; i++) for (let j = i + 1; j < mine.length; j++) {
+    if (mine[i][2] === mine[j][2]) continue;
+    if (cross(mine[i], mine[j]) || overlap(mine[i], mine[j])) n += 3;
+  }
+  s.lines.forEach((l, L) => {
+    if (L === lineIdx) return;
+    for (const o of segs(l.stations, l.loop)) for (const m of mine) if (cross(m, o)) n++;
+  });
+  return n;
+}
+// Does a route run back over its own track (a spike out to a station and back the same way)?
+function overlap([a, b], [c, d]) {
+  const vx = b.x - a.x, vy = b.y - a.y, l = Math.hypot(vx, vy);
+  if (l < 1e-6 || Math.abs(vx * (c.y - a.y) - vy * (c.x - a.x)) / l > 0.5 || Math.abs(vx * (d.y - a.y) - vy * (d.x - a.x)) / l > 0.5) return false;
+  const t = (p) => ((p.x - a.x) * vx + (p.y - a.y) * vy) / l;
+  return Math.min(l, Math.max(t(c), t(d))) - Math.max(0, Math.min(t(c), t(d))) > 1;
+}
+// Do two straight pieces cross properly (touching at an end, like at a shared station, doesn't count)?
+function cross([a, b], [c, d]) {
+  const o = (p, q, r) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  const d1 = o(c, d, a), d2 = o(c, d, b), d3 = o(a, b, c), d4 = o(a, b, d), e = 1e-6;
+  return ((d1 > e && d2 < -e) || (d1 < -e && d2 > e)) && ((d3 > e && d4 < -e) || (d3 < -e && d4 > e));
 }
 
 export function setLine(s, lineIdx, stationIds) {
