@@ -76,6 +76,52 @@ const WEEKS = Number(process.argv[2]) || 6;
       }
     }
   }
+  // Balance: a decent player (cheapest insertion of every new station) should last about 5 weeks in normal mode.
+  function decent(s) {
+    if (s.pendingUpgrade) {
+      const pref = ['line', 'carriage', 'interchange', 'tunnel'];
+      const o = s.pendingUpgrade.options.slice().sort((a, b) => pref.indexOf(a) - pref.indexOf(b));
+      E.chooseUpgrade(s, s.inv.tunnels < 1 && o.includes('tunnel') ? 'tunnel' : o[0]);
+    }
+    if (s.inv.interchanges > 0) E.makeInterchange(s, [...s.stations].sort((a, b) => b.queue.length - a.queue.length)[0].id);
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const on = new Set(s.lines.flatMap((l) => l.stations));
+    for (const st of s.stations) {
+      if (on.has(st.id)) continue;
+      if (s.lines.length < s.inv.lines) {
+        const near = s.stations.filter((o) => o.id !== st.id && o.shape !== st.shape).sort((a, b) => dist(a, st) - dist(b, st));
+        if (near.slice(0, 4).some((o) => E.setLine(s, s.lines.length, [st.id, o.id]).ok)) { on.add(st.id); continue; }
+      }
+      const opts = [];
+      s.lines.forEach((l, L) => {
+        const ids = l.stations, P = (i) => s.stations[ids[i]];
+        const lacks = ids.some((id) => s.stations[id].shape === st.shape) ? 0 : -60;
+        for (let i = 0; i <= ids.length; i++) {
+          let add;
+          if (i === 0) { if (l.loop) continue; add = dist(st, P(0)); }
+          else if (i === ids.length) add = l.loop ? dist(P(i - 1), st) + dist(st, P(0)) - dist(P(i - 1), P(0)) : dist(P(i - 1), st);
+          else add = dist(P(i - 1), st) + dist(st, P(i)) - dist(P(i - 1), P(i));
+          const n = ids.slice(); n.splice(i, 0, st.id);
+          opts.push({ L, ids: n, c: add + lacks + ids.length * 8 });
+        }
+      });
+      opts.sort((a, b) => a.c - b.c);
+      if (opts.some((o) => E.setLine(s, o.L, o.ids).ok)) on.add(st.id);
+    }
+  }
+  for (const c of CITIES) {
+    const weeks = [];
+    for (let seed = 1; seed <= 7; seed++) {
+      const s = E.newGame({ city: c.id, mode: 'normal', seed: seed * 7919 });
+      while (!s.over && s.week < 20) { decent(s); for (let i = 0; i < 10; i++) E.step(s, 0.1); }
+      weeks.push(s.week + s.day / 7);
+    }
+    weeks.sort((a, b) => a - b);
+    const med = weeks[3];
+    console.log(`${c.id.padEnd(7)} balance: decent player lasts ${weeks.map((w) => w.toFixed(1)).join(' ')} weeks`);
+    if (med < 3.5 || med > 12) fails.push(`${c.id}: balance off, median ${med.toFixed(1)} weeks (want 3.5-12)`);
+  }
+
   const d = E.newGame({ mode: 'daily', seed: 20261023 });
   if (d.city !== CITIES[20261023 % CITIES.length].id) fails.push('daily: wrong city');
   if (fails.length) { console.error('FAIL\n' + fails.join('\n')); process.exit(1); }

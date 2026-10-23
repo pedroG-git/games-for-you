@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="../../shared/nav.css">
 <script src="../../shared/nav.js"></script>
-<script>GFY.back([['#settings', '#b-close'], ['#over', '#o-menu'], ['#upgrade', null], ['#pause', '#p-resume'], ['#game', '#b-back']]);</script>
+<script>GFY.back([['#settings', '#b-close'], ['#over', '#o-menu'], ['#upgrade', null], ['#pause', '#p-close'], ['#frozen', '#f-resume'], ['#game', '#b-back']]);</script>
 </head>
 <body>
 <div id="menu" class="screen">
@@ -50,12 +50,18 @@
   </footer>
   <div id="toast"></div>
   <div id="hint" hidden></div>
+  <div id="frozen" hidden>
+    <span>Paused · you can still change lines</span>
+    <button id="f-more" aria-label="Menu">⋯</button>
+    <button id="f-resume">Resume</button>
+  </div>
 </div>
 
 <div id="pause" class="modal" hidden>
   <div class="box">
     <h2>Paused</h2>
     <button class="big" id="p-resume">Resume</button>
+    <button class="ghostbtn" id="p-close">Back to the map</button>
     <button class="ghostbtn" id="p-restart">Restart</button>
     <button class="ghostbtn" id="p-end">End game</button>
     <button class="ghostbtn b-set">⚙️ Settings</button>

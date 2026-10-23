@@ -103,6 +103,7 @@ function begin() {
   paused = false; speed = 1; hudKey = ''; ended = false;
   ui.preview = null; ui.tool = null; ui.sel = null;
   for (const id of ['#pause', '#upgrade', '#over', '#settings']) modal(id, false);
+  $('#frozen').hidden = true; $('#game').classList.remove('frozen'); $('#b-pause').classList.remove('on');
   $('#b-speed').textContent = '▶';
   if (S.pendingUpgrade) showUpgrade();
   if (S.over) gameOver(-1);
@@ -183,19 +184,26 @@ function gameOver(id) {
 $('#o-again').onclick = () => { play.tap(); start(S.city, S.mode, S.mode === 'daily' ? today() : (Math.random() * 1e9) | 0); };
 $('#o-menu').onclick = () => { play.tap(); modal('#over', false); show('menu'); };
 $('#b-back').onclick = () => { play.tap(); save(); show('menu'); };
-$('#b-pause').onclick = () => { play.tap(); setPaused(true); };
+$('#b-pause').onclick = () => { play.tap(); setPaused(!paused); };
 $('#p-resume').onclick = () => { play.tap(); setPaused(false); };
+$('#p-close').onclick = () => { play.tap(); modal('#pause', false); };
+$('#f-resume').onclick = () => { play.tap(); setPaused(false); };
+$('#f-more').onclick = () => { play.tap(); modal('#pause', true); };
 $('#p-restart').onclick = () => { play.tap(); modal('#pause', false); start(S.city, S.mode, S.mode === 'daily' ? today() : (Math.random() * 1e9) | 0); };
-$('#p-end').onclick = () => { modal('#pause', false); paused = false; gameOver(-1); };
+$('#p-end').onclick = () => { modal('#pause', false); setPaused(false); gameOver(-1); };
 $('#b-speed').onclick = () => {
   play.tap();
   speed = speed === 1 ? 2 : 1;
   $('#b-speed').textContent = speed === 1 ? '▶' : '⏩';
 };
+// Paused: time stops but lines can still be drawn and changed. The ⋯ button opens the pause menu.
 function setPaused(on) {
   if (!S || S.over) return;
   paused = on;
-  modal('#pause', on);
+  $('#frozen').hidden = !on;
+  $('#game').classList.toggle('frozen', on);
+  $('#b-pause').classList.toggle('on', on);
+  if (!on) modal('#pause', false);
   if (on) save();
 }
 
@@ -328,7 +336,7 @@ initInput($('#cv'), {
   toast,
   setTool,
   changed: () => { hudKey = ''; save(); },
-  blocked: () => paused || !S || S.over || !!S.pendingUpgrade || !$('#settings').hidden,
+  blocked: () => !$('#pause').hidden || !S || S.over || !!S.pendingUpgrade || !$('#settings').hidden,
 });
 show('menu');
 requestAnimationFrame(frame);
