@@ -109,6 +109,19 @@ export function initInput(canvas, api) {
     if (!S || api.blocked() || drag) return;
     const p = pos(e);
     if (ui.tool) { applyTool(S, p); return; }
+    // With a line picked in the bar, tapping one of its stations takes that station off the line.
+    if (ui.sel != null && S.lines[ui.sel]) {
+      const id = stationAt(S, p), L = S.lines[ui.sel];
+      if (id >= 0 && L.stations.includes(id)) {
+        const ids = L.stations.filter((x) => x !== id);
+        if (ids.length < 2) { api.toast('A line needs two stations — use 🗑 to remove it'); play.locked(); return; }
+        const r = E.setLine(S, ui.sel, ids);
+        if (r.ok) play.remove();
+        else { api.toast(REASON[r.reason] || "Can't do that"); play.locked(); }
+        api.changed();
+        return;
+      }
+    }
     ui.sel = null;
 
     for (const cap of R.caps) {

@@ -154,11 +154,12 @@ export function draw(S, ui, now) {
 
   // water
   c.fillStyle = city.water;
+  const water = (city.waterPolys || []).length ? new Path2D() : null;
   for (const poly of city.waterPolys || []) {
-    c.beginPath();
-    poly.forEach(([x, y], i) => { const p = toScreen(x, y); i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y); });
-    c.closePath(); c.fill();
+    poly.forEach(([x, y], i) => { const p = toScreen(x, y); i ? water.lineTo(p.x, p.y) : water.moveTo(p.x, p.y); });
+    water.closePath();
   }
+  if (water) c.fill(water);
 
   // lines
   c.lineCap = 'round'; c.lineJoin = 'round';
@@ -170,6 +171,11 @@ export function draw(S, ui, now) {
     if (ui.sel === i) strokeScreen(c, pts, '#fff', LW + 8, 0.9);
     strokeScreen(c, pts, L.color, LW, dim);
     if (!L.loop && pts.length > 1 && dim === 1) { endCap(c, i, 'start', pts, L.color); endCap(c, i, 'end', pts, L.color); }
+    if (water && dim === 1) { // tunnel: where the line is under the river, it gets a pale core
+      c.save(); c.clip(water);
+      strokeScreen(c, pts, 'rgba(255,255,255,.75)', LW - 4);
+      c.restore();
+    }
   });
 
   // first-game hint: a dashed line pulsing between the first two stations
@@ -243,6 +249,13 @@ export function draw(S, ui, now) {
       shapePath(c, sh, s.x + r + 9 + (j % 6) * 9, s.y - 5 + Math.floor(j / 6) * 9, 3.3);
       c.fill();
     });
+  }
+
+  // picked line: mark its stations, tapping one takes it off the line
+  if (ui.sel != null && S.lines[ui.sel]) {
+    c.strokeStyle = S.lines[ui.sel].color; c.lineWidth = 3; c.setLineDash([5, 5]); c.lineDashOffset = -now / 60;
+    for (const id of S.lines[ui.sel].stations) { const s = toScreen(S.stations[id].x, S.stations[id].y); c.beginPath(); c.arc(s.x, s.y, SR + 9, 0, Math.PI * 2); c.stroke(); }
+    c.setLineDash([]);
   }
 
   // tool hint: highlight targets

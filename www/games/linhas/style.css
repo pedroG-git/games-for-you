@@ -106,7 +106,8 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 .cnt.on { background: #e4423f; color: #fff; }
 
 #toast {
-  position: absolute; left: 50%; top: 40%; z-index: 3; transform: translate(-50%, -50%);
+  position: absolute; left: 50%; top: calc(env(safe-area-inset-top) + 78px); z-index: 3; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 32px); text-align: center;
   padding: 10px 18px; border-radius: 20px; background: rgba(30,30,40,.88); color: #fff;
   font-weight: 700; font-size: 15px; opacity: 0; transition: opacity .25s; pointer-events: none;
 }
@@ -148,7 +149,8 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
   flex: 1; padding: 16px 8px; border-radius: 18px; background: #f3eee4; color: #222;
   display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 5px 0 rgba(0,0,0,.3);
 }
-.opt span { font-size: 40px; line-height: 1; }
+.opt span { font-size: 40px; line-height: 1; color: #1f2a44; }
+.opt span svg { width: 42px; height: 42px; display: block; }
 .opt b { font-family: 'Luckiest Guy', system-ui, sans-serif; font-weight: 400; font-size: 19px; }
 .opt small { font-size: 12px; color: #555; }
 .opt:active { transform: scale(.95); }

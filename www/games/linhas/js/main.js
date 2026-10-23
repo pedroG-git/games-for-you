@@ -10,11 +10,13 @@ const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch 
 const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
 const K = { best: 'linhas-best', daily: 'linhas-daily', set: 'linhas-settings', run: 'linhas-run', tut: 'linhas-tut' };
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+// Icons shared with the bottom bar (index.html).
+const ICON = (id) => document.querySelector(id + ' svg').outerHTML;
 const OPT = {
-  line: ['🛤️', 'New line', 'One more colour'],
-  carriage: ['🚃', 'Carriage', 'More room on a train'],
-  tunnel: ['🌉', 'Tunnel', 'Cross the river'],
-  interchange: ['⇄', 'Interchange', 'Bigger, faster station'],
+  line: [() => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h6l6-12h6"/><circle cx="3" cy="18" r="1.6" fill="currentColor"/><circle cx="21" cy="6" r="1.6" fill="currentColor"/></svg>', 'New line', 'One more colour'],
+  carriage: [() => ICON('#c-cars'), 'Carriage', 'More room on a train'],
+  tunnel: [() => ICON('#c-tun'), 'Tunnel', 'Cross the river'],
+  interchange: [() => ICON('#c-ich'), 'Interchange', 'Bigger, faster station'],
 };
 
 const pref = load(K.set) || {};
@@ -23,7 +25,7 @@ delete pref.mode;
 Object.assign(settings, pref);
 const saveSettings = () => store(K.set, { sfx: settings.sfx, music: settings.music, vib: settings.vib, mode });
 
-let S = null, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, toastT = 0, hudKey = '';
+let S = null, ended = false, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, toastT = 0, hudKey = '';
 const ui = { preview: null, tool: null, sel: null, hint: null };
 const tut = load(K.tut) || {};
 
@@ -98,7 +100,7 @@ function start(city, m, seed) {
 function begin() {
   show('game');
   Rn.reset(S);
-  paused = false; speed = 1; hudKey = '';
+  paused = false; speed = 1; hudKey = ''; ended = false;
   ui.preview = null; ui.tool = null; ui.sel = null;
   for (const id of ['#pause', '#upgrade', '#over', '#settings']) modal(id, false);
   $('#b-speed').textContent = '▶';
@@ -141,10 +143,10 @@ function showUpgrade() {
   $('#up-title').textContent = `Week ${S.week + 1}`;
   $('#up-opts').innerHTML = '';
   for (const key of U.options) {
-    const [ic, name, sub] = OPT[key] || ['⭐', key, ''];
+    const [ic, name, sub] = OPT[key] || [() => '⭐', key, ''];
     const b = document.createElement('button');
     b.className = 'opt';
-    b.innerHTML = `<span>${ic}</span><b>${name}</b><small>${sub}</small>`;
+    b.innerHTML = `<span>${ic()}</span><b>${name}</b><small>${sub}</small>`;
     b.onclick = () => {
       E.chooseUpgrade(S, key); play.pick();
       modal('#upgrade', false); hudKey = ''; save();
@@ -155,6 +157,8 @@ function showUpgrade() {
 }
 
 function gameOver(id) {
+  if (ended) return;
+  ended = true;
   S.over = true;
   Rn.R.overId = id;
   localStorage.removeItem(K.run);
@@ -219,6 +223,7 @@ const HINTS = {
   extend: 'Drag the ⊢ end of a line onto a new station',
   remove: 'Tap a coloured dot below to pick a line, then 🗑 to remove it',
 };
+let hintFor = null, hintT = 0;
 function updateHint() {
   const done = (k) => { if (!tut[k]) { tut[k] = true; store(K.tut, tut); } };
   if (S.lines.length) done('draw');
@@ -229,6 +234,11 @@ function updateHint() {
   if (!tut.draw) h = 'draw';
   else if (!tut.extend && loose && S.t > 8) h = 'extend';
   else if (!tut.remove && S.week >= 1 && S.lines.length >= S.inv.lines) h = 'remove';
+  // The optional hints go away by themselves after a while, the first one stays until a line is drawn.
+  if (h && h !== 'draw') {
+    if (hintFor !== h) { hintFor = h; hintT = S.t; }
+    if (S.t - hintT > 12) { done(h); h = null; }
+  }
   if (ui.preview || S.over || paused) h = null;
   ui.hint = h;
   const el = $('#hint');
@@ -259,6 +269,7 @@ function updateHud() {
     b.onclick = () => {
       if (!inUse) { play.tap(); toast(i < S.inv.lines ? 'Drag between stations to draw a line' : 'Unlock more lines each week'); return; }
       play.tap(); ui.sel = ui.sel === i ? null : i; hudKey = '';
+      if (ui.sel != null) toast('Tap a station to take it off · 🗑 removes the line');
     };
     chips.append(b);
   }
@@ -286,6 +297,8 @@ function frame(now) {
     try { ev = E.step(S, dt * speed); } catch (e) { console.error(e); }
     handle(ev, now);
   }
+  if (S.pendingUpgrade && $('#upgrade').hidden) showUpgrade();
+  if (S.over && !ended) { const st = S.stations.find((x) => x.overflow >= 1); gameOver(st ? st.id : -1); }
   Rn.draw(S, ui, now);
   updateHud();
 }
