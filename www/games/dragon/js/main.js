@@ -4,7 +4,7 @@ import * as E from './engine.js';
 import { levelFor, isHard } from './levels.js';
 import { MOVES } from './moves.js';
 import { installArt, use, tileArt, goalArt, GEM_COLORS } from './art.js';
-import { AREAS, currentArea, renderScene } from './fortress.js';
+import { AREAS, currentArea, renderScene, propArt } from './fortress.js';
 import { play, settings, unlock, setMusic } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
@@ -161,7 +161,7 @@ function openTasks() {
     const done = P.built.includes(a + ':' + i);
     const row = document.createElement('div');
     row.className = 'task' + (done ? ' done' : '');
-    row.innerHTML = `<span class="ic">${t.icon}</span><span class="nm"></span>`;
+    row.innerHTML = `<span class="ic">${propArt(t)}</span><span class="nm"></span>`;
     row.querySelector('.nm').textContent = t.name;
     if (!done) {
       const b = document.createElement('button');

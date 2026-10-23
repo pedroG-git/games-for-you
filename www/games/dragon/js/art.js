@@ -1,3 +1,5 @@
+import { PROPS } from './props.js';
+
 // All the pictures, drawn as SVG symbols (viewBox 0 0 100 100). Injected once into the page as <defs>.
 const grad = (id, stops, x2 = 0, y2 = 1) =>
   `<linearGradient id="${id}" x1="0" y1="0" x2="${x2}" y2="${y2}">${stops.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>`;
@@ -166,7 +168,7 @@ const obstacles = `
 
 export function installArt() {
   const div = document.createElement('div');
-  div.innerHTML = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${gems.join('')}${specials}${obstacles}</defs></svg>`;
+  div.innerHTML = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${gems.join('')}${specials}${obstacles}${PROPS}</defs></svg>`;
   document.body.prepend(div.firstChild);
 }
 
