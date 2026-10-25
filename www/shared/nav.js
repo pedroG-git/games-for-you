@@ -34,9 +34,10 @@
   let orientPlugin;
   const orient = (to) => {
     try {
-      if (orientPlugin === undefined) orientPlugin = C && C.isNativePlatform && C.isNativePlatform() ? C.registerPlugin('Orientation') : null;
-      if (orientPlugin) orientPlugin.lock({ to }).catch(() => {});
-    } catch {}
+      // Native plugins sit on Capacitor.Plugins; registerPlugin only exists when the @capacitor/core library is loaded.
+      if (orientPlugin === undefined) orientPlugin = C && C.isNativePlatform && C.isNativePlatform() ? (C.Plugins && C.Plugins.Orientation) || (C.registerPlugin && C.registerPlugin('Orientation')) || null : null;
+      if (orientPlugin) orientPlugin.lock({ to }).catch((e) => console.warn('orientation', e));
+    } catch (e) { console.warn('orientation', e); }
   };
 
   window.GFY = { home, back: (list) => steps.push(...list), orient };

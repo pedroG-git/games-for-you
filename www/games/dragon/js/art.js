@@ -110,18 +110,19 @@ const specials = `
     <ellipse cx="29" cy="60" rx="4.5" ry="3" fill="#ff7ab0" opacity=".6"/><ellipse cx="71" cy="60" rx="4.5" ry="3" fill="#ff7ab0" opacity=".6"/>
     <ellipse cx="41" cy="32" rx="10" ry="5" fill="#fff" opacity=".45" transform="rotate(-15 41 32)"/>
   </symbol>
-  <radialGradient id="ey" cx=".5" cy=".5" r=".55"><stop offset="0" stop-color="#fff7c2"/><stop offset=".3" stop-color="#ffc93a"/><stop offset=".65" stop-color="#ff3b8a"/><stop offset="1" stop-color="#5a1aa8"/></radialGradient>
-  <radialGradient id="eyG" cx=".5" cy=".5" r=".5"><stop offset=".6" stop-color="#c27aff" stop-opacity=".8"/><stop offset="1" stop-color="#7a3dff" stop-opacity="0"/></radialGradient>
-  ${grad('eyS', [[0, '#8a5ad8'], [1, '#2a0a5a']])}
+  <radialGradient id="cbG" cx=".5" cy=".5" r=".5"><stop offset=".55" stop-color="#fff2a8" stop-opacity=".9"/><stop offset=".8" stop-color="#ff8ad8" stop-opacity=".45"/><stop offset="1" stop-color="#a86bff" stop-opacity="0"/></radialGradient>
+  <radialGradient id="cbC" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#fff" stop-opacity=".85"/><stop offset=".75" stop-color="#fff" stop-opacity=".1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
   <symbol id="light" viewBox="0 0 100 100">
-    <circle cx="50" cy="50" r="50" fill="url(#eyG)"/>
-    <circle cx="50" cy="50" r="44" fill="url(#eyS)" stroke="#1a0438" stroke-width="3"/>
-    ${Array.from({ length: 12 }, (_, i) => { const a = i * Math.PI / 6; const x = 50 + 40 * Math.sin(a), y = 50 - 40 * Math.cos(a); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="#a87af0" stroke="#1a0438" stroke-width="1.5"/>`; }).join('')}
-    <circle cx="50" cy="50" r="33" fill="url(#ey)" stroke="#1a0438" stroke-width="3"/>
-    <g stroke="#ff8a1a" stroke-width="1.6" opacity=".7">${Array.from({ length: 16 }, (_, i) => { const a = i * Math.PI / 8; return `<path d="M${(50 + 12 * Math.cos(a)).toFixed(1)} ${(50 + 12 * Math.sin(a)).toFixed(1)}L${(50 + 30 * Math.cos(a)).toFixed(1)} ${(50 + 30 * Math.sin(a)).toFixed(1)}"/>`; }).join('')}</g>
-    <path d="M50 19Q61 50 50 81Q39 50 50 19Z" fill="#14041f" stroke="#ff3b5c" stroke-width="2"/>
-    <ellipse cx="38" cy="34" rx="9" ry="5.5" fill="#fff" opacity=".8" transform="rotate(-35 38 34)"/>
-    <circle cx="64" cy="66" r="3" fill="#fff" opacity=".7"/>
+    <circle cx="50" cy="50" r="50" fill="url(#cbG)"/>
+    ${[0, 3, 2, 1, 4, 5].map((g) => GEM_COLORS[g]).map((col, i) => { // colour bomb: a rainbow swirl round a white-hot core
+      const P = (deg, r) => { const t = (deg * Math.PI) / 180; return `${(50 + r * Math.cos(t)).toFixed(1)} ${(50 + r * Math.sin(t)).toFixed(1)}`; };
+      const a0 = i * 60 - 90, a1 = a0 + 60;
+      return `<path d="M50 50Q${P(a0 - 40, 26)} ${P(a0, 40)}A40 40 0 0 1 ${P(a1, 40)}Q${P(a1 - 40, 26)} 50 50Z" fill="${col}"/>`;
+    }).join('')}
+    <circle cx="50" cy="50" r="40" fill="url(#cbC)"/>
+    <circle cx="50" cy="50" r="40" fill="none" stroke="#3a1468" stroke-width="3.5"/>
+    <ellipse cx="37" cy="31" rx="11" ry="6" fill="#fff" opacity=".85" transform="rotate(-35 37 31)"/>
+    <path d="M78 14l2.2 5.8 5.8 2.2-5.8 2.2-2.2 5.8-2.2-5.8-5.8-2.2 5.8-2.2z M18 72l1.6 4.2 4.2 1.6-4.2 1.6-1.6 4.2-1.6-4.2-4.2-1.6 4.2-1.6z" fill="#fff"/>
   </symbol>`;
 
 // Obstacles: crate (1 layer), iron-banded crate (2), rune stone (3); dragon egg; ice.

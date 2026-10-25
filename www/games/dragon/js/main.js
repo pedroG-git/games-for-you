@@ -274,7 +274,7 @@ function tutorial() {
   if (want && !P.seen.includes(want)) { P.seen.push(want); saveP(); setTimeout(() => say(...tips[want]), 900); }
   if (P.level === 2 && !P.seen.includes('specials')) {
     P.seen.push('specials'); saveP();
-    setTimeout(() => say('Dragon powers', '4 in a row = fire lance. A square = baby dragon. L or T shape = fire bomb. 5 in a row = dragon eye. Swap two powers together for a mega combo!'), 900);
+    setTimeout(() => say('Dragon powers', '4 in a row = fire lance. A square = baby dragon. L or T shape = fire bomb. 5 in a row = colour bomb: swap it with a gem to clear every gem of that colour. Swap two powers together for a mega combo!'), 900);
   }
 }
 
