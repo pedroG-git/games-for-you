@@ -29,7 +29,17 @@
     home();
   }
 
-  window.GFY = { home, back: (list) => steps.push(...list) };
+  // Turn the phone: GFY.orient('landscape' | 'portrait'). Every page starts in portrait (the app's default), so the
+  // home screen and other games are never left sideways. Needs the native Orientation plugin; a browser ignores it.
+  let orientPlugin;
+  const orient = (to) => {
+    try {
+      if (orientPlugin === undefined) orientPlugin = C && C.isNativePlatform && C.isNativePlatform() ? C.registerPlugin('Orientation') : null;
+      if (orientPlugin) orientPlugin.lock({ to }).catch(() => {});
+    } catch {}
+  };
+
+  window.GFY = { home, back: (list) => steps.push(...list), orient };
 
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.gfy-home')) return;
@@ -43,6 +53,7 @@
   const C = window.Capacitor;
   const app = C && C.isNativePlatform && C.isNativePlatform() ? (C.Plugins && C.Plugins.App) || (C.registerPlugin && C.registerPlugin('App')) : null;
   if (app) app.addListener('backButton', back);
+  orient('portrait');
 
   // Remembered so the home screen can offer "Keep playing".
   if (inGame) {

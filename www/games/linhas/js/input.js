@@ -6,6 +6,7 @@ import { play } from './audio.js';
 
 const HIT = 28;        // px: how close a finger must be to a station (about 9.6 mm across, Parhi et al. 2006)
 const CAP_HIT = 30;    // px: grabbing the end of a line
+const ON_STATION = 15; // px: a finger this close to a station's centre is on the station, never on a cap beside it
 const REASON = { tunnels: 'Not enough tunnels', lines: 'No free line', short: 'Line too short' };
 
 // api: { get() → state, ui, toast(msg), changed(), edited(routesBefore), blocked() → bool, setTool(t), tapped(kind) }
@@ -252,11 +253,13 @@ export function initInput(canvas, api) {
     const was = ui.sel;
     ui.sel = null; const info = ui.info; ui.info = null;
 
-    // A terminal station sits right next to its end cap: whichever is closer to the finger wins.
+    // A terminal station sits right next to its end cap (24 px apart). A finger on the station itself starts a new
+    // line, like Mini Metro; only a finger off the station and nearer the badge grabs the cap to extend that line.
     const sid = stationAt(S, p), sp = sid >= 0 ? toScreen(st(S, sid).x, st(S, sid).y) : null;
+    const ds = sp ? Math.hypot(sp.x - p.x, sp.y - p.y) : Infinity;
     for (const cap of R.caps) {
       const dc = Math.hypot(cap.x - p.x, cap.y - p.y);
-      if (dc > CAP_HIT || (sp && Math.hypot(sp.x - p.x, sp.y - p.y) < dc)) continue;
+      if (dc > CAP_HIT || ds <= ON_STATION || ds < dc) continue;
       const L = S.lines[cap.line];
       let ids = L.stations.slice();
       if (cap.end === 'start') ids.reverse();

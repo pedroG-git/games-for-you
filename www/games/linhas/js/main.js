@@ -76,6 +76,7 @@ function bestSoFar(st) {
 function show(name) {
   $('#menu').hidden = name !== 'menu';
   $('#game').hidden = name !== 'game';
+  window.GFY && GFY.orient(name === 'game' ? 'landscape' : 'portrait'); // played sideways, like Mini Metro; menus stay upright
   if (name === 'game') requestAnimationFrame(() => { Rn.resize(); });
   if (name === 'menu') renderMenu();
 }

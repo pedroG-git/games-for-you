@@ -24,6 +24,7 @@ const EXPRESS = 1.4;           // express lines run this much faster
 const RUSH_K = 0.73, CALM_K = 1.168;
 const WEATHER_SPEED = { clear: 1, rain: 0.9, snow: 0.8, fog: 0.95 };
 const W = 1000, H = 1600;
+export const MAP = { w: W, h: H }; // the whole city, in map units
 
 // ---------------------------------------------------------------- helpers
 function rnd(s) {

@@ -1,12 +1,13 @@
 // Canvas drawing for Linhas. Sizes are in screen pixels so the map stays readable while the city grows.
 import { CITIES, COLORS, CB_COLORS } from './cities.js';
-import { trainPose, segmentPoints, wants, weatherOf, DAY } from './engine.js';
+import { trainPose, segmentPoints, wants, weatherOf, DAY, MAP } from './engine.js';
 
 export const LW = 7;      // line width
 export const SR = 11;     // station radius
 export const R = {
   canvas: null, ctx: null, W: 0, H: 0, dpr: 1,
-  cam: null, scale: 1, ox: 0, oy: 0, padT: 80, padB: 96,
+  cam: null, scale: 1, ox: 0, oy: 0, padT: 80, padB: 96, padL: 0, padR: 0,
+  rot: false, // landscape: the tall map is drawn turned a quarter (its top on the left); the game itself never knows
   pops: {}, floats: [], caps: [], paths: [], overId: -1,
   zoom: { k: 1, x: 0, y: 0 }, // the player's pinch zoom on top of the automatic fit: screen = fit × k + (x, y)
 };
@@ -32,7 +33,15 @@ export function resize() {
   R.dpr = Math.min(devicePixelRatio || 1, 3);
   R.W = c.clientWidth; R.H = c.clientHeight;
   c.width = Math.round(R.W * R.dpr); c.height = Math.round(R.H * R.dpr);
+  R.rot = R.W > R.H;
   const hud = document.getElementById('hud'), bar = document.getElementById('bar');
+  if (R.rot) { // the HUD is a column on the left, the controls a column on the right (style.css)
+    R.padT = R.padB = 8; R.padL = R.padR = 0;
+    if (hud && hud.offsetParent) R.padL = hud.getBoundingClientRect().right - 8;
+    if (bar && bar.offsetParent) R.padR = R.W - bar.getBoundingClientRect().left - 8;
+    return;
+  }
+  R.padL = R.padR = 0;
   if (hud && hud.offsetParent) R.padT = hud.getBoundingClientRect().bottom + 8;
   if (bar && bar.offsetParent) R.padB = R.H - bar.getBoundingClientRect().top + 8;
 }
@@ -46,9 +55,10 @@ export const pop = (id, now) => { R.pops[id] = now; };
 export const float = (x, y, text, now) => { R.floats.push({ x, y, text, t0: now }); };
 
 function fit() {
-  const c = R.cam, aw = R.W - 32, ah = Math.max(80, R.H - R.padT - R.padB);
+  const c = R.rot ? { x: R.cam.y, y: MAP.w - R.cam.x - R.cam.w, w: R.cam.h, h: R.cam.w } : R.cam; // the view as drawn
+  const aw = Math.max(80, R.W - 32 - R.padL - R.padR), ah = Math.max(80, R.H - R.padT - R.padB);
   R.scale = Math.min(aw / c.w, ah / c.h);
-  R.ox = 16 + (aw - c.w * R.scale) / 2 - c.x * R.scale;
+  R.ox = 16 + R.padL + (aw - c.w * R.scale) / 2 - c.x * R.scale;
   R.oy = R.padT + (ah - c.h * R.scale) / 2 - c.y * R.scale;
   const z = R.zoom;
   R.scale *= z.k; R.ox = R.ox * z.k + z.x; R.oy = R.oy * z.k + z.y;
@@ -61,8 +71,14 @@ export function setZoom(k, mx, my, from = R.zoom) {
   R.zoom = { k, x: Math.max(R.W * (1 - k), Math.min(0, x)), y: Math.max(R.H * (1 - k), Math.min(0, y)) };
   if (k < 1.03) R.zoom = { k: 1, x: 0, y: 0 };
 }
-export const toScreen = (x, y) => ({ x: x * R.scale + R.ox, y: y * R.scale + R.oy });
-export const toWorld = (sx, sy) => ({ x: (sx - R.ox) / R.scale, y: (sy - R.oy) / R.scale });
+// Map point ↔ screen point. Turned: map (x, y) is drawn at (y, MAP.w - x), a rotation, so left stays left.
+export const toScreen = (x, y) => (R.rot ? { x: y * R.scale + R.ox, y: (MAP.w - x) * R.scale + R.oy } : { x: x * R.scale + R.ox, y: y * R.scale + R.oy });
+export const toWorld = (sx, sy) => {
+  const u = (sx - R.ox) / R.scale, v = (sy - R.oy) / R.scale;
+  return R.rot ? { x: MAP.w - v, y: u } : { x: u, y: v };
+};
+// A direction on the map as a direction on screen.
+const turn = (x, y) => (R.rot ? { x: y, y: -x } : { x, y });
 
 // ---------------------------------------------------------------- shapes
 function poly(c, x, y, r, n, a0) {
@@ -220,7 +236,7 @@ function corner(p1, q1, p2, q2) {
 function linePath(S, li) {
   const runs = lanes(S).filter((r) => r.li === li), pts = [], ks = [];
   const seg = runs.map((r) => {
-    const a = toScreen(r.A.x, r.A.y), b = toScreen(r.B.x, r.B.y), ox = -r.uy * r.lane, oy = r.ux * r.lane;
+    const a = toScreen(r.A.x, r.A.y), b = toScreen(r.B.x, r.B.y), { x: ox, y: oy } = turn(-r.uy * r.lane, r.ux * r.lane);
     return { a: { x: a.x + ox, y: a.y + oy }, b: { x: b.x + ox, y: b.y + oy }, k: r.k };
   });
   seg.forEach((s, i) => {
@@ -243,7 +259,7 @@ function laneAt(S, li, w) {
     const d = distSeg(w, r.A, r.B);
     if (d < bd) { bd = d; best = r; }
   }
-  return best ? { x: -best.uy * best.lane, y: best.ux * best.lane } : { x: 0, y: 0 };
+  return best ? turn(-best.uy * best.lane, best.ux * best.lane) : { x: 0, y: 0 };
 }
 function distSeg(p, a, b) {
   const dx = b.x - a.x, dy = b.y - a.y, L = dx * dx + dy * dy;
@@ -395,7 +411,7 @@ export function draw(S, ui, now) {
     if (!pose) return;
     const off = laneAt(S, li, pose);
     const s = toScreen(pose.x, pose.y);
-    c.save(); c.translate(s.x + off.x, s.y + off.y); c.rotate(pose.angle || 0);
+    c.save(); c.translate(s.x + off.x, s.y + off.y); c.rotate((pose.angle || 0) - (R.rot ? Math.PI / 2 : 0));
     const cars = Math.max(1, t.cars || 1);
     for (let k = 0; k < cars; k++) {
       const x0 = -13 - k * 29;
@@ -519,7 +535,7 @@ export function draw(S, ui, now) {
 
   // zoomed in: a station filling up out of sight gets a marker at the screen edge, pointing to it
   R.marks = [];
-  const x0 = 34, y0 = R.padT + 34, x1 = R.W - 34, y1 = R.H - R.padB - 34, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const x0 = R.padL + 34, y0 = R.padT + 34, x1 = R.W - R.padR - 34, y1 = R.H - R.padB - 34, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
   for (const st of S.stations) {
     if (!(st.overflow > 0)) continue;
     const s = toScreen(st.x, st.y);
