@@ -570,66 +570,13 @@ export function wants(s, id) {
   return out;
 }
 
-// Where a station dragged onto piece k of a line should go in. Usually right there, but not when another place on
-// the line (or a free end) avoids a crossing or a long detour: inserting must not tangle the line.
+// A station dragged onto piece k of a line goes in right there, between the two stations of that piece — exactly
+// what the drag preview shows (like Mini Metro; moving it elsewhere "to keep the line untangled" surprised players).
 // Returns the new list of station ids.
 export function insertIds(s, lineIdx, k, id) {
-  const line = s.lines[lineIdx], ids = line.stations, n = ids.length;
-  const P = (i) => s.stations[i], len = (a, b) => pathLen(segmentPoints(P(a), P(b)));
-  const opts = [];
-  const pairsN = line.loop ? n : n - 1;
-  for (let j = 0; j < pairsN; j++) {
-    const a = ids[j], b = ids[(j + 1) % n];
-    const out = ids.slice(); out.splice(j + 1, 0, id);
-    opts.push({ ids: out, extra: len(a, id) + len(id, b) - len(a, b), mine: j === k });
-  }
-  if (!line.loop) {
-    opts.push({ ids: [id, ...ids], extra: len(id, ids[0]) });
-    opts.push({ ids: [...ids, id], extra: len(ids[n - 1], id) });
-  }
-  for (const o of opts) o.tangle = tangles(s, lineIdx, o.ids, line.loop);
-  const mine = opts.find((o) => o.mine) || opts[0];
-  let best = mine;
-  for (const o of opts) {
-    if (o.tangle < best.tangle || (o.tangle === best.tangle && o !== best && o.extra < best.extra * (best === mine ? 0.6 : 1))) best = o;
-  }
-  return best.ids;
-}
-const pathLen = (pts) => pts.reduce((d, p, i) => (i ? d + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) : 0), 0);
-// How tangled a route would be: each time it crosses itself counts 3, each crossing of another line 1.
-function tangles(s, lineIdx, ids, loop) {
-  const segs = (list, lp) => {
-    const out = [], l = lp ? [...list, list[0]] : list;
-    for (let i = 1; i < l.length; i++) {
-      const p = segmentPoints(s.stations[l[i - 1]], s.stations[l[i]]);
-      for (let j = 1; j < p.length; j++) out.push([p[j - 1], p[j], i]);
-    }
-    return out;
-  };
-  const mine = segs(ids, loop);
-  let n = 0;
-  for (let i = 0; i < mine.length; i++) for (let j = i + 1; j < mine.length; j++) {
-    if (mine[i][2] === mine[j][2]) continue;
-    if (cross(mine[i], mine[j]) || overlap(mine[i], mine[j])) n += 3;
-  }
-  s.lines.forEach((l, L) => {
-    if (L === lineIdx) return;
-    for (const o of segs(l.stations, l.loop)) for (const m of mine) if (cross(m, o)) n++;
-  });
-  return n;
-}
-// Does a route run back over its own track (a spike out to a station and back the same way)?
-function overlap([a, b], [c, d]) {
-  const vx = b.x - a.x, vy = b.y - a.y, l = Math.hypot(vx, vy);
-  if (l < 1e-6 || Math.abs(vx * (c.y - a.y) - vy * (c.x - a.x)) / l > 0.5 || Math.abs(vx * (d.y - a.y) - vy * (d.x - a.x)) / l > 0.5) return false;
-  const t = (p) => ((p.x - a.x) * vx + (p.y - a.y) * vy) / l;
-  return Math.min(l, Math.max(t(c), t(d))) - Math.max(0, Math.min(t(c), t(d))) > 1;
-}
-// Do two straight pieces cross properly (touching at an end, like at a shared station, doesn't count)?
-function cross([a, b], [c, d]) {
-  const o = (p, q, r) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
-  const d1 = o(c, d, a), d2 = o(c, d, b), d3 = o(a, b, c), d4 = o(a, b, d), e = 1e-6;
-  return ((d1 > e && d2 < -e) || (d1 < -e && d2 > e)) && ((d3 > e && d4 < -e) || (d3 < -e && d4 > e));
+  const out = s.lines[lineIdx].stations.slice();
+  out.splice(k + 1, 0, id);
+  return out;
 }
 
 export function setLine(s, lineIdx, stationIds) {

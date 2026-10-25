@@ -74,7 +74,7 @@ export function initInput(canvas, api) {
     if (drag.kind === 'reroute') {
       const L = S.lines[drag.line];
       if (drag.target >= 0) {
-        // the line as it will be built (the station may go in elsewhere on the line, to keep it untangled)
+        // the line as it will be built: the station goes in where the finger pulled the track
         const ids = newIds(S);
         pts = ids.map((id) => st(S, id));
         if (L.loop) pts.push(st(S, ids[0]));
