@@ -310,30 +310,44 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 #game.night #wx { color: #c9d1e3; }
 
 /* ---------------------------------------------------------------- landscape (the phone turns for a game)
-   The map is drawn turned (render.js), so it's wide; the HUD becomes a column on the left and the controls a column
-   on the right, leaving the map a ~1.6:1 space that fits it as well as portrait does. */
+   The map is drawn turned (render.js), so it's wide; the HUD is a column on the left and the controls a column on
+   the right, leaving the map a ~1.6:1 space that fits it as well as portrait does. Pop-ups that sat over the top of
+   the map move into the columns or centre on the map, so they never hide stations. */
 @media (orientation: landscape) {
+  #game { --ml: calc(env(safe-area-inset-left) + 120px); --mr: calc(env(safe-area-inset-right) + 114px); }
   #hud {
-    right: auto; bottom: 0; width: 104px; box-sizing: border-box;
-    flex-direction: column; align-items: flex-start; gap: 10px;
+    right: auto; bottom: 0; width: var(--ml); box-sizing: border-box;
+    flex-direction: column; align-items: flex-start; gap: 12px;
     padding: calc(env(safe-area-inset-top) + 10px) 8px 10px calc(env(safe-area-inset-left) + 10px);
   }
-  #score { flex-wrap: wrap; font-size: 20px; }
-  #goal { flex-basis: 100%; margin: 0; }
+  #score { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: center; column-gap: 4px; font-size: 22px; white-space: nowrap; }
+  #score > span { font-size: 18px; }
+  #goal { grid-column: 1 / -1; margin: 0; }
   #week { flex: none; align-items: flex-start; }
-  #counts { flex-direction: column; margin-top: auto; }
+  #counts { flex-direction: row; flex-wrap: wrap; }
   #bar {
-    left: auto; top: 0; flex-direction: row; align-items: stretch; gap: 6px;
+    left: auto; top: 0; width: var(--mr); box-sizing: border-box; flex-direction: row; align-items: stretch; gap: 6px;
     padding: calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 10px) 10px 6px;
   }
   #bar .row { flex-direction: column; flex-wrap: wrap-reverse; align-content: flex-end; gap: 6px; }
   #spares { flex-direction: column; }
   #chips { flex-direction: column; justify-content: center; order: -1; }
   #bar .row:has(#spares .cnt:not(.gone):nth-child(4)) { gap: 6px; }
-  #toast { top: calc(env(safe-area-inset-top) + 12px); }
-  #hint, #card { bottom: calc(env(safe-area-inset-bottom) + 12px); }
-  #frozen, #mapview { top: calc(env(safe-area-inset-top) + 12px); }
-  #timeline { left: 116px; right: 180px; bottom: calc(env(safe-area-inset-bottom) + 12px); }
+  /* paused: a small card at the foot of the HUD column instead of a banner across the map */
+  #frozen {
+    left: calc(env(safe-area-inset-left) + 8px); top: auto; bottom: 10px; transform: none;
+    width: calc(var(--ml) - env(safe-area-inset-left) - 16px); max-width: none; box-sizing: border-box;
+    display: grid; grid-template-columns: auto 1fr; gap: 6px;
+    padding: 8px; border-radius: 16px; font-size: 12px; line-height: 1.25;
+  }
+  #frozen > span { grid-column: 1 / -1; }
+  #frozen button { height: 30px; padding: 0 4px; font-size: 12.5px; }
+  #frozen #f-more { width: 28px; }
+  /* everything else floats over the middle of the map, between the columns */
+  #toast, #mapview, #hint, #card { left: calc(var(--ml) + (100% - var(--ml) - var(--mr)) / 2); max-width: calc(100% - var(--ml) - var(--mr) - 16px); }
+  #toast, #mapview { top: calc(env(safe-area-inset-top) + 10px); }
+  #hint, #card { bottom: calc(env(safe-area-inset-bottom) + 10px); }
+  #timeline { left: calc(var(--ml) + 8px); right: calc(var(--mr) + 8px); bottom: calc(env(safe-area-inset-bottom) + 10px); }
   .box { max-height: 100%; overflow-y: auto; box-sizing: border-box; }
   #ach .box, #chal .box { max-height: 100%; }
 }
