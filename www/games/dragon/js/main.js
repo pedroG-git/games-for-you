@@ -17,7 +17,7 @@ const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 
 // ---------------------------------------------------------------- saved progress
 const BOOSTS = ['rocket', 'bomb', 'light', 'hammer', 'arrow', 'cannon', 'shuffle'];
-const P = Object.assign({ level: 1, stars: 0, built: [], seen: [], boost: {}, streak: 0, gift: { day: '', n: 0 },
+const P = Object.assign({ level: 1, stars: 0, built: [], boost: {}, streak: 0, gift: { day: '', n: 0 },
   fire: 0.2, shield: 0, fail: { level: 0, n: 0 } }, load(SAVE) || {});
 for (const b of BOOSTS) if (!(P.boost[b] >= 0)) P.boost[b] = ['hammer', 'shuffle'].includes(b) ? 2 : 1;
 const saveP = () => store(SAVE, P);
@@ -36,7 +36,6 @@ function endStreak() {
   if (!P.streak) return;
   if (shieldUp()) {
     P.shield = SHIELD_WINS; saveP();
-    setTimeout(() => say('🛡️ Shield!', `Your dragon shield saved your 🔥 ${P.streak} in a row. It comes back after ${SHIELD_WINS} wins.`), 400);
     return;
   }
   P.streak = 0; P.shield = 0; saveP();
@@ -61,7 +60,6 @@ function chargeFire(gems) {
   updateFire();
   if (P.fire >= 1) {
     play.born();
-    if (!P.seen.includes('fire')) { P.seen.push('fire'); say('Dragon fire is ready!', 'Tap the glowing dragon below: baby dragons fly to what you still need. It doesn\'t use a move.'); }
   }
 }
 function updateFire() {
@@ -148,7 +146,6 @@ function openHome(justBuilt) {
   const hard = isHard(P.level);
   $('h-play').className = 'big' + (hard ? ' hard' : '');
   $('h-play').innerHTML = `Level ${P.level}${hard ? '<small>Hard level</small>' : ''}${P.streak ? `<span class="fire">🔥 ${P.streak} in a row</span>` : ''}`;
-  if (!done && !P.seen.includes('area' + a)) { P.seen.push('area' + a); saveP(); say(A.name, A.intro); }
   maybeGift();
 }
 
@@ -167,7 +164,7 @@ function openTasks() {
       const b = document.createElement('button');
       b.className = t.cost <= P.stars ? '' : 'cant';
       b.innerHTML = `${use('star')}${t.cost}`;
-      b.addEventListener('click', () => build(a, i));
+      b.addEventListener('click', () => (t.cost > P.stars ? (play.locked(), nope(b)) : build(a, i)));
       row.appendChild(b);
     }
     list.appendChild(row);
@@ -177,7 +174,7 @@ function openTasks() {
 
 function build(a, i) {
   const t = AREAS[a].tasks[i];
-  if (t.cost > P.stars) { play.locked(); say('Not enough stars', `You need ${t.cost - P.stars} more. Play levels to earn stars!`); return; }
+  if (t.cost > P.stars) return;
   P.stars -= t.cost;
   P.built.push(a + ':' + i);
   saveP();
@@ -186,34 +183,17 @@ function build(a, i) {
   play.build();
   const item = $('scene').children[2 + i];
   if (item) { const r = item.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, ['#ffd23a', '#fff', '#ff8a3d'], 30); }
-  say(t.name, t.say);
   if (currentArea(P.built) !== a) {
     setTimeout(() => {
       play.win();
-      showPraise('Area complete!');
       setTimeout(() => openHome(), 1600);
     }, 2200);
   }
 }
 
-// ---------------------------------------------------------------- story / tips bubble
-let sayT = 0;
-function say(title, text) {
-  const el = $('say');
-  el.querySelector('b').textContent = title;
-  el.querySelector('span').textContent = text;
-  el.hidden = false;
-  el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
-  clearTimeout(sayT);
-  sayT = setTimeout(() => { el.hidden = true; }, 5000);
-}
-$('say').addEventListener('click', () => { $('say').hidden = true; });
-
-function showPraise(text) {
-  const p = $('praise');
-  p.textContent = text;
-  p.classList.remove('show'); void p.offsetWidth; p.classList.add('show');
-}
+// ---------------------------------------------------------------- refused-action feedback
+// Shake a button that cannot be used right now (no text, just a wobble).
+function nope(el) { el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); }
 
 // ---------------------------------------------------------------- start a level
 function goalsHTML(goals, withLeft) {
@@ -249,7 +229,6 @@ function startLevel() {
   const h = help();
   S.moves += h.moves;
   E.placeBoosters(S, [...G.pre, ...streakPowers(), ...h.powers]);
-  if (P.streak) setTimeout(() => showPraise(`🔥 ${P.streak} in a row!`), 500);
   G.pre.clear(); G.extra = false; G.failed = false; G.sel = -1; G.tool = null; G.busy = false;
   show('game');
   $('goals').innerHTML = '';
@@ -259,23 +238,7 @@ function startLevel() {
   render();
   updateTools();
   updateFire();
-  tutorial();
   resetHint();
-}
-
-function tutorial() {
-  const tips = {
-    first: ['How to play', 'Swap two gems to line up 3 of the same. Collect the gems shown at the top before you run out of moves!'],
-    box: ['Crates', 'Make matches next to crates to break them. Iron and stone crates need more hits.'],
-    ice: ['Frost', 'Make matches on top of the frost to melt it. Melt all of it!'],
-    egg: ['Dragon eggs', 'Clear the gems under the eggs so they fall down to the bottom of the board.'],
-  };
-  const want = P.level === 1 ? 'first' : ['box', 'ice', 'egg'].find((t) => L.goals.some((g) => g.t === t) && !P.seen.includes(t));
-  if (want && !P.seen.includes(want)) { P.seen.push(want); saveP(); setTimeout(() => say(...tips[want]), 900); }
-  if (P.level === 2 && !P.seen.includes('specials')) {
-    P.seen.push('specials'); saveP();
-    setTimeout(() => say('Dragon powers', '4 in a row = fire lance. A square = baby dragon. L or T shape = fire bomb. 5 in a row = colour bomb: swap it with a gem to clear every gem of that colour. Swap two powers together for a mega combo!'), 900);
-  }
 }
 
 // ---------------------------------------------------------------- drawing the board
@@ -545,12 +508,11 @@ function tickSparks() {
 
 // ---------------------------------------------------------------- running a move with animation
 const wait = (ms) => new Promise((r) => setTimeout(r, ms * G.speed));
-const PRAISE = [[7, 'Dragonfire!'], [5, 'Amazing!'], [3, 'Great!']];
 
 async function drive(gen) {
   G.busy = true;
   clearHint();
-  let r, cascade = 0;
+  let r;
   const s0 = S;
   while (!(r = gen.next()).done) {
     if (S !== s0) return; // left the level mid-animation
@@ -562,7 +524,6 @@ async function drive(gen) {
       for (const g of ph.groups) if (g.make) for (const i of g.cells) if (G.at.has(i)) G.merge.set(G.at.get(i), g.at);
       render();
       G.merge.clear();
-      cascade = ph.combo;
       if (!S.won) chargeFire(ph.groups.reduce((s, g) => s + g.cells.length, 0));
       play.match(ph.combo, ph.groups.reduce((s, g) => s + g.cells.length, 0));
       if (ph.groups.some((g) => g.make)) setTimeout(() => play.born(), 120);
@@ -573,11 +534,9 @@ async function drive(gen) {
       await wait(190);
     } else if (ph.type === 'fall') { render(); await wait(230); }
     else if (ph.type === 'collect') { render(); play.egg(); await wait(260); }
-    else if (ph.type === 'shuffle') { showPraise('Shuffle!'); render(); play.shuffle(); await wait(500); }
+    else if (ph.type === 'shuffle') { render(); play.shuffle(); await wait(500); }
     else if (ph.type === 'turn') { render(); play.born(); await wait(220); }
   }
-  const p = PRAISE.find(([n]) => cascade + 1 >= n);
-  if (p && !S.won) showPraise(p[1]);
   G.busy = false;
   return r.value;
 }
@@ -667,22 +626,19 @@ function showHint() {
 }
 
 // ---------------------------------------------------------------- in-game tools
-const TOOL_TIP = { hammer: 'Tap a tile to smash it', arrow: 'Tap a row to fire an arrow', cannon: 'Tap a column to fire the cannon' };
 for (const b of document.querySelectorAll('#tools [data-tool]')) {
   b.addEventListener('click', async () => {
     unlock();
     if (G.busy || !S || S.won || S.lost) return;
     const k = b.dataset.tool;
-    if (!P.boost[k]) { play.locked(); say('No more', 'Win levels to get more boosters!'); return; }
+    if (!P.boost[k]) { play.locked(); nope(b); return; }
     if (k === 'shuffle') {
-      P.boost[k]--; saveP(); G.tool = null; updateTools(); $('tool-tip').hidden = true;
+      P.boost[k]--; saveP(); G.tool = null; updateTools();
       await drive(E.tool(S, 'shuffle'));
       return afterMove();
     }
     G.tool = G.tool === k ? null : k;
     play.tap();
-    $('tool-tip').textContent = TOOL_TIP[k];
-    $('tool-tip').hidden = !G.tool;
     updateTools();
   });
 }
@@ -690,7 +646,7 @@ async function useTool(i) {
   const k = G.tool;
   G.tool = null;
   P.boost[k]--; saveP();
-  $('tool-tip').hidden = true;
+ 
   updateTools();
   await drive(E.tool(S, k, i));
   afterMove();
@@ -701,10 +657,8 @@ async function winFlow() {
   G.busy = true;
   clearHint();
   play.win();
-  showPraise('Level complete!');
   await wait(1100);
   if (S.moves > 0) {
-    showPraise('Dragon fire!');
     G.speed = 0.55;
     await drive(E.finale(S));
     G.speed = 1;
@@ -790,10 +744,9 @@ $('gift-ok').addEventListener('click', () => { unlock(); collectGift(); });
 $('fire').addEventListener('click', async () => {
   unlock();
   if (G.busy || !S || S.won || S.lost) return;
-  if (P.fire < 1) { play.tap(); say('Dragon fire', `Make matches to fill it up (${Math.round(P.fire * 100)}%). When it glows, tap it!`); return; }
+  if (P.fire < 1) { play.tap(); nope($('fire')); return; }
   P.fire = 0; saveP(); updateFire();
-  G.tool = null; $('tool-tip').hidden = true; updateTools();
-  showPraise('Dragon fire!');
+  G.tool = null; updateTools();
   await drive(E.tool(S, 'fire'));
   afterMove();
 });

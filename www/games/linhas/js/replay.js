@@ -78,7 +78,7 @@ async function savePicture(cv, name) {
 
 // Plays the time-lapse in the canvas of the #replay modal.
 let anim = 0;
-export function openReplay(S, $, toast) {
+export function openReplay(S, $) {
   const cv = $('#rp-cv'), c = cv.getContext('2d'), dpr = Math.min(devicePixelRatio || 1, 3);
   const h = S.hist && S.hist.length ? S.hist : [{ wk: S.week + 1, ns: S.stations.length, r: [] }];
   $('#replay').hidden = false;
@@ -94,8 +94,8 @@ export function openReplay(S, $, toast) {
     if (f < 1) anim = requestAnimationFrame(frame);
   };
   anim = requestAnimationFrame(frame);
-  $('#rp-again').onclick = () => openReplay(S, $, toast);
+  $('#rp-again').onclick = () => openReplay(S, $);
   $('#rp-save').onclick = async () => {
-    try { await savePicture(poster(S), `linhas-${S.city}-${S.score}.png`); } catch (e) { if (!/cancel/i.test(String(e && e.message))) toast('Could not save the picture'); }
+    try { await savePicture(poster(S), `linhas-${S.city}-${S.score}.png`); } catch (e) { /* cancelled or not possible */ }
   };
 }

@@ -213,7 +213,6 @@ function afterChange() {
   if (E.isWon(st)) { win(); return; }
   $('finish').hidden = !(E.allFaceUp(st) && !finishing);
   persist();
-  if (!E.allFaceUp(st) && E.hints(st).length === 0) toast('Parece não haver mais jogadas. Desfaz ou começa um novo jogo.', 4200);
 }
 
 function doMove(m, fromDrag = false) {
@@ -412,7 +411,7 @@ function showGlow(x, y, secs) { glow.m.position.set(x, y, 0.4); glow.m.visible =
 function hint() {
   if (celebrating || finishing || now() < lockUntil || G.won) return;
   const h = E.hints(st)[0];
-  if (!h) { play.error(); toast('Sem jogadas úteis. Desfaz ou começa um novo jogo.', 3200); return; }
+  if (!h) { play.error(); return; }
   play.hint();
   const t0 = now();
   if (h.t === 'draw') {
@@ -431,12 +430,6 @@ function hint() {
   dirty = true;
 }
 function shake(ids) { const t0 = now(); for (const id of ids) cards[id].fx = { kind: 'shake', t0, dur: 0.32 }; dirty = true; }
-
-let toastTimer = 0;
-function toast(msg, ms = 2600) {
-  const t = $('toast'); t.textContent = msg; t.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ms);
-}
 
 // ---------------------------------------------------------------- input
 function inRect(p, x, y, pad = 0) { return Math.abs(p.x - x) <= CW / 2 + pad && Math.abs(p.y - y) <= CH / 2 + pad; }
@@ -666,7 +659,7 @@ $('btn-again').onclick = () => newGame({ diff: S.diff });
 for (const b of $('seg-draw').children) b.onclick = () => {
   const v = +b.dataset.v; if (v === S.draw) return;
   S.draw = v; refreshSettings();
-  if (!G || G.moves === 0 || G.won) newGame({ diff: S.diff }); else { persist(); toast(`Tirar ${v}: aplica-se ao próximo jogo.`); }
+  if (!G || G.moves === 0 || G.won) newGame({ diff: S.diff }); else persist();
 };
 for (const b of $('seg-theme').children) b.onclick = () => { S.theme = b.dataset.v; applyTheme(); refreshSettings(); persist(); };
 $('sw-sound').onclick = () => { S.sound = !S.sound; sfx.enabled = S.sound; refreshSettings(); persist(); if (S.sound) play.place(); };

@@ -15,7 +15,7 @@ const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch 
 const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
 
 // ---------------------------------------------------------------- saved progress
-const P = Object.assign({ level: 1, coins: 100, hints: 3, shuffles: 3, stars: {}, album: [], daily: {}, best: {}, tips: {}, runs: {} }, load(SAVE) || {});
+const P = Object.assign({ level: 1, coins: 100, hints: 3, shuffles: 3, stars: {}, album: [], daily: {}, best: {}, runs: {} }, load(SAVE) || {});
 const saveP = () => store(SAVE, P);
 Object.assign(settings, { dim: true, warn: true, style: 'classic' }, load(SET) || {});
 const saveSettings = () => store(SET, settings);
@@ -28,7 +28,7 @@ const geo = { tw: 40, th: 52, lift: 4, Z: 0 };
 function show(id) {
   for (const s of ['home', 'game']) $(s).hidden = s !== id;
   for (const m of document.querySelectorAll('.modal')) m.hidden = true;
-  hideSay();
+  clearWarn();
 }
 const openModal = (id) => { $(id).hidden = false; };
 const closeModal = (id) => { $(id).hidden = true; };
@@ -99,7 +99,6 @@ function startGame(mode, key) {
   render(true);
   updateHud();
   persist();
-  setTimeout(firstTips, 700);
 }
 
 // ---------------------------------------------------------------- drawing the board
@@ -173,7 +172,6 @@ $('board').addEventListener('pointerdown', (e) => {
 
 function tap(i) {
   unlock();
-  if (!$('say').dataset.keep) hideSay();
   if (!E.isFree(G.g, G.alive, i)) {
     const el = G.els[i];
     el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
@@ -188,7 +186,6 @@ function tap(i) {
   play.pick();
 }
 
-const PRAISE = { 3: 'Nice!', 5: 'Great!', 7: 'Amazing!', 10: 'Unstoppable!', 15: 'Legendary!' };
 function match(a, b) {
   G.sel = -1;
   clearHint();
@@ -217,8 +214,8 @@ function match(a, b) {
   setTimeout(() => burst(sx, sy, gold ? ['#ffd23a', '#fff1a8', '#ff9a1a'] : ['#fff8e0', '#7cf0a8', '#ffd23a', '#ff6a6a'], gold ? 26 : 12 + Math.min(G.combo, 8) * 2), 200);
   floatText(`+${pts}`, sx, sy);
   play.match(G.combo);
-  if (gold) { play.gold(); showPraise('🪙 +10'); tip('gold2', 'Golden tiles', 'Matching the golden pair gives you 10 coins.'); }
-  else if (PRAISE[G.combo]) { showPraise(PRAISE[G.combo]); play.combo(G.combo); }
+  if (gold) play.gold();
+  else if ([3, 5, 7, 10, 15].includes(G.combo)) play.combo(G.combo);
   showCombo();
   updateFree();
   updateHud();
@@ -241,7 +238,7 @@ function showCombo() {
   G.comboT = setTimeout(() => { c.hidden = true; }, COMBO_MS);
 }
 
-// After each match: is the board still winnable? If not, say so now instead of after 20 more moves.
+// After each match: is the board still winnable? If not, warn now (Undo & Shuffle pulse) instead of after 20 more moves.
 function checkAhead() {
   if (!settings.warn || G.warned) return;
   const stamp = G.hist.length, game = G;
@@ -252,17 +249,11 @@ function checkAhead() {
 }
 function warnDead() {
   G.warned = true;
-  // how far back is the board winnable again?
-  let back = null;
-  const a = Uint8Array.from(G.alive);
-  for (let k = G.hist.length - 1, n = 1; k >= 0 && n <= 12; k--, n++) {
-    a[G.hist[k][0]] = 1; a[G.hist[k][1]] = 1;
-    if (E.solve(G.g, G.faces, a, 6000).ok === true) { back = n; break; }
-  }
-  const acts = [];
-  if (back) acts.push([`↶ Undo ${back}`, () => undo(back)]);
-  acts.push(['🔀 Shuffle', () => shuffleTool(false), 'alt']);
-  say('Dead end ahead', back ? `These tiles can't all be cleared any more. Going back ${back} move${back > 1 ? 's' : ''} fixes it.` : `These tiles can't all be cleared any more. Undo some moves or shuffle.`, acts, true);
+  play.nope();
+  $('t-undo').classList.add('warn'); $('t-shuffle').classList.add('warn');
+}
+function clearWarn() {
+  $('t-undo').classList.remove('warn'); $('t-shuffle').classList.remove('warn');
 }
 
 function undo(n = 1) {
@@ -276,7 +267,7 @@ function undo(n = 1) {
   }
   G.combo = 0; G.sel = -1; G.warned = false;
   $('combo').hidden = true;
-  hideSay(true);
+  clearWarn();
   clearHint();
   render(true, back);
   updateHud();
@@ -314,7 +305,7 @@ async function shuffleTool(fromStuck) {
   // (stuck with no shuffles and no coins: this one is free — you can never be stuck for good)
   G.shuffles++;
   closeModal('m-stuck');
-  hideSay(true);
+  clearWarn();
   clearHint();
   G.busy = true;
   play.shuffle();
@@ -499,47 +490,6 @@ function openAlbum() {
 $('h-album').addEventListener('click', () => { play.tap(); openAlbum(); });
 $('a-close').addEventListener('click', () => closeModal('m-album'));
 
-// ---------------------------------------------------------------- tips
-function say(title, text, acts = [], keep = false) {
-  const s = $('say');
-  s.querySelector('b').textContent = title;
-  s.querySelector('span').textContent = text;
-  const box = s.querySelector('.acts');
-  box.innerHTML = '';
-  for (const [label, fn, cls] of acts) {
-    const b = document.createElement('button');
-    b.textContent = label;
-    if (cls) b.className = cls;
-    b.onclick = (e) => { e.stopPropagation(); hideSay(true); fn(); };
-    box.appendChild(b);
-  }
-  s.dataset.keep = keep ? '1' : '';
-  s.hidden = false;
-  clearTimeout(s._t);
-  if (!keep) s._t = setTimeout(() => hideSay(), 9000);
-}
-function hideSay(force) {
-  const s = $('say');
-  if (s.dataset.keep && !force) return;
-  s.hidden = true; s.dataset.keep = '';
-}
-$('say').addEventListener('click', () => hideSay(true));
-function tip(id, title, text) {
-  if (P.tips[id]) return false;
-  P.tips[id] = 1; saveP();
-  say(title, text);
-  return true;
-}
-function firstTips() {
-  if (!G || G.over) return;
-  const cls = {};
-  G.faces.forEach((f, i) => { if (G.alive[i]) cls[E.classOf(f)] = (cls[E.classOf(f)] || 0) + 1; });
-  tip('rules', 'Find the pairs', 'Tap two equal tiles to clear them. Only free tiles work: nothing on top, and the left or right side open. Locked tiles look darker.')
-    || ((cls[34] || cls[35]) && tip('bonus', 'Flowers & seasons', 'Any flower matches any other flower. Same with the four seasons!'))
-    || (Object.values(cls).some((c) => c === 4) && tip('quads', 'Think ahead', 'Some tiles now appear 4 times. Choosing the wrong two can block you later — but Undo is always free.'))
-    || (G.gold && !G.goldDone && tip('gold', 'Golden pair', 'Find the two shiny golden tiles and match them for 10 coins!'));
-}
-
 // ---------------------------------------------------------------- effects
 const cv = $('sparks'), cx2 = cv.getContext('2d');
 let parts = [], sparkRaf = 0;
@@ -575,12 +525,6 @@ function floatText(text, x, y) {
   document.body.appendChild(d);
   setTimeout(() => d.remove(), 950);
 }
-function showPraise(text) {
-  const p = $('praise');
-  p.textContent = text;
-  p.classList.remove('show'); void p.offsetWidth; p.classList.add('show');
-}
-
 // ---------------------------------------------------------------- clock (daily & classic best times)
 setInterval(() => {
   if (!G || G.over || document.hidden || $('game').hidden || !$('m-set').hidden || !$('m-stuck').hidden) return;

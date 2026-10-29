@@ -1,7 +1,6 @@
 // Adventures map: a winding path of level bubbles, 10 per world, level 1 at the bottom. Endless:
 // it always shows the worlds up to the one after her current level.
 import { WORLDS, rngFrom } from './levels.js';
-import { catSVG } from './cats.js';
 import { play } from './audio.js';
 
 const STEP = 92; // px between levels (also across world borders, so the path joins up)
@@ -56,7 +55,6 @@ export function renderMap(scroller, el, stars, unlocked, onTap) {
       if (n === unlocked) {
         const t = document.createElement('div');
         t.className = 'token';
-        t.innerHTML = catSVG(n % 2 ? 'meme' : 'mimi');
         b.appendChild(t);
         current = b;
       }

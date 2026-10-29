@@ -43,6 +43,13 @@
       const played = s && s.stats && Object.values(s.stats).some((x) => x && x.played > 0);
       return played && !(s.daily && s.daily[iso(new Date())]) ? ['📅', 'Game of the day'] : '';
     },
+    shelf() {
+      let played = false;
+      try { played = localStorage.getItem('shelf-save') !== null || !!(read('gfy-played') || {}).shelf; } catch {}
+      if (!played) return ['NEW', 'New game'];
+      const s = read('shelf-save');
+      return s && s.level >= 2 && !(s.daily && s.daily[iso(new Date())]) ? ['📅', 'Daily shelf'] : '';
+    },
     garden() {
       const s = read('flower-garden-v1');
       return s && s.seenIntro && s.daily && s.daily.last !== day(new Date()) ? ['🎁', 'Daily gift'] : '';
@@ -53,6 +60,7 @@
   const PROGRESS = {
     bus() { const s = read('bus-save'); return s && s.wins > 0 ? `Level ${num(s.level)}` : ''; },
     dragon() { const s = read('dragon-save'); return s && s.level > 1 ? `Level ${num(s.level)}` : ''; },
+    shelf() { const s = read('shelf-save'); return s && s.level > 1 ? `Level ${num(s.level)}` : ''; },
     mahjong() { const s = read('mahjong-save'); return s && s.level > 1 ? `Level ${num(s.level)}` : ''; },
     garden() { const s = read('flower-garden-v1'); return s && s.level > 1 ? `Level ${num(s.level)}` : ''; },
     blocos() { const b = num(read('blocos-best')); return b ? `👑 ${b.toLocaleString('en')}` : ''; },
@@ -83,7 +91,9 @@
   // Most recently played first; games never played keep their order below.
   const played = read('gfy-played') || {};
   const games = window.GAMES.map((g, i) => ({ g, i })).sort((a, b) => {
-    return (+played[folder(b.g)] || 0) - (+played[folder(a.g)] || 0) || a.i - b.i;
+    // A game that is still NEW goes before everything that was played.
+    const isNew = (o) => { const bd = badgeOf(o.g); return bd && bd[0] === 'NEW' ? 1 : 0; };
+    return isNew(b) - isNew(a) || (+played[folder(b.g)] || 0) - (+played[folder(a.g)] || 0) || a.i - b.i;
   }).map((o) => o.g).filter((g) => g !== last);
 
   games.forEach((g, i) => {

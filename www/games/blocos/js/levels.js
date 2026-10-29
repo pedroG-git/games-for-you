@@ -30,7 +30,7 @@ const int = (rng, n) => Math.floor(rng() * n);
 const PICS = [
   ['.rr.rr.', 'rrrrrrr', 'rrrrrrr', '.rrrrr.', '..rrr..', '...r...'], // heart
   ['.r.r.', 'rrrrr', '.rrr.', '..r..'], // small heart
-  ['o.....o', 'oo...oo', 'ooooooo', 'og.o.go', 'ooopooo', '.ooooo.'], // cat face
+  ['o.....o', 'oo...oo', 'ooooooo', 'og.o.go', 'ooopooo', '.ooooo.'], // face
   ['...c...', '..ccc..', '.ccccc.', '..ccc..', '...c...'], // diamond
   ['..gg..', '..gg..', 'gggggg', 'gggggg', '..gg..', '..gg..'], // plus
   ['bbbbbb', 'b....b', 'b....b', 'b....b', 'b....b', 'bbbbbb'], // frame

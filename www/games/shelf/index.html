@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#6b4a8e">
+<title>Shelf Sort</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../shared/fonts.css">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../../shared/nav.css">
+<script src="../../shared/nav.js"></script>
+<script>GFY.back([['#m-help', '#help-ok'], ['#m-set', '#s-close'], ['#m-win', '#win-home'], ['#m-lose', '#lose-home'],
+  ['#m-jam', '#jam-home'], ['#game', '#g-back']]);</script>
+</head>
+<body>
+<div id="lights"></div>
+
+<!-- Game home screen -->
+<div id="home" class="screen">
+  <header class="bar">
+    <button class="gfy-home" aria-label="All games"></button>
+    <div id="h-help" class="pill"></div>
+    <button class="round b-set" aria-label="Settings">⚙️</button>
+  </header>
+  <h1 id="logo">Shelf Sort <span>night market</span></h1>
+  <div id="homeshelf"></div>
+  <button class="big" id="h-play">Level 1</button>
+  <button class="big alt" id="h-daily"><span>📅 Daily</span><small></small><i id="h-dbadge" hidden></i></button>
+</div>
+
+<!-- A level -->
+<div id="game" class="screen" hidden>
+  <header id="hud">
+    <button class="round small" id="g-back" aria-label="Back">↩</button>
+    <div id="info"><div id="g-title"></div><div id="g-count"><span id="g-ico"></span><b id="g-val"></b></div></div>
+    <button class="round small b-set" aria-label="Settings">⚙️</button>
+  </header>
+  <div id="orders"></div>
+  <div id="combo"><b></b><i><s></s></i></div>
+  <div id="shelfwrap">
+    <div id="shelf"><div id="waiting"></div><div id="cubs"></div></div>
+    <div id="loading" hidden><span></span>Stocking shelves…</div>
+  </div>
+  <footer id="tools">
+    <button id="t-undo" data-h="undo"><span>↶</span><i></i></button>
+    <button id="t-hint" data-h="hint"><span>💡</span><i></i></button>
+    <button id="t-shuffle" data-h="shuffle"><span>🔀</span><i></i></button>
+    <button id="t-magnet" data-h="magnet"><span>🧲</span><i></i></button>
+    <button id="t-extra" data-h="extra"><span>⏳</span><i></i></button>
+  </footer>
+</div>
+
+<div id="fx"></div>
+<canvas id="sparks"></canvas>
+
+<div id="m-win" class="modal" hidden>
+  <div class="box">
+    <h2>Orders done!</h2>
+    <div id="win-stars"><span>★</span><span>★</span><span>★</span></div>
+    <div id="win-lines"></div>
+    <button class="big" id="win-next">Next level</button>
+    <button class="ghostbtn" id="win-home">Home</button>
+  </div>
+</div>
+
+<div id="m-lose" class="modal" hidden>
+  <div class="box">
+    <h2 id="lose-title">Out of time</h2>
+    <p class="lbl" id="lose-text"></p>
+    <button class="big" id="lose-retry">Retry</button>
+    <button class="ghostbtn" id="lose-home">Home</button>
+  </div>
+</div>
+
+<div id="m-jam" class="modal" hidden>
+  <div class="box">
+    <h2>Shelf is jammed</h2>
+    <p class="lbl">No item can move any more.</p>
+    <button class="big alt" id="jam-undo">↶ Undo <b></b></button>
+    <button class="big alt" id="jam-shuffle">🔀 Shuffle <b></b></button>
+    <button class="big" id="jam-retry">Retry</button>
+    <button class="ghostbtn" id="jam-home">Home</button>
+  </div>
+</div>
+
+<div id="m-set" class="modal" hidden>
+  <div class="box">
+    <h2>Settings</h2>
+    <label><span>🔊 Sounds</span><input type="checkbox" id="s-sfx"></label>
+    <label><span>📳 Vibration</span><input type="checkbox" id="s-vib"></label>
+    <button class="big" id="s-close">Done</button>
+    <button class="ghostbtn" id="s-help">How to play</button>
+  </div>
+</div>
+
+<div id="m-help" class="modal" hidden>
+  <div class="box help">
+    <h2>How to play</h2>
+    <p><b>Drag</b> an item into a cubby with a free spot. Put <b>three equal items</b> in one cubby and they are sold.</p>
+    <p>Fill all the <b>orders</b> at the top before the <b>⏱ time</b> or the <b>👣 moves</b> run out.</p>
+    <p>Small dots at the bottom of a cubby show that more goods wait <b>behind</b> the front row. Empty a front and the next row comes forward.</p>
+    <p>🔒 <b>Locked</b> cubbies open after the shown number of sales, or drop a <b>key</b> on them. Items in <b>ice</b> thaw with sales nearby (two crack stages). <b>Glue</b> holds an item until a sale happens next to it. A <b>?</b> box shows its goods once touched.</p>
+    <p>Quick sales in a row build a <b>combo</b>. From 3 in a row you get extra time or moves.</p>
+    <p>Helpers are rare: ↶ undo, 💡 hint, 🔀 shuffle, 🧲 magnet (sells one set for you), ⏳ extra time or moves. Every 10 levels you win +1 of each; a won daily gives one.</p>
+    <button class="big" id="help-ok">Got it</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

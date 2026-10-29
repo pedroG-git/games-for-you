@@ -63,14 +63,6 @@
   }
   const bus = (id) => state.buses[id];
 
-  let toastTimer = 0;
-  function toast(msg, ms = 2200) {
-    const t = $('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), ms);
-  }
   function showScreen(id) {
     for (const s of ['title', 'win', 'lose']) $(s).classList.toggle('show', s === id);
   }
@@ -622,8 +614,7 @@
 
   // ---------- boosters ----------
   function useSlot() {
-    if (usedSlot) return toast('Only one extra spot per level');
-    if (save.boosters.slot <= 0) return toast('No extra spots left. Win 5 levels to earn more!');
+    if (usedSlot || save.boosters.slot <= 0) return Sfx.noslot();
     Rules.addSlot(state);
     usedSlot = true;
     save.boosters.slot--;
@@ -636,8 +627,7 @@
   }
 
   function useShuffle() {
-    if (save.boosters.shuffle <= 0) return toast('No shuffles left. Win 5 levels to earn more!');
-    if (!Rules.shuffleQueue(state)) return toast('Shuffling would not help right now');
+    if (save.boosters.shuffle <= 0 || !Rules.shuffleQueue(state)) return Sfx.noslot();
     save.boosters.shuffle--;
     wiggleUntil = now + 600;
     Sfx.shuffle();
@@ -700,10 +690,7 @@
     Sfx.win();
     Sfx.vibrate([20, 50, 20]);
     if (reward)
-      setTimeout(() => {
-        toast('🎁 5 more wins! +1 Extra spot & +1 Shuffle', 3000);
-        Sfx.reward();
-      }, 700);
+      setTimeout(() => Sfx.reward(), 700);
     updateUI();
     saveNow();
   }
@@ -942,7 +929,6 @@
     showScreen(null);
     screen = 'play';
     settleT = 0;
-    if (n === 1 && save.wins === 0) toast('Tap a bus to drive it out. Customers hop on buses of their colour!', 4000);
   });
   let restartArmed = 0;
   $('restart').addEventListener('click', () => {
@@ -966,7 +952,6 @@
     startLevel(1, false);
     saveNow();
     $('titleLvl').textContent = 'Level 1';
-    toast('Fresh start! Back to level 1.', 2500);
   });
   $('next').addEventListener('click', () => {
     Sfx.unlock();

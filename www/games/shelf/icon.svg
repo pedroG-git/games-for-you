@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a5aa8"/><stop offset=".55" stop-color="#e0799a"/><stop offset="1" stop-color="#ffb070"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dc9a58"/><stop offset="1" stop-color="#b87838"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+  <path d="M30 70Q130 130 256 70T482 70" fill="none" stroke="#5a3a6a" stroke-width="5"/>
+  <g stroke="#fff6" stroke-width="2"><circle cx="82" cy="98" r="14" fill="#ff5d73"/><circle cx="170" cy="104" r="14" fill="#ffd23a"/><circle cx="256" cy="72" r="14" fill="#5fd4a0"/><circle cx="342" cy="104" r="14" fill="#6ab8ff"/><circle cx="430" cy="98" r="14" fill="#ff9a3a"/></g>
+  <rect x="64" y="136" width="384" height="320" rx="22" fill="url(#wood)" stroke="#6a3c18" stroke-width="8"/>
+  <g fill="#fff1d6" stroke="#8a5528" stroke-width="5">
+    <rect x="84" y="156" width="108" height="130" rx="10"/><rect x="202" y="156" width="108" height="130" rx="10" fill="#c8ece4"/><rect x="320" y="156" width="108" height="130" rx="10"/>
+    <rect x="84" y="302" width="108" height="130" rx="10" fill="#c8ece4"/><rect x="202" y="302" width="108" height="130" rx="10"/><rect x="320" y="302" width="108" height="130" rx="10" fill="#c8ece4"/>
+  </g>
+  <g stroke="#3b2340" stroke-width="5" stroke-linejoin="round">
+    <path d="M110 276v-60c0-12 10-14 10-26h18c0 12 10 14 10 26v60z" fill="#e8453c"/><rect x="116" y="176" width="16" height="12" fill="#ffd23a"/>
+    <path d="M148 276v-44c0-8 8-10 8-18h14c0 8 8 10 8 18v44z" fill="#3e9de0"/>
+    <rect x="224" y="206" width="64" height="70" rx="8" fill="#ffb347"/><rect x="220" y="196" width="72" height="16" rx="4" fill="#ff7a3a"/>
+    <path d="M340 276l-4-70h22l-4 70z" fill="#7bc96a"/><circle cx="378" cy="252" r="22" fill="#ffd23a"/><circle cx="400" cy="262" r="16" fill="#ff7a8a"/>
+    <path d="M104 420v-52h40v52z" fill="#a46bd8"/><path d="M152 420v-34h36v34z" fill="#ffd23a"/>
+    <path d="M220 420c-6-40 6-56 10-70h20c4 14 16 30 10 70z" fill="#5fd4a0"/><rect x="232" y="338" width="16" height="14" fill="#fff"/>
+    <rect x="340" y="352" width="70" height="68" rx="8" fill="#ff8a8a"/><path d="M340 372h70" fill="none"/>
+  </g>
+  <g fill="#fff"><path d="M470 220l6 14 14 6-14 6-6 14-6-14-14-6 14-6z" opacity=".9"/></g>
+</svg>

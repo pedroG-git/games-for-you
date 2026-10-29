@@ -140,23 +140,8 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 .cnt.on { background: #e4423f; color: #fff; }
 .cnt.gone { display: none; }
 
-#toast {
-  position: absolute; left: 50%; top: calc(env(safe-area-inset-top) + 116px); z-index: 3; transform: translateX(-50%);
-  width: max-content; max-width: calc(100% - 32px); text-align: center;
-  padding: 10px 18px; border-radius: 20px; background: rgba(30,30,40,.88); color: #fff;
-  font-weight: 700; font-size: 15px; opacity: 0; transition: opacity .25s; pointer-events: none;
-}
-#toast.on { opacity: 1; }
 .cnt svg { width: 19px; height: 19px; }
 
-/* first-game hints, just above the bottom bar */
-#hint {
-  position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 124px); z-index: 2; transform: translateX(-50%);
-  width: max-content; max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 16px;
-  background: #fff; color: #222; font-weight: 700; font-size: 15px; text-align: center;
-  box-shadow: 0 3px 0 rgba(0,0,0,.12), 0 6px 18px rgba(0,0,0,.12); pointer-events: none;
-  animation: hint-bob 1.6s ease-in-out infinite;
-}
 /* info card: stats of the picked line, or what a tapped station's passengers want */
 #card {
   position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 124px); z-index: 2; transform: translateX(-50%);
@@ -169,7 +154,6 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
   background: var(--k); color: #fff; font: 800 12px system-ui; vertical-align: -4px; margin-right: 4px; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
 #card .no { color: #d33; }
 #game.night #card { background: #eef1f7; }
-@keyframes hint-bob { 50% { transform: translateX(-50%) translateY(-4px); } }
 
 /* ---------------------------------------------------------------- modals */
 .modal {
@@ -262,7 +246,6 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
 }
 #game.night .chip.locked::before { border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.04); }
 #game.night .chip.sel::before { box-shadow: 0 0 0 3px #161c2b, 0 0 0 5px #eef1f7; }
-#game.night #hint { background: #eef1f7; }
 
 /* restart / end game ask twice */
 .ghostbtn.confirm { background: #e4423f; color: #fff; }
@@ -344,9 +327,9 @@ h1, h2, .mode-btn b, #modes b, .city b, .big { font-family: 'Luckiest Guy', syst
   #frozen button { height: 30px; padding: 0 4px; font-size: 12.5px; }
   #frozen #f-more { width: 28px; }
   /* everything else floats over the middle of the map, between the columns */
-  #toast, #mapview, #hint, #card { left: calc(var(--ml) + (100% - var(--ml) - var(--mr)) / 2); max-width: calc(100% - var(--ml) - var(--mr) - 16px); }
-  #toast, #mapview { top: calc(env(safe-area-inset-top) + 10px); }
-  #hint, #card { bottom: calc(env(safe-area-inset-bottom) + 10px); }
+  #mapview, #card { left: calc(var(--ml) + (100% - var(--ml) - var(--mr)) / 2); max-width: calc(100% - var(--ml) - var(--mr) - 16px); }
+  #mapview { top: calc(env(safe-area-inset-top) + 10px); }
+  #card { bottom: calc(env(safe-area-inset-bottom) + 10px); }
   #timeline { left: calc(var(--ml) + 8px); right: calc(var(--mr) + 8px); bottom: calc(env(safe-area-inset-bottom) + 10px); }
   .box { max-height: 100%; overflow-y: auto; box-sizing: border-box; }
   #ach .box, #chal .box { max-height: 100%; }

@@ -7,9 +7,8 @@ import { play } from './audio.js';
 const HIT = 28;        // px: how close a finger must be to a station (about 9.6 mm across, Parhi et al. 2006)
 const CAP_HIT = 30;    // px: grabbing the end of a line
 const ON_STATION = 15; // px: a finger this close to a station's centre is on the station, never on a cap beside it
-const REASON = { tunnels: 'Not enough tunnels', lines: 'No free line', short: 'Line too short' };
 
-// api: { get() → state, ui, toast(msg), changed(), edited(routesBefore), blocked() → bool, setTool(t), tapped(kind) }
+// api: { get() → state, ui, changed(), edited(routesBefore), blocked() → bool, setTool(t), tapped(kind) }
 export function initInput(canvas, api) {
   let drag = null;
   const ui = api.ui;
@@ -124,7 +123,6 @@ export function initInput(canvas, api) {
 
   function place(S, kind, target, p) {
     if (!target) {
-      api.toast(kind === 'train' ? 'Drop it on a line' : kind === 'express' ? 'Drop it on a line that is not express yet' : kind === 'carriage' ? 'Drop it on a train' : 'Drop it on a station');
       play.locked(); return false;
     }
     let ok = false;
@@ -141,7 +139,7 @@ export function initInput(canvas, api) {
     const left = { train: S.inv.trains, carriage: S.inv.carriages, interchange: S.inv.interchanges, express: S.inv.express }[kind];
     if (!left) { api.setTool(null); return; }
     const target = dropTarget(S, kind, p);
-    if (!target) { api.toast(kind === 'train' || kind === 'express' ? 'Tap a line' : kind === 'carriage' ? 'Tap a train' : 'Tap a station'); return; }
+    if (!target) { play.locked(); return; }
     place(S, kind, target, p);
     api.setTool(null);
   }
@@ -188,8 +186,8 @@ export function initInput(canvas, api) {
       let ok;
       if (tg && tg.bar) ok = E.storeTrain(S, f.line, f.train);
       else if (tg) { const w = toWorld(k.x, k.y); ok = E.moveTrainTo(S, f.line, f.train, tg.line, w.x, w.y); }
-      else { api.toast('Drop it on a line — or on the bar to keep it'); play.locked(); return; }
-      if (ok) { play.connect(); api.changed(); } else { api.toast('Every line keeps at least one train'); play.locked(); }
+      else { play.locked(); return; }
+      if (ok) { play.connect(); api.changed(); } else play.locked();
       return;
     }
     if (!c.moved) { api.tapped(c.kind); return; }
@@ -241,11 +239,11 @@ export function initInput(canvas, api) {
       const id = stationAt(S, p), L = S.lines[ui.sel];
       if (id >= 0 && L.stations.includes(id)) {
         const ids = L.stations.filter((x) => x !== id);
-        if (ids.length < 2) { api.toast('A line needs two stations — use 🗑 to remove it'); play.locked(); return; }
+        if (ids.length < 2) { play.locked(); return; }
         const before = E.routesOf(S);
         const r = E.setLine(S, ui.sel, ids);
         if (r.ok) { play.remove(); api.edited(before); }
-        else { api.toast(REASON[r.reason] || "Can't do that"); play.locked(); }
+        else play.locked();
         api.changed();
         return;
       }
@@ -297,7 +295,7 @@ export function initInput(canvas, api) {
     if (!drag || !S || pinch) return;
     const p = pos(e);
     if (!drag.moved && Math.hypot(p.x - drag.p0.x, p.y - drag.p0.y) > 10) drag.moved = true;
-    if (drag.full && drag.moved) { drag = null; ui.preview = null; api.toast('No free line'); play.locked(); return; }
+    if (drag.full && drag.moved) { drag = null; ui.preview = null; play.locked(); return; }
     drag.cursor = toWorld(p.x, p.y);
     if (drag.kind === 'place') return;
     const id = stationAt(S, p);
@@ -329,7 +327,6 @@ export function initInput(canvas, api) {
     if (!d.moved && d.kind !== 'new' && S.lines[d.line]) {
       play.tap();
       ui.sel = d.was === d.line ? null : d.line;
-      if (ui.sel != null) api.toast('Tap a station to take it off · 🗑 removes the line');
       api.changed(); return;
     }
     if (d.kind === 'place') { if (!d.moved) { const w = toWorld(d.p0.x, d.p0.y); api.place(w.x, w.y); api.changed(); } return; }
@@ -352,7 +349,7 @@ export function initInput(canvas, api) {
       r = E.setLine(S, d.line, E.insertIds(S, d.line, d.k, d.target));
     }
     if (!r || r.ok) { play.connect(); api.edited(d.before); }
-    else { api.toast(REASON[r.reason] || "Can't build that"); play.locked(); }
+    else play.locked();
     api.changed();
   }
   canvas.addEventListener('pointerup', finish);

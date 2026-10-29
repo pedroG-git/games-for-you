@@ -1,7 +1,7 @@
 // Flower Garden — merge-2 game: board, orders, generators, garden renovation and story.
 import {
   W, H, CHAINS, MAX_ITEM, GENS, MAX_GEN, GEN_ODDS, ENERGY_MAX, ENERGY_SECS, LEVEL_GIFTS, xpNeed,
-  PEOPLE, CUSTOMERS, CAT_CUSTOMERS, ORDER_CHATTER, AREAS, INTRO, DAILY, startBoard,
+  PEOPLE, CUSTOMERS, ORDER_CHATTER, AREAS, INTRO, DAILY, startBoard,
 } from './data.js';
 import { play, unlock, settings as audio, setMusic } from './audio.js';
 import { face, scene } from './art.js';
@@ -20,7 +20,7 @@ const CENTER = Math.floor(H / 2) * W + Math.floor(W / 2);
 function freshState() {
   return {
     v: 1, board: startBoard(), energy: ENERGY_MAX, energyTs: Date.now(), coins: 50, stars: 0, gems: 25, xp: 0, level: 1,
-    orders: [], orderCount: 0, nextId: 1, served: 0, area: 0, task: 0, cats: false, finished: false,
+    orders: [], orderCount: 0, nextId: 1, served: 0, area: 0, task: 0, finished: false,
     storage: [], slots: 4, daily: { last: '', day: 0 }, music: true, sfx: true, seenIntro: false, tut: 0,
   };
 }
@@ -29,6 +29,18 @@ try {
   const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
   S = raw && raw.v === 1 ? Object.assign(freshState(), raw) : freshState();
 } catch (e) { S = freshState(); }
+// Older saves: the cat chain, Cat Basket and cat customers are gone. Cat items become Tea & Cakes of the same level,
+// baskets become Teapots, cat orders are dropped (fillOrders makes new ones).
+const noCat = (o) => {
+  if (!o) return o;
+  if (o.c === 'cat') o.c = 'tea';
+  if (o.g === 'basket') o.g = 'teapot';
+  return o;
+};
+S.board = S.board.map(noCat);
+S.storage = S.storage.map(noCat);
+S.orders = S.orders.filter((o) => o.who !== 'meme' && o.who !== 'mimi' && !o.items.some((it) => it.c === 'cat'));
+delete S.cats;
 while (S.area < AREAS.length && S.task >= AREAS[S.area].tasks.length) { S.area++; S.task = 0; }
 
 let saveT = 0, resetting = false;
@@ -48,7 +60,7 @@ const emojiOf = (o) => (o.g ? GENS[o.g].emoji : CHAINS[o.c].items[o.l - 1][0]);
 const nameOf = (o) => (o.g ? GENS[o.g].name : CHAINS[o.c].items[o.l - 1][1]);
 const isItem = (o) => o && !o.g;
 const usable = (o) => o && !o.lock && !o.bubble;
-const unlockedChains = () => Object.keys(CHAINS).filter((c) => (c === 'cat' ? S.cats : CHAINS[c].unlock <= S.level));
+const unlockedChains = () => Object.keys(CHAINS).filter((c) => CHAINS[c].unlock <= S.level);
 const unlockedGens = () => unlockedChains().map((c) => CHAINS[c].gen);
 const canAfford = () => S.area < AREAS.length && S.stars >= AREAS[S.area].tasks[S.task].cost;
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
@@ -76,7 +88,6 @@ function placeNew(o, near = CENTER) {
   const k = nearestFree(near);
   if (k >= 0) { S.board[k] = o; spawned.push(k); return 'board'; }
   S.storage.push(o);
-  toast(`${emojiOf(o)} went to your storage 📦`);
   return 'storage';
 }
 let spawned = []; // cells to animate after the next render
@@ -156,13 +167,6 @@ function confetti(n = 90) {
       { transform: `translate(${drift}px, 110vh) rotate(${360 + rnd(720)}deg)` },
     ], { duration: 1800 + rnd(1600), delay: rnd(500), easing: 'cubic-bezier(.3,.2,.6,1)', fill: 'backwards' }).onfinish = () => d.remove();
   }
-}
-
-let toastT = 0;
-function toast(msg) {
-  const t = $('toast');
-  t.textContent = msg; t.hidden = false; anim(t, 'rise');
-  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 2600);
 }
 
 // ---------------------------------------------------------------- board rendering
@@ -341,9 +345,7 @@ function merge(i, j) {
   anim(itEl(j), 'pop');
   burst(cells[j], res.l >= 5 ? 16 : 10);
   if (freed) { const [x, y] = mid(cells[j].getBoundingClientRect()); leafPuff(x, y); }
-  if (bub >= 0) { anim(itEl(bub), 'spawn'); setTimeout(play.bubble, 250); toast('A bubble appeared! Pop it before it floats away 🫧'); }
-  if (a.g) toast(`${GENS[a.g].name} upgraded to ★${res.l}! ✨`);
-  else if (res.l === MAX_ITEM) toast(`${emojiOf(res)} ${nameOf(res)} — max level! 🏆`);
+  if (bub >= 0) { anim(itEl(bub), 'spawn'); setTimeout(play.bubble, 250); }
 }
 
 function leafPuff(x, y) {
@@ -358,9 +360,9 @@ function leafPuff(x, y) {
 function produce(i) {
   const o = S.board[i];
   regen();
-  if (S.energy <= 0) { play.error(); anim(itEl(i), 'shake'); toast('Out of energy! ⚡ It refills over time — or visit the shop.'); openShop(); return; }
+  if (S.energy <= 0) { play.error(); anim(itEl(i), 'shake'); openShop(); return; }
   const k = nearestFree(i);
-  if (k < 0) { play.error(); anim(itEl(i), 'shake'); toast('The board is full! Merge, sell or store something.'); renderInfo(); return; }
+  if (k < 0) { play.error(); anim(itEl(i), 'shake'); renderInfo(); return; }
   S.energy--;
   const odds = GEN_ODDS[o.l];
   let r = Math.random(), l = 1;
@@ -377,7 +379,7 @@ function produce(i) {
 function storeFrom(i) {
   const o = S.board[i];
   if (!usable(o)) { renderBoard(); return; }
-  if (S.storage.length >= S.slots) { play.error(); toast('Storage is full! Buy more slots in the shop.'); renderBoard(); return; }
+  if (S.storage.length >= S.slots) { play.error(); anim($('n-store'), 'shake'); renderBoard(); return; }
   S.storage.push(o); S.board[i] = null; sel = -1;
   play.drop();
   after();
@@ -396,7 +398,7 @@ function sell(i) {
 function popBubble(i) {
   const o = S.board[i];
   if (!o || !o.bubble) return;
-  if (S.gems < o.l) { play.error(); toast(`You need ${o.l} 💎`); return; }
+  if (S.gems < o.l) { play.error(); anim(itEl(i), 'shake'); return; }
   S.gems -= o.l; delete o.bubble;
   play.bubble();
   after();
@@ -435,11 +437,10 @@ function makeOrder() {
   }
   const timed = S.orderCount % 5 === 0;
   const busy = S.orders.map((o) => o.who);
-  let pool = CUSTOMERS.concat(S.cats ? CAT_CUSTOMERS : []).filter((w) => !busy.includes(w));
+  let pool = CUSTOMERS.filter((w) => !busy.includes(w));
   if (!pool.length) pool = CUSTOMERS;
   const who = pick(pool);
-  let chains = unlockedChains();
-  if (CAT_CUSTOMERS.includes(who)) chains = chains.filter((c) => c === 'cat' || c === 'tea' || c === 'fruit');
+  const chains = unlockedChains();
   const maxN = S.level <= 1 ? 1 : S.level < 3 ? 2 : 3;
   const n = 1 + rnd(maxN);
   const cap = Math.min(7, 2 + Math.floor(S.level / 2));
@@ -557,15 +558,14 @@ function levelModal(lv, rewards) {
 }
 
 function openLevel() {
-  const next = Object.keys(CHAINS).filter((c) => CHAINS[c].unlock > S.level && CHAINS[c].unlock < 99)
+  const next = Object.keys(CHAINS).filter((c) => CHAINS[c].unlock > S.level)
     .map((c) => `<div class="srow"><span class="sic">${GENS[CHAINS[c].gen].emoji}</span><div><b>${GENS[CHAINS[c].gen].name}</b><small>${CHAINS[c].name}</small></div><b>Level ${CHAINS[c].unlock}</b></div>`);
-  if (!S.cats) next.push(`<div class="srow"><span class="sic">🧺</span><div><b>Cat Basket</b><small>Unlocked by the story — Meme & Mimi are coming!</small></div></div>`);
   openSheet(`<h2>Level ${S.level}</h2><p class="note">${S.xp} / ${xpNeed(S.level)} XP — serve orders and fix up the garden to level up.</p>
     <div class="bar"><i style="width:${(S.xp / xpNeed(S.level)) * 100}%"></i></div>
     ${next.length ? `<h3>Coming up</h3>${next.join('')}` : '<p class="note">Everything is unlocked! 🌸</p>'}`);
 }
 
-// ---------------------------------------------------------------- HUD, info, nav, tip
+// ---------------------------------------------------------------- HUD, info, nav
 function renderHUD() {
   regen();
   $('lvln').textContent = S.level;
@@ -615,13 +615,6 @@ function renderNav() {
   $('n-daily-d').hidden = !dailyReady();
 }
 
-function renderTip() {
-  const tips = ['Tap the 🪴 Flower Pot!', 'Drag two 🌱 together to merge!', 'Now serve Pedro\'s order! 👆'];
-  const t = $('tip');
-  t.hidden = !S.seenIntro || S.tut >= 3;
-  if (!t.hidden) t.textContent = tips[S.tut];
-}
-
 function updateTimers() {
   const now = Date.now();
   S.board.forEach((o, i) => {
@@ -630,7 +623,7 @@ function updateTimers() {
   for (const t of document.querySelectorAll('.otime')) t.textContent = `⏱ ${fmt(Math.max(0, Math.ceil((+t.dataset.until - now) / 1000)))}`;
 }
 
-function renderAll() { renderBoard(); renderOrders(); renderHUD(); renderInfo(); renderNav(); renderTip(); }
+function renderAll() { renderBoard(); renderOrders(); renderHUD(); renderInfo(); renderNav(); }
 function after() { lastAct = Date.now(); clearHint(); renderAll(); save(); }
 
 // ---------------------------------------------------------------- sheets
@@ -684,7 +677,7 @@ function openStorage() {
     for (const b of sh.querySelectorAll('[data-k]')) {
       b.addEventListener('click', () => {
         const k = nearestFree(CENTER);
-        if (k < 0) { play.error(); toast('The board is full!'); return; }
+        if (k < 0) { play.error(); anim(b, 'shake'); return; }
         S.board[k] = S.storage.splice(+b.dataset.k, 1)[0];
         spawned.push(k);
         play.spawn(); after(); openStorage();
@@ -807,7 +800,7 @@ $('g-back').addEventListener('click', () => { $('garden').hidden = true; play.ta
 function doTask() {
   if (hold || S.area >= AREAS.length) return;
   const area = AREAS[S.area], t = area.tasks[S.task];
-  if (S.stars < t.cost) { play.error(); toast(`You need ${t.cost - S.stars} more ⭐ — serve orders!`); return; }
+  if (S.stars < t.cost) { play.error(); anim($('dotask'), 'shake'); return; }
   S.stars -= t.cost;
   const ti = S.task, a = S.area;
   S.task++;
@@ -819,7 +812,6 @@ function doTask() {
     if (t.finale) S.finished = true;
   }
   gView = a;
-  if (t.unlockCats && !S.cats) { S.cats = true; placeNew({ g: 'basket', l: 1 }); }
   hold = true;
   play.task();
   renderGarden(ti);

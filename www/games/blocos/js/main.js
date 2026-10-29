@@ -2,7 +2,6 @@
 // Classic = endless high-score game. Adventures = endless levels where pre-placed blocks must be cleared.
 import { N, SHAPES, GOLD, STONE, CRACKED, isTarget, colorOf, setColors, fits, fitsAnywhere, dealTray, fullLines, lineCells, clearLines } from './pieces.js';
 import { play, settings, unlock, setMusic } from './audio.js';
-import { catSVG } from './cats.js';
 import { DIFFS, worldOf, levelInfo } from './levels.js';
 import { renderMap } from './map.js';
 
@@ -43,7 +42,7 @@ const streakNow = () => (daily.last === dayStr() || daily.last === yesterday() ?
 
 // ---------------------------------------------------------------- Classic extras
 // Golden blocks: now and then a Classic piece carries a golden cell; clearing it doubles that clear's
-// points and may drop a power-up (surprise rewards keep a game fun). Score milestones get a cheer.
+// points and may drop a power-up (surprise rewards keep a game fun).
 const GOLD_DEAL = 0.18, GOLD_GIFT = 0.5, GIFT_LINES = 20;
 const MILESTONES = [250, 500, 1000, 2000, 3000, 5000, 7500, 10000, 15000, 20000, 30000, 50000, 75000, 100000];
 function deal(grid, classic) {
@@ -82,23 +81,22 @@ $('themes').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   const t = THEMES.find((x) => x.id === b.dataset.t);
-  if (t.need > best) { play.back(); cat('meme', `Mrrp. (Score ${t.need} in Classic to unlock ${t.name}.)`, true); return; }
+  if (t.need > best) { play.back(); nope(b); return; }
   play.tap();
   applyTheme(t.id);
   renderThemes();
   if (S) renderAll();
 });
-// A theme unlocked by a new best: tell her once.
+// A theme unlocked by a new best: remember it so it is only noticed once.
 function checkUnlock() {
   const t = THEMES.filter((x) => x.need <= best).pop();
   if (t.need <= theme.seen) return;
   theme.seen = t.need;
   store(THEME, theme);
-  if (t.need > 0) setTimeout(() => cat('mimi', `Mew mew! (New theme unlocked: ${t.name}! Find it in ⚙️)`, true), 2600);
 }
 
-// A power-up dropped in Classic: a cat brings it and its button bounces.
-function classicGift(why) {
+// A power-up dropped in Classic: its button bounces.
+function classicGift() {
   const k = PW[Math.floor(Math.random() * PW.length)];
   pw[k]++;
   savePw();
@@ -108,7 +106,6 @@ function classicGift(why) {
     const r = b.getBoundingClientRect();
     burst(r.left + r.width / 2, r.top + r.height / 2, '#ffd23a', 14);
     play.best();
-    cat(nextCat(), `Mrrp! (${why} Here, a ${PW_ICON[k]} for you!)`, true);
     renderHud();
   }, 700);
 }
@@ -143,7 +140,6 @@ function show(name) {
 function openMenu() {
   $('m-best').textContent = best;
   $('m-stars').textContent = totalStars();
-  $('menu-cats').innerHTML = `<div>${catSVG('meme')}</div><div>${catSVG('mimi')}</div>`;
   const done = daily.last === dayStr(), st = streakNow();
   $('m-daily').classList.toggle('ready', !done);
   $('m-daily-sub').textContent = done ? `✓${st > 1 ? ` 🔥${st}` : ' Done'}` : st ? `🔥${st} · Play!` : 'New!';
@@ -326,7 +322,6 @@ function renderScore() {
 function renderAll(deal = false) { renderBoard(); renderTray(deal); renderHud(); renderScore(); }
 
 // ---------------------------------------------------------------- rules
-const WORDS = ['', 'Nice!', 'Good!', 'Great!', 'Excellent!', 'Amazing!', 'Unbelievable!'];
 
 function place(i, row, col) {
   const p = S.tray[i], sh = SHAPES[p.s], a = S.adv;
@@ -360,16 +355,13 @@ function place(i, row, col) {
     play.clear(L, S.combo);
     if (L >= 2) shake();
     const won = a && a.left <= 0;
-    if (golden) praise('Golden!', 'Points x2');
-    else if (!won && (L >= 2 || S.combo >= 2)) praise(allClear ? 'All Clear!' : WORDS[Math.min(L, 6)], S.combo >= 2 ? `Combo x${S.combo}` : '');
     if (!a) {
       const before = S.lines || 0;
       S.lines = before + L;
-      if (golden && Math.random() < GOLD_GIFT) classicGift('Golden blocks!');
-      else if (Math.floor(S.lines / GIFT_LINES) > Math.floor(before / GIFT_LINES)) classicGift(`${Math.floor(S.lines / GIFT_LINES) * GIFT_LINES} lines!`);
+      if (golden && Math.random() < GOLD_GIFT) classicGift();
+      else if (Math.floor(S.lines / GIFT_LINES) > Math.floor(before / GIFT_LINES)) classicGift();
     }
-    if (won) { /* the win popup does the cheering */ } else if (allClear) { play.allClear(); cat('mimi', 'Mew?! (Where did all the blocks go?!)', true); }
-    else if (L >= 3 || S.combo >= 4) cat(nextCat(), null);
+    if (allClear && !won) play.allClear();
   } else if (++S.miss >= 3) {
     S.combo = 0;
   }
@@ -379,15 +371,11 @@ function place(i, row, col) {
     let hitMs = 0;
     while (S.ms < MILESTONES.length && S.score >= MILESTONES[S.ms]) hitMs = MILESTONES[S.ms++];
     if (hitMs) setTimeout(() => {
-      praise(hitMs.toLocaleString('en-US'), 'points!');
+      play.praise();
       const r = $('score').getBoundingClientRect();
       for (const k of [0, 2, 4]) burst(r.left + r.width / 2, r.top + r.height / 2, colorOf(k + 1), 10);
       play.allClear();
     }, L ? 900 : 200);
-    if (!S.near && !S.beat && S.startBest >= 200 && S.score >= S.startBest * 0.9 && S.score < S.startBest) {
-      S.near = true;
-      setTimeout(() => cat('mimi', `Mew! (Only ${S.startBest - S.score} to your best! You can do it!)`, true), 600);
-    }
   }
 
   if (!a && S.score > best) {
@@ -395,7 +383,7 @@ function place(i, row, col) {
     localStorage.setItem(BEST, best);
     if (!S.beat && S.startBest > 0) {
       S.beat = true;
-      setTimeout(() => { play.best(); praise('New Best!', ''); cat('meme', 'Mrrrow!! (New record! I demand a celebration snack.)', true); }, 500);
+      setTimeout(() => { play.best(); }, 500);
     }
     checkUnlock();
   }
@@ -475,12 +463,6 @@ function gameOver(instant = false) {
   }, instant ? 0 : 1100);
 }
 
-const WIN_LINES = [
-  ['meme', 'Mrrp. (I knew you could do it. I was never worried.)'],
-  ['mimi', 'Mew mew! (Next one! Next one!)'],
-  ['meme', 'Mrrrow. (Fine work, human. Treat?)'],
-  ['mimi', 'Mrrp! (You cleared it ALL!)'],
-];
 
 function win() {
   const a = S.adv;
@@ -499,10 +481,7 @@ function win() {
   for (const k of gift) pw[k]++;
   savePw();
   setTimeout(() => {
-    praise('Level Clear!', '');
     play.best();
-    const [who, line] = WIN_LINES[Math.floor(Math.random() * WIN_LINES.length)];
-    cat(who, line, true);
   }, 350);
   setTimeout(() => {
     if (screen !== 'app' || !S.won) return;
@@ -575,16 +554,6 @@ function shake() {
   w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
 }
 
-let praiseTimer = null;
-function praise(word, small) {
-  const el = $('praise');
-  el.innerHTML = `${word}${small ? `<small>${small}</small>` : ''}`;
-  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
-  clearTimeout(praiseTimer);
-  praiseTimer = setTimeout(() => el.classList.remove('show'), 1150);
-  if (word) setTimeout(() => play.praise(), 120);
-}
-
 function points(n, cx, cy) {
   const rect = board.getBoundingClientRect();
   const d = document.createElement('div');
@@ -624,25 +593,8 @@ function tick() {
   if (parts.length) requestAnimationFrame(tick); else { running = false; g.clearRect(0, 0, window.innerWidth, window.innerHeight); }
 }
 
-// Meme & Mimi pop up to cheer.
-const CHEERS = {
-  meme: ['Mrrow. (Acceptable.)', 'Mrrp! (A princess approves.)', 'Mrrrow! (Now treats, please.)', 'Mrrp. (I could do that too. If I wanted.)'],
-  mimi: ['Mew mew! (I saw that!)', 'Mrrrp! (Again! Again!)', 'Mew! (I will tell everyone.)', 'Mew mew mew! (So many blocks gone!)'],
-};
-let lastCat = 'mimi', catTime = 0, catTimer = null;
-const nextCat = () => (lastCat = lastCat === 'meme' ? 'mimi' : 'meme');
-function cat(who, text, force = false) {
-  const now = Date.now();
-  if (!force && now - catTime < 5000) return;
-  catTime = now; lastCat = who;
-  const lines = CHEERS[who];
-  $('cat-face').innerHTML = catSVG(who);
-  $('cat-say').innerHTML = `<b>${who === 'meme' ? 'Meme' : 'Mimi'}</b>${text || lines[Math.floor(Math.random() * lines.length)]}`;
-  const el = $('cat');
-  el.hidden = false; el.classList.remove('out');
-  clearTimeout(catTimer);
-  catTimer = setTimeout(() => { el.classList.add('out'); catTimer = setTimeout(() => { el.hidden = true; }, 300); }, 2300);
-}
+// Shake a refused button (locked theme, empty power-up).
+function nope(el) { el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); }
 
 // ---------------------------------------------------------------- drag & drop
 const float = $('float');
@@ -763,7 +715,7 @@ function afterPower(deal = false) {
 function usePower(k) {
   if (!S || S.won || drag || (S.over && S.why !== 'space')) return;
   unlock();
-  if (!pw[k]) { play.back(); cat('mimi', 'Mew? (None left! Clear golden blocks and lots of lines, or win levels, to get more.)', true); return; }
+  if (!pw[k]) { play.back(); nope(document.querySelector(`#bottom .pw[data-pw="${k}"]`)); return; }
   if (k === 'bomb') {
     arm = arm ? null : 'bomb';
     play.pick();

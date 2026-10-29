@@ -1,5 +1,6 @@
 // The games on the home screen. To add a game: put it in games/<folder>/ and add a line here.
 window.GAMES = [
+  { name: 'Shelf Sort', tag: 'Sort the goods, fill the orders', path: 'games/shelf/index.html', icon: 'games/shelf/icon.svg', color: '#d9703c' },
   { name: 'Bus', tag: 'Get everyone on board', path: 'games/bus/index.html', icon: 'games/bus/icon.svg', color: '#3e7cb1' },
   { name: 'Paciência', tag: 'Classic solitaire', path: 'games/paciencia/index.html', icon: 'games/paciencia/icon.svg', color: '#0e3d2b' },
   { name: 'Café', tag: 'Run a cosy vegan café', path: 'games/cafe/index.html', icon: 'games/cafe/icon-512.png', color: '#e85d75' },

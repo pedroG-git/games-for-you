@@ -35,7 +35,7 @@ let autoPause = !!pref.autoPause;
 const saveSettings = () => store(K.set, { sfx: settings.sfx, music: settings.music, vib: settings.vib, mode, night: look.night, cb: look.cb, cycle: look.cycle, autoPause });
 const applyLook = () => { $('#game').classList.toggle('night', look.night); hudKey = ''; };
 
-let S = null, ended = false, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, toastT = 0, hudKey = '';
+let S = null, ended = false, paused = false, speed = 1, last = performance.now(), lastDeliver = 0, hudKey = '';
 let undo = [], best0 = 0, cheered = false, shownScore = -1;
 const ui = { preview: null, tool: null, sel: null, hint: null, carry: null, info: null, shape: 'circle' }; // info: { station, until } after a tap on a station
 let tut = load(K.tut) || {};
@@ -197,7 +197,7 @@ function openChal() {
     b.innerHTML = `<span>${open ? p.icon : '🔒'}</span><div><b>${i + 1}. ${p.name} · ${cityOf(p.city).name}</b><small>${p.text}</small></div><em>${done ? '✓' : open ? '🎯 ' + p.goal : ''}</em>`;
     b.onclick = () => {
       play.tap();
-      if (!open) { toast('Solve the puzzle before this one first'); return; }
+      if (!open) { play.locked(); return; }
       modal('#chal', false); start(p.city, 'puzzle', p.seed, { ...p.mods, goal: p.goal, weeks: p.weeks }, p.id);
     };
     $('#ch-puz').append(b);
@@ -228,19 +228,8 @@ function begin() {
 function save() { recordBest(); if (S && !S.over) store(K.run, S); }
 setInterval(() => { if (!$('#game').hidden) save(); }, 4000);
 
-function toast(msg, ms = 1500) {
-  const t = $('#toast');
-  t.textContent = msg; t.classList.add('on');
-  clearTimeout(toastT);
-  toastT = setTimeout(() => t.classList.remove('on'), ms);
-}
-
 function setTool(t) {
   ui.tool = t;
-  if (t === 'train') toast('Drag it onto a line — or tap a line');
-  if (t === 'carriage') toast('Tap a train');
-  if (t === 'interchange') toast('Tap a station');
-  if (t === 'express') toast('Tap a line to make it express');
   hudKey = '';
 }
 
@@ -254,24 +243,23 @@ function handle(events, now) {
       if (now - lastDeliver > 90) { play.deliver(); lastDeliver = now; }
     } else if (ev.type === 'warn') {
       play.warn();
-      if (autoPause && !paused) { setPaused(true); toast('A station is filling up'); }
+      if (autoPause && !paused) { setPaused(true); }
     }
     else if (ev.type === 'week') { play.week(); showUpgrade(); }
-    else if (ev.type === 'rule') ruleQ.push(ev);
     else if (ev.type === 'over') { gameOver(ev.id); break; }
   }
 }
 
-// Feedback while playing: the score bumps, and reaching a star or beating your best gets its own moment.
+// Feedback while playing: the score bumps, and reaching a star or beating your best gets its own sound.
 function cheer(n) {
   const el = $('#score');
   el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
   const was = S.score - n;
   const star = STD(S) ? GOALS.findIndex((g) => was < g && S.score >= g) : -1;
-  if (star >= 0) { toast(`${'★'.repeat(star + 1)}  Star ${star + 1} of 3!`); play.star(); return; }
+  if (star >= 0) { play.star(); return; }
   const opened = STD(S) && CITIES.find((c) => c.unlock && c.unlock.city === S.city && was < c.unlock.score && S.score >= c.unlock.score && cityBest(S.city) < c.unlock.score);
-  if (opened) { recordBest(); toast(`🔓 ${opened.name} unlocked!`); play.star(); return; }
-  if (!cheered && best0 > 0 && was <= best0 && S.score > best0) { cheered = true; toast('👑 New best!'); play.best(); }
+  if (opened) { recordBest(); play.star(); return; }
+  if (!cheered && best0 > 0 && was <= best0 && S.score > best0) { cheered = true; play.best(); }
 }
 
 function showUpgrade() {
@@ -291,8 +279,6 @@ function showUpgrade() {
       (S.weeks = S.weeks || []).push(S.score - (S.wk0 || 0));
       S.wk0 = S.score;
       modal('#upgrade', false); hudKey = ''; save();
-      // City events of the new week are told once the picker is closed.
-      ruleQ.splice(0).forEach((r, i) => setTimeout(() => { toast(`${r.icon} ${r.text}`, 3200); play.star(); }, 300 + i * 3400));
     };
     $('#up-opts').append(b);
   }
@@ -312,10 +298,8 @@ function gameOver(id) {
   const best = Math.max(best0, S.score), isBest = S.score > best0;
   const puz = PUZZLES.find((p) => p.id === S.puz);
   if (S.won && puz) {
-    const c = chalRec(), first = !c.puz[puz.id];
+    const c = chalRec();
     c.puz[puz.id] = Math.max(c.puz[puz.id] || 0, Date.now()); store(K.chal, c);
-    const next = PUZZLES[PUZZLES.indexOf(puz) + 1];
-    if (first && next) setTimeout(() => toast(`🔓 Puzzle ${PUZZLES.indexOf(next) + 1} unlocked`, 2200), 900);
   }
   $('#over-title').textContent = S.won ? '🎉 Solved!' : S.deadline && id === -1 && S.week >= S.deadline ? "Time's up!" : id >= 0 ? 'Overcrowded!' : 'Last stop!';
   $('#over-score').textContent = S.score;
@@ -337,7 +321,7 @@ function gameOver(id) {
 }
 
 $('#o-again').onclick = () => { play.tap(); again(); };
-$('#o-replay').onclick = () => { play.tap(); modal('#over', false); openReplay(S, $, toast); };
+$('#o-replay').onclick = () => { play.tap(); modal('#over', false); openReplay(S, $); };
 $('#rp-close').onclick = () => { play.tap(); modal('#replay', false); modal('#over', true); };
 $('#o-menu').onclick = () => { play.tap(); modal('#over', false); show('menu'); };
 // The finished network on its own, before going back to the results.
@@ -398,7 +382,7 @@ function edited(before) {
 // Go back `n` steps at once (the timeline), or one step (a tap on undo).
 function undoTo(n) {
   if (!S || S.over || S.pendingUpgrade) return;
-  if (!undo.length) { play.locked(); toast('Nothing to undo'); return; }
+  if (!undo.length) { play.locked(); return; }
   const snap = undo.splice(Math.max(0, undo.length - n))[0];
   S.undos = (S.undos || 0) + 1;
   E.restoreRoutes(S, snap); play.undo();
@@ -451,7 +435,7 @@ $('#b-trash').onclick = () => {
 function tapped(kind) {
   if (!S) return;
   const n = { train: S.inv.trains, carriage: S.inv.carriages, interchange: S.inv.interchanges, express: S.inv.express }[kind];
-  if (!n) { play.locked(); toast(kind === 'train' ? 'New trains come each week' : kind === 'carriage' ? 'No carriages yet' : 'No interchanges yet'); return; }
+  if (!n) { play.locked(); return; }
   play.tap();
   if (ui.tool === kind) return setTool(null);
   setTool(kind);
@@ -460,42 +444,13 @@ $('#c-shape').onclick = () => {
   play.tap();
   const all = Object.keys(GLYPH);
   ui.shape = all[(all.indexOf(ui.shape) + 1) % all.length]; hudKey = '';
-  toast(`Next station: ${GLYPH[ui.shape]} ${ui.shape}`);
 };
-$('#c-tun').onclick = () => toast(`${S.inv.tunnels} tunnels left`);
 
-// ---------------------------------------------------------------- first-game hints
-const HINTS = {
-  draw: 'Drag from one station to another to build a line',
-  extend: 'Drag the ⊢ end of a line onto a new station',
-  remove: 'Tap a coloured dot below to pick a line, then 🗑 to remove it',
-  train: 'Drag the new train from below onto a busy line',
-  move: 'Tip: drag a train to move it — or onto the bar to keep it',
-};
-let hintFor = null, hintT = 0;
+// ---------------------------------------------------------------- first-game hint
+// No text: until the first line is drawn, the map pulses a dashed line between the first two stations.
 function updateHint() {
-  const done = (k) => { if (!tut[k]) { tut[k] = true; store(K.tut, tut); } };
-  if (S.lines.length) done('draw');
-  if (S.lines.some((l) => l.stations.length > 2)) done('extend');
-  if (ui.sel != null) done('remove');
-  if (S.lines.some((l) => l.trains.length > 1)) done('train');
-  let h = null;
-  const loose = S.stations.some((st) => !S.lines.some((l) => l.stations.includes(st.id)));
-  if (!tut.draw) h = 'draw';
-  else if (!tut.train && S.inv.trains > 0) h = 'train';
-  else if (!tut.move && S.week >= 2 && S.lines.some((l) => l.trains.length > 1)) h = 'move';
-  else if (!tut.extend && loose && S.t > 8) h = 'extend';
-  else if (!tut.remove && S.week >= 1 && S.lines.length >= S.inv.lines) h = 'remove';
-  // The optional hints go away by themselves after a while, the first one stays until a line is drawn.
-  if (h && h !== 'draw') {
-    if (hintFor !== h) { hintFor = h; hintT = S.t; }
-    if (S.t - hintT > 12) { done(h); h = null; }
-  }
-  if (ui.preview || ui.carry || S.over || paused || !$('#card').hidden) h = null;
-  ui.hint = h;
-  const el = $('#hint');
-  if (el.hidden !== !h) el.hidden = !h;
-  if (h && el.textContent !== HINTS[h]) el.textContent = HINTS[h];
+  if (S.lines.length && !tut.draw) { tut.draw = true; store(K.tut, tut); }
+  ui.hint = !tut.draw && !ui.preview && !ui.carry && !S.over && !paused && $('#card').hidden ? 'draw' : null;
 }
 
 // Info card: the picked line's numbers, or where a tapped station's passengers want to go.
@@ -528,7 +483,6 @@ function updateCard() {
 // ---------------------------------------------------------------- HUD
 // Achievements are checked about once a second; new ones show one at a time.
 let achT = 0;
-const ruleQ = [];
 const achQ = [];
 function checkAch(force = false) {
   const now = performance.now();
@@ -539,7 +493,7 @@ function checkAch(force = false) {
 }
 setInterval(() => {
   const a = achQ.shift();
-  if (a) { toast(`🏆 ${a.name}!`); play.star(); }
+  if (a) play.star();
 }, 1900);
 const WX = { clear: '', rain: '🌧 Rain', snow: '❄️ Snow', fog: '🌫 Fog' };
 function updateHud() {
@@ -576,9 +530,8 @@ function updateHud() {
     b.style.setProperty('--k', Rn.paint(color));
     if (inUse) b.dataset.n = i + 1; // same number as the badge at the line's ends
     b.onclick = () => {
-      if (!inUse) { play.tap(); toast(i < S.inv.lines ? 'Drag between stations to draw a line' : 'Unlock more lines each week'); return; }
+      if (!inUse) { i < S.inv.lines ? play.tap() : play.locked(); return; }
       play.tap(); ui.sel = ui.sel === i ? null : i; ui.info = null; hudKey = '';
-      if (ui.sel != null) toast('Tap a station to take it off · 🗑 removes the line');
     };
     chips.append(b);
   }
@@ -632,7 +585,6 @@ $('#s-cycle').onchange = (e) => { look.cycle = e.target.checked; saveSettings();
 $('#s-night').onchange = (e) => { look.night = e.target.checked; applyLook(); saveSettings(); };
 $('#s-cb').onchange = (e) => { look.cb = e.target.checked; applyLook(); saveSettings(); previews.clear(); if (!$('#menu').hidden) renderMenu(); };
 $('#s-auto').onchange = (e) => { autoPause = e.target.checked; saveSettings(); };
-$('#s-hints').onclick = () => { play.tap(); tut = {}; store(K.tut, tut); toast('Tips will show again'); };
 $('#b-close').onclick = () => { play.tap(); modal('#settings', false); };
 
 // ---------------------------------------------------------------- boot
@@ -649,7 +601,6 @@ $('#b-fit').onclick = () => { play.tap(); Rn.R.zoom = { k: 1, x: 0, y: 0 }; };
 initInput($('#cv'), {
   get: () => S,
   ui,
-  toast,
   setTool,
   changed: () => { hudKey = ''; save(); },
   edited,
@@ -658,7 +609,7 @@ initInput($('#cv'), {
   place: (x, y) => {
     if (S.mode !== 'creative') return false;
     const st = E.addStation(S, x, y, ui.shape);
-    if (!st) { toast(E.inWaterAt(S, x, y) ? 'Not on the water' : 'Too close to another station'); play.locked(); return true; }
+    if (!st) { play.locked(); return true; }
     Rn.pop(st.id, performance.now()); play.station(); save();
     return true;
   },
