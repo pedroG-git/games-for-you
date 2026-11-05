@@ -21,7 +21,7 @@ function freshState() {
   return {
     v: 1, board: startBoard(), energy: ENERGY_MAX, energyTs: Date.now(), coins: 50, stars: 0, gems: 25, xp: 0, level: 1,
     orders: [], orderCount: 0, nextId: 1, served: 0, area: 0, task: 0, finished: false,
-    storage: [], slots: 4, daily: { last: '', day: 0 }, music: true, sfx: true, seenIntro: false, tut: 0,
+    storage: [], slots: 4, daily: { last: '', day: 0 }, music: true, sfx: true, vib: true, seenIntro: false, tut: 0,
   };
 }
 let S;
@@ -53,7 +53,7 @@ function saveNow() {
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
 window.addEventListener('pagehide', saveNow);
 
-audio.sfx = S.sfx; audio.music = S.music;
+audio.sfx = S.sfx; audio.music = S.music; audio.vib = S.vib !== false;
 
 // ---------------------------------------------------------------- helpers
 const emojiOf = (o) => (o.g ? GENS[o.g].emoji : CHAINS[o.c].items[o.l - 1][0]);
@@ -708,22 +708,25 @@ function openDaily() {
   });
 }
 
-function openSettings(confirming = false) {
-  openSheet(`<h2>Settings</h2>
-    <div class="row"><span>🎵 Music</span><button class="switch${S.music ? ' on' : ''}" id="s-music"></button></div>
-    <div class="row"><span>🔊 Sound effects</span><button class="switch${S.sfx ? ' on' : ''}" id="s-sfx"></button></div>
-    <button class="wide ghost danger" id="s-reset">${confirming ? 'Tap again to confirm — everything resets!' : 'Reset progress'}</button>
-    <p class="note small">Flower Garden · made with love 🌸</p>`, (sh) => {
-    sh.querySelector('#s-music').addEventListener('click', () => { S.music = !S.music; setMusic(S.music); save(); openSettings(); });
-    sh.querySelector('#s-sfx').addEventListener('click', () => { S.sfx = !S.sfx; audio.sfx = S.sfx; play.tap(); save(); openSettings(); });
-    sh.querySelector('#s-reset').addEventListener('click', () => {
-      if (!confirming) return openSettings(true);
+// Settings: the shared panel. "Reset progress" asks twice (the second tap, within the open panel, confirms).
+let confirmingReset = false;
+GFY.settings.init({
+  sfx: { get: () => S.sfx, set: (v) => { S.sfx = v; audio.sfx = v; if (v) play.tap(); save(); } },
+  music: { get: () => S.music, set: (v) => { unlock(); S.music = v; setMusic(v); save(); } },
+  vib: { get: () => S.vib !== false, set: (v) => { S.vib = v; audio.vib = v; save(); } },
+  extras: [{
+    type: 'button', danger: true,
+    label: () => (confirmingReset ? 'Tap again to confirm — everything resets!' : 'Reset progress'),
+    onClick: () => {
+      if (!confirmingReset) { confirmingReset = true; GFY.settings.refresh(); return; }
       resetting = true;
       try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
       location.reload();
-    });
-  });
-}
+    },
+  }],
+  onOpen: () => { unlock(); confirmingReset = false; },
+  onClose: () => { confirmingReset = false; },
+});
 
 // ---------------------------------------------------------------- dialogue
 let dq = null;
@@ -850,7 +853,6 @@ $('n-store').addEventListener('click', openStorage);
 $('n-garden').addEventListener('click', openGarden);
 $('n-shop').addEventListener('click', openShop);
 $('n-daily').addEventListener('click', openDaily);
-$('n-set').addEventListener('click', () => openSettings());
 $('p-en').addEventListener('click', openShop);
 $('p-gem').addEventListener('click', openShop);
 $('p-coin').addEventListener('click', openShop);

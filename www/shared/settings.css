@@ -1,0 +1,74 @@
+/* One settings panel and one gear button for every game (see settings.js). */
+@import url("fonts.css");
+
+/* The gear: same round button as the home button, so it sits top-right in every game. */
+.gfy-gear {
+  flex: none; position: relative; z-index: 1;
+  width: 44px; height: 44px; margin: 0; padding: 0;
+  border: 3px solid #3b2f2a; border-radius: 50%;
+  background: #fff4e0 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b2f2a' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'/%3E%3C/svg%3E") center / 24px no-repeat;
+  box-shadow: 0 3px 0 #3b2f2a; color: transparent; font-size: 0;
+  cursor: pointer; pointer-events: auto; -webkit-tap-highlight-color: transparent;
+}
+.gfy-gear:active { transform: translateY(2px); box-shadow: 0 1px 0 #3b2f2a; }
+/* For screens without a top bar: pinned to the top-right corner. */
+.gfy-gear.corner {
+  position: fixed; z-index: 50;
+  top: calc(env(safe-area-inset-top) + 10px); right: calc(env(safe-area-inset-right) + 10px);
+}
+
+/* The panel (Dragon's purple-and-gold box). */
+.gfy-set-ov {
+  position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 4, 24, .6); animation: gfy-set-fade .2s; touch-action: none;
+}
+.gfy-set-ov[hidden] { display: none; }
+@keyframes gfy-set-fade { from { opacity: 0; } }
+@keyframes gfy-set-rise { from { transform: scale(.7); } }
+.gfy-set-box {
+  box-sizing: border-box; width: min(90vw, 380px); max-height: 88vh; overflow-y: auto; touch-action: pan-y;
+  padding: 20px 20px 16px; border-radius: 26px; text-align: center; color: #fff;
+  font-family: 'Luckiest Guy', system-ui, sans-serif; font-weight: 400; line-height: 1.2; letter-spacing: normal; text-transform: none;
+  background: linear-gradient(#6a34b0, #34146a); box-shadow: inset 0 0 0 4px #e8b04a, 0 14px 30px rgba(0,0,0,.5);
+  animation: gfy-set-rise .3s cubic-bezier(.2, 1.4, .4, 1);
+}
+.gfy-set-box * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+.gfy-set-box .gfy-set-title { margin: 0 0 6px; padding: 0; font: inherit; font-size: 32px; color: #ffe9a8; text-shadow: 0 3px 0 #7a1f00; }
+.gfy-set-box .gfy-set-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0; padding: 10px 6px; font-size: 20px; text-align: left; border: 0; border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.gfy-set-box .gfy-set-lbl { flex: 1; min-width: 0; color: inherit; font-size: inherit; }
+.gfy-set-box .gfy-sw {
+  flex: none; position: relative; width: 56px; height: 32px; margin: 0; padding: 0; border: 0; border-radius: 999px;
+  background: rgba(0,0,0,.4); box-shadow: inset 0 2px 4px rgba(0,0,0,.4); cursor: pointer; transition: background .15s;
+}
+.gfy-set-box .gfy-sw::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 3px rgba(0,0,0,.4); transition: transform .15s;
+}
+.gfy-set-box .gfy-sw[aria-checked="true"] { background: linear-gradient(#7cf08a, #22a84a); }
+.gfy-set-box .gfy-sw[aria-checked="true"]::after { transform: translateX(24px); }
+.gfy-set-box .gfy-set-seg { display: block; padding: 10px 6px 12px; border-bottom: 1px solid rgba(255,255,255,.12); text-align: left; }
+.gfy-set-box .gfy-set-seg .gfy-set-lbl { display: block; font-size: 20px; margin-bottom: 8px; }
+.gfy-set-box .gfy-set-opts { display: flex; gap: 6px; }
+.gfy-set-box .gfy-opt {
+  flex: 1; min-width: 0; margin: 0; padding: 9px 4px; border: 0; border-radius: 12px; font: inherit; font-size: 17px; color: #fff;
+  background: rgba(0,0,0,.28); cursor: pointer;
+}
+.gfy-set-box .gfy-opt[aria-pressed="true"] { background: linear-gradient(#ffd23a, #e8a21a); color: #4a2a00; }
+.gfy-set-box .gfy-set-node { padding: 8px 0; text-align: left; }
+.gfy-set-box .gfy-set-node > .gfy-set-lbl { display: block; font-size: 20px; padding: 2px 6px 4px; }
+.gfy-set-box .gfy-set-btn {
+  display: block; width: 100%; margin: 12px 0 0; padding: 9px 12px; border: 0; border-radius: 14px; font: inherit; font-size: 18px; color: #fff;
+  background: rgba(255,255,255,.14); cursor: pointer;
+}
+.gfy-set-box .gfy-set-btn.danger { background: rgba(216, 32, 62, .55); }
+.gfy-set-box .gfy-set-done {
+  display: block; width: 100%; margin: 16px 0 0; padding: 12px 0; border: 0; border-radius: 20px; font: inherit; font-size: 28px; color: #fff;
+  background: linear-gradient(#7cf08a, #22a84a); text-shadow: 0 2px 0 rgba(0,0,0,.3); cursor: pointer;
+  box-shadow: inset 0 -5px 0 rgba(0,0,0,.2), 0 5px 0 #0e6a2e;
+}
+.gfy-set-box .gfy-set-done:active { transform: translateY(3px); box-shadow: inset 0 -5px 0 rgba(0,0,0,.2), 0 2px 0 #0e6a2e; }
+@media (prefers-reduced-motion: reduce) { .gfy-set-ov, .gfy-set-box { animation: none; } }
+.gfy-set-box [hidden] { display: none !important; }

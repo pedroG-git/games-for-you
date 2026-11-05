@@ -218,7 +218,8 @@ function begin() {
   undo = []; best0 = bestSoFar(S); cheered = false; shownScore = -1;
   $('#game').classList.remove('viewing'); $('#mapview').hidden = true;
   ui.preview = null; ui.tool = null; ui.sel = null; ui.carry = null; ui.info = null; $('#timeline').hidden = true;
-  for (const id of ['#pause', '#upgrade', '#over', '#settings', '#replay']) modal(id, false);
+  for (const id of ['#pause', '#upgrade', '#over', '#replay']) modal(id, false);
+  GFY.settings.close();
   $('#frozen').hidden = true; $('#game').classList.remove('frozen'); $('#b-pause').classList.remove('on');
   $('#b-speed').textContent = '▶';
   if (S.pendingUpgrade) showUpgrade();
@@ -559,7 +560,7 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
   if (!S || $('#game').hidden) return;
-  if (!paused && !S.pendingUpgrade && !S.over && $('#settings').hidden) {
+  if (!paused && !S.pendingUpgrade && !S.over && !GFY.settings.isOpen()) {
     let ev = [];
     try { ev = E.step(S, dt * speed); } catch (e) { console.error(e); }
     handle(ev, now);
@@ -571,21 +572,18 @@ function frame(now) {
 }
 
 // ---------------------------------------------------------------- settings
-document.querySelectorAll('.b-set').forEach((b) => b.addEventListener('click', () => {
-  unlock(); play.tap();
-  $('#s-sfx').checked = settings.sfx; $('#s-music').checked = settings.music; $('#s-vib').checked = settings.vib;
-  $('#s-cycle').checked = look.cycle;
-  $('#s-night').checked = look.night; $('#s-cb').checked = look.cb; $('#s-auto').checked = autoPause;
-  modal('#settings', true);
-}));
-$('#s-sfx').onchange = (e) => { settings.sfx = e.target.checked; saveSettings(); };
-$('#s-music').onchange = (e) => { settings.music = e.target.checked; setMusic(settings.music); saveSettings(); };
-$('#s-vib').onchange = (e) => { settings.vib = e.target.checked; saveSettings(); };
-$('#s-cycle').onchange = (e) => { look.cycle = e.target.checked; saveSettings(); };
-$('#s-night').onchange = (e) => { look.night = e.target.checked; applyLook(); saveSettings(); };
-$('#s-cb').onchange = (e) => { look.cb = e.target.checked; applyLook(); saveSettings(); previews.clear(); if (!$('#menu').hidden) renderMenu(); };
-$('#s-auto').onchange = (e) => { autoPause = e.target.checked; saveSettings(); };
-$('#b-close').onclick = () => { play.tap(); modal('#settings', false); };
+GFY.settings.init({
+  sfx: { get: () => settings.sfx, set: (v) => { settings.sfx = v; saveSettings(); if (v) play.tap(); } },
+  music: { get: () => settings.music, set: (v) => { unlock(); settings.music = v; setMusic(v); saveSettings(); } },
+  vib: { get: () => settings.vib, set: (v) => { settings.vib = v; saveSettings(); } },
+  extras: [
+    { type: 'toggle', label: '🌙 Night map', get: () => look.night, set: (v) => { look.night = v; applyLook(); saveSettings(); } },
+    { type: 'toggle', label: '🌗 Day and night', get: () => look.cycle, set: (v) => { look.cycle = v; saveSettings(); } },
+    { type: 'toggle', label: '🎨 Colour-blind lines', get: () => look.cb, set: (v) => { look.cb = v; applyLook(); saveSettings(); previews.clear(); if (!$('#menu').hidden) renderMenu(); } },
+    { type: 'toggle', label: '⏸ Pause when a station fills up', get: () => autoPause, set: (v) => { autoPause = v; saveSettings(); } },
+  ],
+  onOpen: () => unlock(),
+});
 
 // ---------------------------------------------------------------- boot
 document.addEventListener('pointerdown', () => unlock(), { capture: true });
@@ -613,7 +611,7 @@ initInput($('#cv'), {
     Rn.pop(st.id, performance.now()); play.station(); save();
     return true;
   },
-  blocked: () => !$('#pause').hidden || !S || S.over || !!S.pendingUpgrade || !$('#settings').hidden,
+  blocked: () => !$('#pause').hidden || !S || S.over || !!S.pendingUpgrade || GFY.settings.isOpen(),
 });
 show('menu');
 requestAnimationFrame(frame);

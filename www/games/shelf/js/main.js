@@ -30,7 +30,7 @@ const streakNow = () => (save.lastDaily === today() || save.lastDaily === yester
 
 // ---------------------------------------------------------------- screens
 function show(which) { $('home').hidden = which !== 'home'; $('game').hidden = which !== 'game'; }
-const modalOpen = () => !!document.querySelector('.modal:not([hidden])');
+const modalOpen = () => !!document.querySelector('.modal:not([hidden])') || GFY.settings.isOpen();
 const openM = (id) => { $(id).hidden = false; };
 const closeM = (id) => { $(id).hidden = true; };
 
@@ -646,12 +646,12 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) persi
 
 // ---------------------------------------------------------------- wiring
 for (const h of HELPERS) $('t-' + h).addEventListener('click', () => ({ undo: () => useUndo(), hint: useHint, shuffle: () => useShuffle(), magnet: useMagnet, extra: useExtra })[h]());
-document.querySelectorAll('.b-set').forEach((b) => b.addEventListener('click', () => { snd.unlock(); snd.play.tap(); openM('m-set'); }));
-$('s-sfx').checked = snd.settings.sfx; $('s-vib').checked = snd.settings.vib;
-$('s-sfx').onchange = (e) => { snd.settings.sfx = prefs.sfx = e.target.checked; store('shelf-settings', prefs); snd.play.tap(); };
-$('s-vib').onchange = (e) => { snd.settings.vib = prefs.vib = e.target.checked; store('shelf-settings', prefs); snd.buzz(30); };
-$('s-close').onclick = () => closeM('m-set');
-$('s-help').onclick = () => openM('m-help');
+GFY.settings.init({
+  sfx: { get: () => snd.settings.sfx, set: (v) => { snd.settings.sfx = prefs.sfx = v; store('shelf-settings', prefs); if (v) snd.play.tap(); } },
+  vib: { get: () => snd.settings.vib, set: (v) => { snd.settings.vib = prefs.vib = v; store('shelf-settings', prefs); if (v) snd.buzz(30); } },
+  extras: [{ type: 'button', label: 'How to play', close: true, onClick: () => openM('m-help') }],
+  onOpen: () => snd.unlock(),
+});
 $('help-ok').onclick = () => closeM('m-help');
 
 $('h-play').onclick = () => { snd.unlock(); snd.play.tap(); begin('level', save.level); };

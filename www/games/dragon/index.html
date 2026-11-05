@@ -9,8 +9,10 @@
 <link rel="stylesheet" href="../../shared/fonts.css">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="../../shared/nav.css">
+<link rel="stylesheet" href="../../shared/settings.css">
 <script src="../../shared/nav.js"></script>
-<script>GFY.back([['#m-set', '#s-close'], ['#m-tasks', '#t-close'], ['#m-start', '#st-close'], ['#m-quit', '#q-stay'],
+<script src="../../shared/settings.js"></script>
+<script>GFY.back([['#m-tasks', '#t-close'], ['#m-start', '#st-close'], ['#m-quit', '#q-stay'],
   ['#m-gift', '#gift-ok'], ['#m-win', '#win-ok'], ['#m-lose', '#lose-home'], ['#game', '#g-back']]);</script>
 </head>
 <body>
@@ -19,7 +21,7 @@
   <header class="bar">
     <button class="gfy-home" aria-label="All games"></button>
     <div class="pill" id="h-stars"><svg viewBox="0 0 100 100"><use href="#star"/></svg><b>0</b></div>
-    <button class="round b-set" aria-label="Settings">⚙️</button>
+    <button class="gfy-gear b-set" aria-label="Settings"></button>
   </header>
   <h1 id="logo">Dragon <span>Match</span></h1>
   <div id="area-name"></div>
@@ -35,7 +37,7 @@
     <button class="round small" id="g-back" aria-label="Back">↩</button>
     <div id="moves"><small>Moves</small><b id="moves-n">0</b></div>
     <div id="goals"></div>
-    <button class="round small b-set" aria-label="Settings">⚙️</button>
+    <button class="gfy-gear b-set" aria-label="Settings"></button>
   </header>
   <div id="boardwrap">
     <div id="board"><div id="cells"></div><div id="icel"></div><div id="tiles"></div><div id="fxl"></div></div>
@@ -116,16 +118,6 @@
     <p class="lbl">A bigger gift every day you come back</p>
     <div id="gift-days"></div>
     <button class="big" id="gift-ok">Collect</button>
-  </div>
-</div>
-
-<div id="m-set" class="modal" hidden>
-  <div class="box">
-    <h2>Settings</h2>
-    <label><span>🔊 Sounds</span><input type="checkbox" id="s-sfx"></label>
-    <label><span>🎵 Music</span><input type="checkbox" id="s-music"></label>
-    <label><span>📳 Vibration</span><input type="checkbox" id="s-vib"></label>
-    <button class="big" id="s-close">Done</button>
   </div>
 </div>
 

@@ -2,6 +2,7 @@
 window.Sfx = (() => {
   let ac = null;
   let muted = false;
+  let vibOn = true;
 
   // iOS only allows audio after a touch: call this from a touch/click handler
   function unlock() {
@@ -36,8 +37,11 @@ window.Sfx = (() => {
     setMuted(m) {
       muted = !!m;
     },
+    setVib(v) {
+      vibOn = v !== false;
+    },
     vibrate(p) {
-      if (!muted && navigator.vibrate) {
+      if (vibOn && navigator.vibrate) {
         try {
           navigator.vibrate(p);
         } catch {}

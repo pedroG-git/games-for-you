@@ -58,3 +58,10 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .stats span { font-size: 13px; color: #5b6472; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { #finish { animation: none; } }
+
+/* Statistics inside the shared settings panel (dark purple box). */
+#stats-wrap h3 { margin: 4px 6px 8px; font-size: 20px; font-weight: 400; }
+#stats-wrap h3 small { font-size: 15px; opacity: .75; }
+.gfy-set-box .stats div { background: rgba(0, 0, 0, .28); }
+.gfy-set-box .stats span { color: rgba(255, 255, 255, .75); }
+.gfy-set-box .stats b { font-weight: 400; }

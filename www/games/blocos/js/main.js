@@ -133,8 +133,6 @@ function show(name) {
   for (const id of ['menu', 'map', 'app']) $(id).hidden = id !== name;
   for (const id of ['over', 'win', 'lvl']) $(id).hidden = true;
   localStorage.setItem(SCREEN, name === 'app' ? (S.adv ? 'adv' : 'classic') : name);
-  $('b-restart').textContent = S && S.adv ? 'Restart level' : 'Restart game';
-  $('b-restart').hidden = name !== 'app';
 }
 
 function openMenu() {
@@ -512,7 +510,7 @@ setInterval(() => {
   const now = performance.now(), dt = (now - lastT) / 1000;
   lastT = now;
   const a = S && S.adv;
-  if (!a || a.time === null || !a.started || S.over || S.won || screen !== 'app' || document.hidden || !$('settings').hidden) return;
+  if (!a || a.time === null || !a.started || S.over || S.won || screen !== 'app' || document.hidden || GFY.settings.isOpen()) return;
   a.time = Math.max(0, a.time - dt);
   const sec = Math.ceil(a.time);
   if (sec !== lastSec && sec <= 10 && sec > 0) play.tick();
@@ -834,21 +832,16 @@ $('win-retry').addEventListener('click', again);
 $('win-map').addEventListener('click', () => { play.tap(); backToList(); });
 $('win-next').addEventListener('click', () => { const n = S.adv.n + 1; openMap(); openLevel(n); });
 
-const sw = { 's-sfx': 'sfx', 's-music': 'music', 's-vib': 'vib' };
-document.querySelectorAll('.b-set').forEach((b) => b.addEventListener('click', () => {
-  unlock(); play.tap();
-  for (const [id, k] of Object.entries(sw)) $(id).checked = settings[k];
-  renderThemes();
-  $('settings').hidden = false;
-}));
-for (const [id, k] of Object.entries(sw)) {
-  $(id).addEventListener('change', (e) => {
-    if (k === 'music') setMusic(e.target.checked); else settings[k] = e.target.checked;
-    saveSettings();
-  });
-}
-$('b-close').addEventListener('click', () => { play.tap(); $('settings').hidden = true; });
-$('b-restart').addEventListener('click', () => { $('settings').hidden = true; again(); });
+GFY.settings.init({
+  sfx: { get: () => settings.sfx, set: (v) => { settings.sfx = v; saveSettings(); } },
+  music: { get: () => settings.music, set: (v) => { unlock(); setMusic(v); saveSettings(); } },
+  vib: { get: () => settings.vib, set: (v) => { settings.vib = v; saveSettings(); } },
+  extras: [
+    { type: 'node', label: '🎨 Theme · new ones unlock with your 👑 best', el: $('themes-wrap') },
+    { type: 'button', label: () => (S && S.adv ? 'Restart level' : 'Restart game'), hidden: () => screen !== 'app', close: true, onClick: again },
+  ],
+  onOpen: () => { unlock(); renderThemes(); },
+});
 document.addEventListener('pointerdown', unlock, { once: true });
 document.addEventListener('visibilitychange', () => { if (document.hidden && S && !S.won) save(); });
 if (location.search.includes('debug')) window.dbg = { get S() { return S; }, renderAll, checkOver, place };

@@ -8,8 +8,10 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="../../shared/nav.css">
+<link rel="stylesheet" href="../../shared/settings.css">
 <script src="../../shared/nav.js"></script>
-<script>GFY.back([['#sheet-settings', '#sheet-settings [data-close]'], ['#sheet-new', '#sheet-new [data-close]']]);</script>
+<script src="../../shared/settings.js"></script>
+<script>GFY.back([['#sheet-new', '#sheet-new [data-close]']]);</script>
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -18,9 +20,7 @@
   <button class="gfy-home" aria-label="Todos os jogos"></button>
   <div class="pill"><span id="time">0:00</span><i></i><span id="moves">0 jogadas</span></div>
   <div class="pill soft" id="label">Normal</div>
-  <button class="round" id="btn-settings" aria-label="Definições">
-    <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
-  </button>
+  <button class="gfy-gear" id="btn-settings" aria-label="Definições"></button>
 </header>
 
 <button id="finish" hidden>Terminar</button>
@@ -46,19 +46,10 @@
   <button class="wide ghost" data-close>Voltar</button>
 </section>
 
-<section class="sheet" id="sheet-settings" hidden>
-  <h2>Definições</h2>
-  <div class="row"><span>Cartas a tirar</span>
-    <div class="seg" id="seg-draw"><button data-v="1">1</button><button data-v="3">3</button></div></div>
-  <div class="row"><span>Tema</span>
-    <div class="seg" id="seg-theme"><button data-v="verde">Verde</button><button data-v="azul">Azul</button><button data-v="bordo">Bordô</button></div></div>
-  <div class="row"><span>Som</span><button class="switch" id="sw-sound" role="switch"></button></div>
-  <div class="row"><span>Vibração</span><button class="switch" id="sw-haptic" role="switch"></button></div>
-  <div class="row"><span>Mão esquerda</span><button class="switch" id="sw-left" role="switch"></button></div>
+<div id="stats-wrap" hidden>
   <h3>Estatísticas <small id="stats-mode"></small></h3>
   <div class="stats" id="stats"></div>
-  <button class="wide ghost" data-close>Fechar</button>
-</section>
+</div>
 
 <section class="sheet center" id="win" hidden>
   <h2>Boa!</h2>

@@ -2,7 +2,9 @@
 export class Sound {
   constructor() {
     this.ctx = null;
-    this.muted = false;
+    this.muted = false; // sound effects off (the saved 'muted' flag)
+    this.musicOff = false;
+    this.vib = true;
     this.last = 0;
   }
   init() {
@@ -14,10 +16,10 @@ export class Sound {
     if (!AC) return;
     this.ctx = new AC();
     this.master = this.ctx.createGain();
-    this.master.gain.value = this.muted ? 0 : 1;
+    this.master.gain.value = 1;
     this.master.connect(this.ctx.destination);
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.5;
+    this.musicGain.gain.value = this.musicOff ? 0 : 0.5;
     this.musicGain.connect(this.master);
     this.step = 0;
     this.nextT = this.ctx.currentTime + 0.1;
@@ -25,7 +27,13 @@ export class Sound {
   }
   setMuted(m) {
     this.muted = m;
-    if (this.master) this.master.gain.value = m ? 0 : 1;
+  }
+  setMusicOff(off) {
+    this.musicOff = off;
+    if (this.musicGain) this.musicGain.gain.value = off ? 0 : 0.5;
+  }
+  buzz(ms) {
+    if (this.vib && navigator.vibrate) { try { navigator.vibrate(ms); } catch {} }
   }
   suspend(on) {
     if (!this.ctx) return;
@@ -60,6 +68,7 @@ export class Sound {
   pick() {
     if (this.throttled(55)) return;
     this.tone(620 + Math.random() * 160, 0.07, 'triangle', 0.11);
+    this.buzz(6);
   }
   drop() {
     if (this.throttled(55)) return;
@@ -68,15 +77,18 @@ export class Sound {
   cash() {
     this.tone(988, 0.09, 'square', 0.05);
     this.tone(1319, 0.16, 'square', 0.05, 0.08);
+    this.buzz(12);
   }
   sale() {
     this.tone(784, 0.1, 'sine', 0.07);
   }
   unlock() {
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.22, 'triangle', 0.12, i * 0.09));
+    this.buzz(30);
   }
   full() {
     this.tone(200, 0.12, 'sine', 0.1);
+    this.buzz(20);
   }
   meow() {
     this.tone(620, 0.16, 'sawtooth', 0.04, 0, 900);
