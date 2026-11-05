@@ -72,3 +72,5 @@
 .gfy-set-box .gfy-set-done:active { transform: translateY(3px); box-shadow: inset 0 -5px 0 rgba(0,0,0,.2), 0 2px 0 #0e6a2e; }
 @media (prefers-reduced-motion: reduce) { .gfy-set-ov, .gfy-set-box { animation: none; } }
 .gfy-set-box [hidden] { display: none !important; }
+/* Tall panels scroll; Done stays pinned to the bottom so it is always visible. */
+.gfy-set-box .gfy-set-done { position: sticky; bottom: 6px; z-index: 1; }
