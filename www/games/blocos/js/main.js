@@ -153,6 +153,7 @@ function show(name) {
   screen = name;
   arm = null;
   for (const id of ['menu', 'map', 'app']) $(id).hidden = id !== name;
+  if (name !== 'app') setAura(0);
   for (const id of ['over', 'win', 'lvl']) $(id).hidden = true;
   localStorage.setItem(SCREEN, name === 'app' ? (S.adv ? 'adv' : 'classic') : name);
   $('b-restart').textContent = S && S.adv ? 'Restart level' : 'Restart game';
