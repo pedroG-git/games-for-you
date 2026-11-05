@@ -143,3 +143,24 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 
 /* the title / win / lose screens have their own 🏠 */
 body:has(.screen.show) #hud .gfy-home { visibility: hidden; }
+
+/* stars and the level map */
+.stars i { font-style: normal; color: rgba(59, 47, 42, .22); }
+.stars i.on { color: var(--mustard); -webkit-text-stroke: 1.5px var(--ink); }
+.big-stars { font-size: 40px; line-height: 1; margin: -4px 0 8px; letter-spacing: 4px; }
+#title .big.map { width: min(70vw, 260px); font-size: 20px; margin-top: 0; }
+.mapcard { display: flex; flex-direction: column; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); }
+.mapcard h2 { margin-bottom: 4px; }
+#mapGrid {
+  flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 8px 4px 10px; margin-top: 6px;
+}
+.tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 66px;
+  background: #fff; border: 3px solid var(--ink); border-radius: 14px; box-shadow: 0 3px 0 var(--ink); padding: 4px 2px 2px;
+}
+.tile b { font-family: var(--title); font-weight: 400; font-size: 22px; line-height: 1; }
+.tile .stars { font-size: 15px; letter-spacing: 1px; }
+.tile.cur { background: var(--red); color: #fff; }
+.tile.cur .stars { font-family: var(--title); font-size: 14px; letter-spacing: .5px; }
+.tile:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }

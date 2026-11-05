@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="../../shared/nav.css">
   <script src="../../shared/nav.js"></script>
+  <script>GFY.back([['#map', '#mapBack']]);</script>
 </head>
 <body>
   <canvas id="c"></canvas>
@@ -18,6 +19,7 @@
     <button class="gfy-home" aria-label="All games"></button>
     <div class="pill" id="lvl">Level 1</div>
     <div class="pill small" id="left">0 customers</div>
+    <button id="mapBtn" class="round" aria-label="Level map">🗺️</button>
     <button id="mute" class="round" aria-label="Sound on/off">🔊</button>
   </header>
 
@@ -39,6 +41,7 @@
     </div>
     <button id="play" class="big">Play</button>
     <p class="sub" id="titleLvl"></p>
+    <button id="mapLink" class="big alt map" hidden>🗺️ Level map</button>
     <button id="restart" class="link">Start over from level 1</button>
     <button class="gfy-home corner" aria-label="All games"></button>
   </section>
@@ -46,10 +49,21 @@
   <section id="win" class="screen">
     <div class="card">
       <h2 id="winT">Level 1 complete!</h2>
+      <div class="stars big-stars" id="winStars"></div>
       <div class="bubble"><p id="qText"></p></div>
       <p class="who" id="qWho"></p>
       <p class="ep" id="qEp"></p>
       <button id="next" class="big">Next level</button>
+      <button id="winMap" class="link back">🗺️ Level map</button>
+    </div>
+  </section>
+
+  <section id="map" class="screen">
+    <div class="card mapcard">
+      <h2>Levels</h2>
+      <p class="sub dark" id="mapStars"></p>
+      <div id="mapGrid"></div>
+      <button id="mapBack" class="big">Back</button>
     </div>
   </section>
 
@@ -66,6 +80,7 @@
 
   <script src="js/rules.js"></script>
   <script src="js/levelgen.js"></script>
+  <script src="js/progress.js"></script>
   <script src="js/puns.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/game.js"></script>
