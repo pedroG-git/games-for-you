@@ -4,11 +4,15 @@ export const N = 8;
 export const COLORS = ['#ff4d5e', '#ff9a2e', '#ffd23a', '#4fd65a', '#2ec9e8', '#3f7cff', '#a35cff'];
 
 // Cell values: 0 empty, 1–7 placed block (colour k+1), GOLD = golden block (Classic bonus),
-// 11–17 Adventures target block, STONE needs two clears (first one cracks it), CRACKED needs one more.
-export const GOLD = 9, STONE = 20, CRACKED = 21;
+// 11–17 Adventures target block, STONE needs two clears (first one cracks it), CRACKED needs one more,
+// 31–37 gem block (Adventures: a dealt piece carries a gem; clearing it collects the gem).
+// Ice is not a cell value: it is a floor layer (separate array, 0–2) under empty cells; every clear
+// through an iced cell melts one layer.
+export const GOLD = 9, STONE = 20, CRACKED = 21, GEM = 30;
 export const GOLD_COLOR = '#ffc21f';
 export const isTarget = (v) => v >= 11;
-export const colorOf = (v) => (v >= STONE ? '#9aa0b5' : v >= 11 ? COLORS[v - 11] : v === GOLD ? GOLD_COLOR : COLORS[v - 1]);
+export const isGem = (v) => v > GEM && v <= GEM + 7;
+export const colorOf = (v) => (isGem(v) ? COLORS[v - GEM - 1] : v >= STONE ? '#9aa0b5' : v >= 11 ? COLORS[v - 11] : v === GOLD ? GOLD_COLOR : COLORS[v - 1]);
 /** Themes swap the block colours in place (COLORS keeps its identity, so colorOf follows). */
 export function setColors(list) { COLORS.splice(0, COLORS.length, ...list); }
 
@@ -70,38 +74,49 @@ export function lineCells({ rows, cols }) {
   return set;
 }
 
-// Clears every full row/column in place. Stones crack instead of vanishing.
-export function clearLines(grid) {
+// Clears every full row/column in place. Stones crack instead of vanishing; ice (optional floor
+// layer array) melts one layer per clear. hit = goal progress (targets + gems + ice layers).
+export function clearLines(grid, ice = null) {
   const lines = fullLines(grid), L = lines.rows.length + lines.cols.length;
-  const gone = [], vals = [], cracked = [];
-  let hit = 0;
+  const gone = [], vals = [], cracked = [], melted = [];
+  let hit = 0, gems = 0;
   for (const j of lineCells(lines)) {
+    if (ice && ice[j] > 0) { ice[j]--; hit++; melted.push(j); }
     const v = grid[j];
     if (v === STONE) { grid[j] = CRACKED; cracked.push(j); continue; }
     if (isTarget(v)) hit++;
+    if (isGem(v)) gems++;
     gone.push(j); vals.push(v); grid[j] = 0;
   }
-  return { L, gone, vals, cracked, hit };
+  return { L, gone, vals, cracked, melted, hit, gems };
+}
+
+// Gem levels: while more gems are needed than lie on the board, one dealt piece carries a gem.
+export function addGem(tray, grid, need, rng = Math.random) {
+  if (!(need > grid.filter(isGem).length)) return tray;
+  const p = tray[Math.floor(rng() * tray.length)];
+  if (p) p.gem = Math.floor(rng() * SHAPES[p.s].cells.length);
+  return tray;
 }
 
 // Is there a spot where this shape completes a line that holds a target block?
-function helps(grid, s) {
+function helps(grid, s, ice) {
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
     if (!fits(grid, s, r, c)) continue;
     const g = grid.slice();
     for (const [y, x] of SHAPES[s].cells) g[(r + y) * N + c + x] = 1;
-    for (const j of lineCells(fullLines(g))) if (isTarget(g[j])) return true;
+    for (const j of lineCells(fullLines(g))) if (isTarget(g[j]) || (ice && ice[j] > 0)) return true;
   }
   return false;
 }
 
 // Three random pieces; at least one is guaranteed to fit the current board.
 // help (0–1) = chance that one piece is swapped for one that clears a line through target blocks.
-export function dealTray(grid, rng = Math.random, help = 0) {
+export function dealTray(grid, rng = Math.random, help = 0, ice = null) {
   const tray = deal(grid, rng);
   if (help && rng() < help) {
     const order = SHAPES.map((_, i) => i).sort(() => rng() - 0.5);
-    const s = order.find((i) => helps(grid, i));
+    const s = order.find((i) => helps(grid, i, ice));
     if (s !== undefined) tray[Math.floor(rng() * 3)].s = s;
   }
   return tray;
