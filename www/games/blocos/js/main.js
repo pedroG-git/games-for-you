@@ -1,13 +1,14 @@
 // Blocos — Block Blast-style puzzle: drag pieces onto an 8×8 board, fill rows/columns to clear them.
 // Classic = endless high-score game. Adventures = endless levels where pre-placed blocks must be cleared.
-import { N, SHAPES, GOLD, STONE, CRACKED, isTarget, colorOf, setColors, fits, fitsAnywhere, dealTray, fullLines, lineCells, clearLines } from './pieces.js';
-import { play, settings, unlock, setMusic } from './audio.js';
+import { N, SHAPES, GOLD, STONE, CRACKED, isTarget, isGem, colorOf, setColors, fits, fitsAnywhere, fullLines, lineCells } from './pieces.js';
+import { play, settings, unlock, setMusic, buzz } from './audio.js';
 import { DIFFS, worldOf, levelInfo } from './levels.js';
+import { deal, move, refill, canUndo, undoMove } from './rules.js';
 import { renderMap } from './map.js';
 
 const $ = (id) => document.getElementById(id);
 const SAVE = 'blocos-save', BEST = 'blocos-best', SET = 'blocos-settings';
-const RUN = 'blocos-adv-run', PROG = 'blocos-adv', SCREEN = 'blocos-screen';
+const RUN = 'blocos-adv-run', PROG = 'blocos-adv', SCREEN = 'blocos-screen', STATS = 'blocos-stats';
 const GAP = 2, PAD = 6;
 
 // ---------------------------------------------------------------- state
@@ -27,7 +28,7 @@ const unlockedIn = (mode) => Math.max(0, ...Object.keys(prog[mode]).map(Number))
 const totalStars = () => ['time', 'moves', 'relaxed'].reduce((s, m) => s + Object.values(prog[m]).reduce((a, b) => a + b, 0), 0);
 
 // Power-ups: earned by winning Adventures levels and the daily puzzle, and in Classic by clearing golden
-// blocks and every GIFT_LINES lines. Used anywhere (most of all when stuck).
+// blocks and every 20 lines. Used anywhere (most of all when stuck).
 const POWER = 'blocos-power', DAILY = 'blocos-daily';
 const PW = ['fresh', 'turn', 'bomb'], PW_ICON = { fresh: '🔄', turn: '↻', bomb: '💣' };
 const pw = Object.assign({ fresh: 2, turn: 2, bomb: 1 }, load(POWER) || {});
@@ -41,17 +42,37 @@ const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); retu
 const streakNow = () => (daily.last === dayStr() || daily.last === yesterday() ? daily.streak : 0);
 
 // ---------------------------------------------------------------- Classic extras
-// Golden blocks: now and then a Classic piece carries a golden cell; clearing it doubles that clear's
-// points and may drop a power-up (surprise rewards keep a game fun).
-const GOLD_DEAL = 0.18, GOLD_GIFT = 0.5, GIFT_LINES = 20;
+// Golden blocks: now and then a Classic piece carries a golden cell (dealt in rules.js); clearing it
+// doubles that clear's points and may drop a power-up (surprise rewards keep a game fun).
+const GOLD_GIFT = 0.5;
 const MILESTONES = [250, 500, 1000, 2000, 3000, 5000, 7500, 10000, 15000, 20000, 30000, 50000, 75000, 100000];
-function deal(grid, classic) {
-  const tray = dealTray(grid, Math.random, classic ? 0 : help());
-  if (classic && Math.random() < GOLD_DEAL) {
-    const p = tray[Math.floor(Math.random() * tray.length)];
-    if (p) p.g = Math.floor(Math.random() * SHAPES[p.s].cells.length);
+
+// Classic stats (own key, added in 1.32): games, lines, best combo and the last scores.
+// cur = the most recently recorded game, so a game recorded twice (undo after game over) is updated, not added.
+const HIST = 12;
+const stats = Object.assign({ games: 0, lines: 0, bestCombo: 0, hist: [], cur: null }, load(STATS) || {});
+function record(g) {
+  if (!g || g.adv || !valid(g) || !(g.score > 0)) return;
+  const l = g.lines || 0, c = g.maxCombo || 0;
+  if (stats.cur && g.id && stats.cur.id === g.id) {
+    stats.lines += l - stats.cur.l;
+    if (stats.hist.length) stats.hist[stats.hist.length - 1] = g.score;
+  } else {
+    stats.games++;
+    stats.lines += l;
+    stats.hist.push(g.score);
+    if (stats.hist.length > HIST) stats.hist.splice(0, stats.hist.length - HIST);
   }
-  return tray;
+  stats.bestCombo = Math.max(stats.bestCombo, c);
+  stats.cur = { id: g.id || 0, l };
+  store(STATS, stats);
+}
+function statsHtml(now = null) {
+  const h = stats.hist, top = Math.max(1, ...h);
+  const bars = h.map((v, i) => `<i class="${i === h.length - 1 && now !== null ? 'now' : ''}" style="height:${Math.max(6, Math.round(100 * v / top))}%"></i>`).join('');
+  return `<div class="hist">${bars}</div>`
+    + `<div class="chips"><span>🔥 x${stats.bestCombo}<small>Best combo</small></span>`
+    + `<span>${stats.lines}<small>Lines</small></span><span>${stats.games}<small>Games</small></span></div>`;
 }
 
 // Themes: block colours + board look, unlocked by the Classic best score.
@@ -111,12 +132,14 @@ function classicGift() {
 }
 
 function newGame() {
+  if (S && !S.adv) record(S); // a Classic game left by "Play again" or restart still counts
   const grid = Array(N * N).fill(0);
   S = {
-    grid, tray: deal(grid, true), score: 0, combo: 0, miss: 0,
+    grid, tray: null, score: 0, combo: 0, miss: 0,
     undo: null, undoReady: true, pending: null, over: false,
-    startBest: best, beat: false, adv: null, lines: 0, ms: 0, near: false,
+    startBest: best, beat: false, adv: null, lines: 0, ms: 0, near: false, maxCombo: 0, id: Date.now(),
   };
+  S.tray = deal(S);
   shown = 0;
   save();
 }
@@ -124,7 +147,6 @@ function newGame() {
 function save() { if (S) store(S.adv ? RUN : SAVE, S); }
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SET)) || {}); } catch (e) { /* ignore */ }
 const saveSettings = () => localStorage.setItem(SET, JSON.stringify(settings));
-const help = () => (S.adv ? DIFFS[S.adv.diff].help : 0);
 
 // ---------------------------------------------------------------- screens
 function show(name) {
@@ -143,6 +165,8 @@ function openMenu() {
   const done = daily.last === dayStr(), st = streakNow();
   $('m-daily').classList.toggle('ready', !done);
   $('m-daily-sub').textContent = done ? `✓${st > 1 ? ` 🔥${st}` : ' Done'}` : st ? `🔥${st} · Play!` : 'New!';
+  $('m-stats').hidden = !stats.games;
+  $('m-stats').innerHTML = stats.games ? statsHtml() : '';
   show('menu');
 }
 
@@ -153,7 +177,8 @@ function startDaily() {
 
 function openClassic() {
   S = load(SAVE);
-  if (!valid(S) || S.adv) newGame();
+  if (!valid(S) || S.adv) { S = null; newGame(); }
+  if (!S.id) { S.id = Date.now(); save(); }
   shown = S.score;
   startBoard();
 }
@@ -170,14 +195,14 @@ function startLevel(mode, n, diff, day = null) {
   const grid = info.grid.slice();
   if (!day) { prog.mode = mode; saveProg(); }
   S = {
-    grid, tray: null, score: 0, combo: 0, miss: 0,
+    grid, tray: null, score: 0, combo: 0, miss: 0, ice: info.ice ? info.ice.slice() : null,
     undo: null, undoReady: true, pending: null, over: false, won: false, why: '',
     adv: {
-      mode, n, diff, daily: day, left: info.total, total: info.total, started: false,
+      mode, n, diff, daily: day, left: info.total, total: info.total, started: false, gems: info.gems,
       moves: mode === 'moves' ? info.moves : null, time: mode === 'time' ? info.time : null, timeTotal: info.time,
     },
   };
-  S.tray = dealTray(grid, Math.random, help());
+  S.tray = deal(S);
   shown = info.total;
   save();
   startBoard();
@@ -185,7 +210,7 @@ function startLevel(mode, n, diff, day = null) {
 
 function startBoard() {
   // A saved game whose tray ended up empty would be stuck: deal fresh pieces.
-  if (!Array.isArray(S.tray) || S.tray.every((t) => !t)) { S.tray = deal(S.grid, !S.adv); S.pending = null; save(); }
+  if (!Array.isArray(S.tray) || S.tray.every((t) => !t)) { S.tray = deal(S); S.pending = null; save(); }
   $('board').classList.remove('dead');
   show('app');
   layout();
@@ -211,16 +236,17 @@ function layout() {
 function cellClass(v) {
   if (!v) return 'c';
   if (v === GOLD) return 'c b gold';
+  if (isGem(v)) return 'c b gem';
   if (v >= STONE) return v === CRACKED ? 'c b st cr' : 'c b st';
   return isTarget(v) ? 'c b t' : 'c b';
 }
-function paint(i, v) {
+function paint(i, v, ice = S && S.ice) {
   const d = cells[i];
-  d.className = cellClass(v);
+  d.className = cellClass(v) + (ice && ice[i] ? ` ice${ice[i]}` : '');
   d.style.removeProperty('--hk');
   if (v) d.style.setProperty('--k', colorOf(v)); else d.style.removeProperty('--k');
 }
-function renderBoard() { S.grid.forEach((v, i) => paint(i, v)); }
+function renderBoard() { flushFx(); S.grid.forEach((v, i) => paint(i, v)); }
 
 function pieceEl(p, size) {
   const sh = SHAPES[p.s];
@@ -230,7 +256,7 @@ function pieceEl(p, size) {
   el.style.gridTemplateRows = `repeat(${sh.h}, ${size})`;
   sh.cells.forEach(([r, c], n) => {
     const b = document.createElement('div');
-    b.className = n === p.g ? 'b gold' : 'b';
+    b.className = n === p.g ? 'b gold' : n === p.gem ? 'b gem' : 'b';
     b.style.setProperty('--k', colorOf(p.k + 1));
     b.style.gridRow = r + 1; b.style.gridColumn = c + 1;
     el.appendChild(b);
@@ -260,10 +286,10 @@ function renderLimit() {
   if (el.hidden) return;
   el.classList.toggle('timed', a.mode === 'time');
   if (a.mode === 'moves') {
-    $('limit-t').textContent = `👣 ${a.moves} ${a.moves === 1 ? 'move' : 'moves'}`;
+    $('limit-t').textContent = `👣 ${a.moves}`;
     el.classList.toggle('low', a.moves <= 3);
   } else {
-    $('limit-t').textContent = `⏱ ${clock(Math.ceil(a.time))}${a.started ? '' : ' · starts on first move'}`;
+    $('limit-t').textContent = `⏱ ${clock(Math.ceil(a.time))}`;
     $('tbar').firstChild.style.width = (100 * a.time / a.timeTotal) + '%';
     el.classList.toggle('low', a.time <= 10);
   }
@@ -277,9 +303,7 @@ function renderHud() {
   $('best-n').textContent = best;
   $('score').classList.toggle('goal', !!a);
   renderBestBar();
-  const c = $('combo');
-  c.hidden = S.combo < 2 && !arm;
-  c.textContent = arm ? '💣 Tap the board to drop the bomb' : `Combo x${S.combo}`;
+  setAura(S.combo);
   $('b-undo').disabled = !(S.undo && S.undoReady) || S.over || S.won;
   document.querySelectorAll('#bottom .pw').forEach((b) => {
     const k = b.dataset.pw;
@@ -300,7 +324,6 @@ function renderBestBar() {
   el.firstChild.style.width = k * 100 + '%';
   el.classList.toggle('near', !S.beat && k >= 0.8);
   el.classList.toggle('beat', S.beat);
-  el.lastChild.textContent = S.beat ? '👑 New best!' : k >= 0.8 ? `Almost! ${S.startBest - S.score} to your best` : `👑 ${S.startBest}`;
 }
 
 let countTimer = null;
@@ -324,48 +347,12 @@ function renderAll(deal = false) { renderBoard(); renderTray(deal); renderHud();
 // ---------------------------------------------------------------- rules
 
 function place(i, row, col) {
-  const p = S.tray[i], sh = SHAPES[p.s], a = S.adv;
-  S.undo = {
-    grid: S.grid.slice(), tray: S.tray.slice(), score: S.score, combo: S.combo, miss: S.miss, dealt: false,
-    left: a && a.left, moves: a && a.moves,
-  };
-
-  sh.cells.forEach(([r, c], n) => { S.grid[(row + r) * N + col + c] = n === p.g ? GOLD : p.k + 1; });
-  S.tray[i] = null;
-  S.score += sh.cells.length;
-  if (a && a.moves !== null) a.moves--;
-
-  const res = clearLines(S.grid), L = res.L;
-  const cx = col + sh.wd / 2, cy = row + sh.h / 2;
-  let gained = sh.cells.length;
+  flushFx();
+  const a = S.adv, ev = move(S, i, row, col);
+  const cx = col + ev.sh.wd / 2, cy = row + ev.sh.h / 2;
   play.place();
 
-  if (L) {
-    S.combo += 1; S.miss = 0;
-    let pts = 10 * L * (L + 1) / 2 * S.combo;
-    const allClear = S.grid.every((v) => !v);
-    if (allClear) pts += 300;
-    const golden = !a && res.vals.includes(GOLD);
-    if (golden) pts *= 2;
-    S.score += pts; gained += pts;
-    if (a) a.left -= res.hit;
-
-    blast(res.gone, res.vals, cx, cy);
-    if (res.cracked.length) crack(res.cracked);
-    play.clear(L, S.combo);
-    if (L >= 2) shake();
-    const won = a && a.left <= 0;
-    if (!a) {
-      const before = S.lines || 0;
-      S.lines = before + L;
-      if (golden && Math.random() < GOLD_GIFT) classicGift();
-      else if (Math.floor(S.lines / GIFT_LINES) > Math.floor(before / GIFT_LINES)) classicGift();
-    }
-    if (allClear && !won) play.allClear();
-  } else if (++S.miss >= 3) {
-    S.combo = 0;
-  }
-  if (!a) points(gained, cx, cy);
+  if (!a && ((ev.golden && Math.random() < GOLD_GIFT) || ev.gift)) classicGift();
   if (!a) {
     S.ms = S.ms || 0;
     let hitMs = 0;
@@ -375,7 +362,7 @@ function place(i, row, col) {
       const r = $('score').getBoundingClientRect();
       for (const k of [0, 2, 4]) burst(r.left + r.width / 2, r.top + r.height / 2, colorOf(k + 1), 10);
       play.allClear();
-    }, L ? 900 : 200);
+    }, ev.L ? 900 : 200);
   }
 
   if (!a && S.score > best) {
@@ -388,31 +375,24 @@ function place(i, row, col) {
     checkUnlock();
   }
 
-  if (a && a.left <= 0) {
-    win();
-    renderAll();
-    return;
+  const won = !!(a && a.left <= 0);
+  let fresh = false; // not "deal": that would hide the deal() function
+  if (won) win();
+  else {
+    fresh = refill(S);
+    if (fresh) setTimeout(() => play.deal(), 150);
+    checkOver();
+    save();
   }
-
-  let fresh = false; // not "deal": that would hide the deal() function below
-  if (S.tray.every((t) => !t)) {
-    fresh = true;
-    S.undo.dealt = true;
-    if (S.pending) { S.tray = S.pending; S.pending = null; } else { S.tray = deal(S.grid, !a); S.undoReady = true; }
-    setTimeout(() => play.deal(), 150);
-  }
-  checkOver();
-  save();
   renderAll(fresh);
+  landFx(ev, cx, cy, won);
 }
 
 function undo() {
-  if (!S.undo || !S.undoReady || S.won || S.why === 'time') return;
-  const u = S.undo;
-  if (u.dealt) S.pending = S.tray.slice();
-  Object.assign(S, { grid: u.grid, tray: u.tray, score: u.score, combo: u.combo, miss: u.miss });
-  if (S.adv) { S.adv.left = u.left; S.adv.moves = u.moves; shown = u.left; } else shown = S.score;
-  S.undo = null; S.undoReady = false; S.over = false; S.why = '';
+  if (!canUndo(S)) return;
+  flushFx();
+  undoMove(S);
+  shown = S.adv ? S.adv.left : S.score;
   $('board').classList.remove('dead');
   $('over').hidden = true;
   play.undo();
@@ -433,6 +413,7 @@ const OVER_TITLE = { space: 'No more space!', moves: 'Out of moves!', time: "Tim
 
 function gameOver(instant = false) {
   if (!S.over) return;
+  if (!S.adv) record(S);
   renderHud();
   $('board').classList.add('dead');
   if (!instant) play.over();
@@ -445,12 +426,15 @@ function gameOver(instant = false) {
       $('over-score').textContent = a.left;
       $('over-sub').textContent = a.daily ? '📅 Daily puzzle' : `Level ${a.n} · ${DIFFS[a.diff].name}`;
       $('b-again').textContent = 'Try again';
+      $('over-stats').hidden = true;
     } else {
       $('over-title').textContent = S.beat ? 'New Best!' : 'No more space!';
       $('over-lbl').textContent = 'Score';
       $('over-score').textContent = S.score;
       $('over-sub').innerHTML = `👑 Best <b id="over-best">${best}</b>`;
       $('b-again').textContent = 'Play again';
+      $('over-stats').hidden = false;
+      $('over-stats').innerHTML = statsHtml(S.score);
     }
     $('b-over-map').hidden = !a;
     $('b-over-map').textContent = a && a.daily ? '🏠 Menu' : '🗺️ Map';
@@ -492,7 +476,7 @@ function win() {
       s.style.animationDelay = 250 + i * 250 + 'ms';
       if (i < got) setTimeout(() => play.tick(), 250 + i * 250);
     });
-    $('win-msg').textContent = a.diff === 3 ? 'All 3 stars. Purrfect!'
+    $('win-msg').textContent = a.diff === 3 ? 'All 3 stars. Perfect!'
       : a.diff > had ? `Beat it on ${DIFFS[a.diff + 1].name} for ${stars(a.diff + 1)}`
         : `You already have ${stars(had)} here`;
     if (a.daily) {
@@ -522,9 +506,52 @@ setInterval(() => {
 }, 200);
 
 // ---------------------------------------------------------------- effects
+// All effects are visual only: the game state is already final when they start.
+const cellXY = (j) => {
+  const rect = board.getBoundingClientRect(), r = Math.floor(j / N), c = j % N;
+  return [rect.left + PAD + c * (cell + GAP) + cell / 2, rect.top + PAD + r * (cell + GAP) + cell / 2];
+};
+
+// The piece lands with a squash-bounce; completed lines flash, then clear. While they flash the board
+// shows the move's in-between state; any new input or render first finishes it (flushFx).
+const FLASH = 190;
+let pendingFx = null;
+function flushFx() {
+  const f = pendingFx;
+  if (!f) return;
+  pendingFx = null;
+  clearTimeout(f.t);
+  f.run();
+}
+function landFx(ev, cx, cy, won) {
+  if (!ev.L) { for (const j of ev.placed) cells[j].classList.add('land'); return; }
+  const lines = new Set([...ev.res.gone, ...ev.res.cracked, ...ev.res.melted]);
+  for (const j of lines) { paint(j, ev.pre[j], ev.preIce); cells[j].classList.add('flash'); }
+  for (const j of ev.placed) cells[j].classList.add('land');
+  const run = () => {
+    for (const j of lines) paint(j, S.grid[j]);
+    clearFx(ev, cx, cy, won);
+  };
+  const f = { run, t: 0 };
+  f.t = setTimeout(() => { if (pendingFx === f) { pendingFx = null; run(); } }, FLASH);
+  pendingFx = f;
+}
+
+function clearFx(ev, cx, cy, won) {
+  const { res, L, combo } = ev;
+  blast(res.gone, res.vals, cx, cy, combo);
+  if (res.cracked.length) crack(res.cracked);
+  if (res.melted.length) melt(res.melted);
+  play.clear(L, combo);
+  kick(combo, L);
+  if (L >= 2 || combo >= 3) shake(L >= 3 || combo >= 4);
+  if (L >= 3) bigClear(L, combo);
+  if (ev.allClear) { boardClear(); if (!won) play.allClear(); }
+}
+
 const blastLayer = $('blast');
-function blast(gone, vals, cx, cy) {
-  const rect = board.getBoundingClientRect();
+function blast(gone, vals, cx, cy, combo = 1) {
+  const rect = board.getBoundingClientRect(), more = Math.min(combo, 6);
   gone.forEach((j, n) => {
     const r = Math.floor(j / N), c = j % N, color = colorOf(vals[n]);
     const d = document.createElement('div');
@@ -536,36 +563,82 @@ function blast(gone, vals, cx, cy) {
     d.style.animationDelay = delay + 'ms';
     blastLayer.appendChild(d);
     setTimeout(() => d.remove(), delay + 450);
-    setTimeout(() => burst(rect.left + PAD + c * (cell + GAP) + cell / 2, rect.top + PAD + r * (cell + GAP) + cell / 2, color, isTarget(vals[n]) ? 12 : 7), delay + 120);
+    const x = rect.left + PAD + c * (cell + GAP) + cell / 2, y = rect.top + PAD + r * (cell + GAP) + cell / 2;
+    setTimeout(() => {
+      burst(x, y, color, (isTarget(vals[n]) ? 12 : 7) + more * 2);
+      if (isGem(vals[n])) { burst(x, y, '#ff7ad9', 16); burst(x, y, '#9ff3ff', 10); ring(x, y, '#ffd6f5', cell * 2.2, 3); }
+    }, delay + 120);
   });
 }
 
 function crack(list) {
-  const rect = board.getBoundingClientRect();
   setTimeout(() => play.crack(), 120);
-  for (const j of list) {
-    const r = Math.floor(j / N), c = j % N;
-    burst(rect.left + PAD + c * (cell + GAP) + cell / 2, rect.top + PAD + r * (cell + GAP) + cell / 2, '#c9cddb', 5);
+  for (const j of list) { const [x, y] = cellXY(j); burst(x, y, '#c9cddb', 5); }
+}
+function melt(list) {
+  setTimeout(() => play.crack(), 80);
+  for (const j of list) { const [x, y] = cellXY(j); burst(x, y, '#dff6ff', 9); burst(x, y, '#8fd8ff', 5); }
+}
+
+function shake(big = false) {
+  const w = $('boardwrap');
+  w.classList.remove('shake', 'shake2'); void w.offsetWidth; w.classList.add(big ? 'shake2' : 'shake');
+}
+
+// Combo aura: the page and board glow in a colour that shifts strongly with the combo level.
+const AURA = ['', '#2ee6ff', '#45ff8a', '#ffe23a', '#ff8a2a', '#ff3df0', '#b45cff'];
+let auraLv = -1;
+function setAura(combo) {
+  const lv = combo >= 2 ? Math.min(combo - 1, AURA.length - 1) : 0;
+  if (lv === auraLv) return;
+  auraLv = lv;
+  const b = document.body;
+  if (lv) {
+    b.dataset.combo = lv;
+    b.style.setProperty('--aura', AURA[lv]);
+    b.style.setProperty('--aura2', AURA[Math.min(lv + 1, AURA.length - 1)]);
+  } else delete b.dataset.combo;
+}
+// A clear pulses the aura; bigger with more lines and a higher combo.
+function kick(combo, L) {
+  setAura(combo);
+  const el = $('aura');
+  el.classList.remove('kick', 'kick2'); void el.offsetWidth; el.classList.add(L >= 3 || combo >= 4 ? 'kick2' : 'kick');
+  if (combo >= 2) {
+    const r = board.getBoundingClientRect();
+    ring(r.left + r.width / 2, r.top + r.height / 2, AURA[Math.min(combo - 1, AURA.length - 1)], r.width * (0.5 + combo * 0.08), 4 + combo);
   }
 }
 
-function shake() {
-  const w = $('boardwrap');
-  w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
+// 3+ lines at once: shockwaves, a flash and a fountain of blocks.
+function bigClear(L, combo) {
+  const r = board.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const fl = $('flashfx');
+  fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on');
+  for (let k = 0; k < L; k++) setTimeout(() => ring(x, y, colorOf((k % 7) + 1), r.width * (0.7 + k * 0.25), 7), k * 110);
+  for (let k = 0; k < 7; k++) burst(x, y, colorOf(k + 1), 6 + L * 2 + combo);
 }
 
-function points(n, cx, cy) {
-  const rect = board.getBoundingClientRect();
-  const d = document.createElement('div');
-  d.className = 'pts';
-  d.textContent = '+' + n;
-  d.style.left = rect.left + PAD + cx * (cell + GAP) + 'px';
-  d.style.top = rect.top + PAD + cy * (cell + GAP) + 'px';
-  document.body.appendChild(d);
-  setTimeout(() => d.remove(), 950);
+// The whole board cleared: rainbow board, waves of fireworks and confetti from the top.
+function boardClear() {
+  const r = board.getBoundingClientRect();
+  board.classList.remove('allclear'); void board.offsetWidth; board.classList.add('allclear');
+  setTimeout(() => board.classList.remove('allclear'), 1700);
+  const fl = $('flashfx');
+  fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on');
+  for (let k = 0; k < 4; k++) setTimeout(() => ring(r.left + r.width / 2, r.top + r.height / 2, colorOf((k * 2 % 7) + 1), r.width * (0.8 + k * 0.3), 9), k * 160);
+  for (let k = 0; k < 9; k++) {
+    setTimeout(() => {
+      const x = r.left + r.width * (0.15 + Math.random() * 0.7), y = r.top + r.height * (0.15 + Math.random() * 0.7);
+      burst(x, y, colorOf((k % 7) + 1), 22);
+      burst(x, y, '#ffffff', 6);
+    }, 120 + k * 110);
+  }
+  confetti(70);
+  setTimeout(() => buzz([60, 40, 60, 40, 120, 60, 200]), 250);
 }
 
-// Particles on a full-screen canvas; the loop only runs while particles exist.
+// Particles (squares, rings, confetti) on a full-screen canvas; the loop only runs while any exist.
 const cv = $('fx'), g = cv.getContext('2d');
 let parts = [], running = false;
 function sizeCanvas() {
@@ -573,18 +646,39 @@ function sizeCanvas() {
   cv.width = window.innerWidth * dpr; cv.height = window.innerHeight * dpr;
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
+const startFx = () => { if (!running) { running = true; requestAnimationFrame(tick); } };
 function burst(x, y, color, count = 7) {
   for (let i = 0; i < count; i++) {
     const a = Math.random() * Math.PI * 2, v = 2 + Math.random() * 5;
     parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, life: 1, s: cell * (0.12 + Math.random() * 0.16), color, rot: Math.random() * 6 });
   }
-  if (!running) { running = true; requestAnimationFrame(tick); }
+  startFx();
+}
+function ring(x, y, color, size, w = 5) {
+  parts.push({ ring: true, x, y, r: cell * 0.3, vr: size / 30, life: 1, color, w });
+  startFx();
+}
+function confetti(count) {
+  for (let i = 0; i < count; i++) {
+    parts.push({
+      x: Math.random() * window.innerWidth, y: -20 - Math.random() * 200, vx: Math.random() * 2 - 1, vy: 2 + Math.random() * 3,
+      life: 1.6, s: cell * (0.15 + Math.random() * 0.15), color: colorOf((i % 7) + 1), rot: Math.random() * 6, slow: true,
+    });
+  }
+  startFx();
 }
 function tick() {
   g.clearRect(0, 0, window.innerWidth, window.innerHeight);
   for (const p of parts) {
-    p.x += p.vx; p.y += p.vy; p.vy += 0.35; p.life -= 0.022; p.rot += 0.2;
-    g.globalAlpha = Math.max(0, p.life);
+    g.globalAlpha = Math.max(0, Math.min(1, p.life));
+    if (p.ring) {
+      p.r += p.vr; p.life -= 0.035;
+      g.strokeStyle = p.color; g.lineWidth = p.w * Math.max(0.2, p.life);
+      g.beginPath(); g.arc(p.x, p.y, p.r, 0, Math.PI * 2); g.stroke();
+      continue;
+    }
+    p.x += p.vx; p.y += p.vy; p.rot += 0.2;
+    if (p.slow) { p.vy = Math.min(p.vy + 0.05, 4); p.vx += Math.sin(p.rot) * 0.1; p.life -= 0.008; } else { p.vy += 0.35; p.life -= 0.022; }
     g.fillStyle = p.color;
     g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.fillRect(-p.s / 2, -p.s / 2, p.s, p.s); g.restore();
   }
@@ -618,7 +712,7 @@ function preview(row, col) {
   for (const [r, c] of sh.cells) {
     const j = (row + r) * N + col + c;
     test[j] = p.k + 1;
-    cells[j].className = 'c ghost';
+    cells[j].className = 'c ghost' + (S.ice && S.ice[j] ? ` ice${S.ice[j]}` : '');
     cells[j].style.setProperty('--k', color);
     drag.touched.push(j);
   }
@@ -631,7 +725,7 @@ function preview(row, col) {
 }
 
 function moveFloat(x, y) {
-  const lift = cell * 1.3;
+  const lift = cell * 1.7;
   const left = x - drag.pw / 2, top = y - drag.ph - lift;
   float.style.transform = `translate(${left}px, ${top}px)`;
   const rect = board.getBoundingClientRect();
@@ -644,6 +738,7 @@ slots.forEach((slot, i) => {
   slot.addEventListener('pointerdown', (e) => {
     unlock();
     if (drag || S.over || S.won || !S.tray[i]) return;
+    flushFx();
     if (arm) { arm = null; renderHud(); }
     const p = S.tray[i];
     if (S.adv && S.adv.time !== null && !S.adv.started) { S.adv.started = true; lastT = performance.now(); renderLimit(); }
@@ -715,6 +810,7 @@ function afterPower(deal = false) {
 function usePower(k) {
   if (!S || S.won || drag || (S.over && S.why !== 'space')) return;
   unlock();
+  flushFx();
   if (!pw[k]) { play.back(); nope(document.querySelector(`#bottom .pw[data-pw="${k}"]`)); return; }
   if (k === 'bomb') {
     arm = arm ? null : 'bomb';
@@ -724,26 +820,31 @@ function usePower(k) {
     return;
   }
   spend(k);
-  if (k === 'fresh') { S.tray = deal(S.grid, !S.adv); S.pending = null; play.deal(); }
+  if (k === 'fresh') { S.tray = deal(S); S.pending = null; play.deal(); }
   else { S.tray = S.tray.map((p) => p && { ...p, s: TURN[p.s] }); play.pick(); }
   afterPower(k === 'fresh');
 }
 
-// The bomb clears the 3×3 square around the tapped cell (stones crack, as in a line clear).
+// The bomb clears the 3×3 square around the tapped cell (stones crack and ice melts, as in a line clear).
 function bomb(row, col) {
+  flushFx();
   spend('bomb');
-  const gone = [], vals = [], cracked = [];
-  let hit = 0;
+  const gone = [], vals = [], cracked = [], melted = [];
+  let hit = 0, gems = 0;
   for (let r = row - 1; r <= row + 1; r++) for (let c = col - 1; c <= col + 1; c++) {
     if (r < 0 || c < 0 || r >= N || c >= N) continue;
     const j = r * N + c, v = S.grid[j];
+    if (S.ice && S.ice[j] > 0) { S.ice[j]--; hit++; melted.push(j); }
     if (!v) continue;
     if (v === STONE) { S.grid[j] = CRACKED; cracked.push(j); continue; }
     if (isTarget(v)) hit++;
+    if (isGem(v)) gems++;
     gone.push(j); vals.push(v); S.grid[j] = 0;
   }
+  if (S.adv && S.adv.gems) S.adv.gems = Math.max(0, S.adv.gems - gems);
   blast(gone, vals, col + 0.5, row + 0.5);
   if (cracked.length) crack(cracked);
+  if (melted.length) melt(melted);
   play.clear(2, 1);
   shake();
   if (S.adv && (S.adv.left -= hit) <= 0) { S.over = false; $('over').hidden = true; $('board').classList.remove('dead'); win(); renderAll(); return; }
@@ -792,12 +893,16 @@ function pickDiff(d) {
   document.querySelectorAll('#diffs button').forEach((b) => b.classList.toggle('on', Number(b.dataset.d) === d));
   const info = levelInfo(pick.mode, pick.n, d);
   info.grid.forEach((v, i) => {
-    lvlCells[i].className = v ? cellClass(v).slice(2) : '';
+    lvlCells[i].className = (v ? cellClass(v).slice(2) : '') + (info.ice && info.ice[i] ? ' ice2' : '');
     if (v) lvlCells[i].style.setProperty('--k', colorOf(v)); else lvlCells[i].style.removeProperty('--k');
   });
   const stones = info.grid.filter((v) => v === STONE).length;
   const limit = pick.mode === 'moves' ? `👣 ${info.moves} moves` : pick.mode === 'time' ? `⏱ ${clock(info.time)}` : '∞ No limit';
-  $('lvl-info').innerHTML = `${limit} · 🎯 ${info.total} blocks${stones ? `<br><small>🪨 ${stones} stone${stones > 1 ? 's' : ''}: clear twice</small>` : ''}`;
+  const iced = info.ice ? info.ice.filter(Boolean).length : 0, extra = [];
+  if (stones) extra.push(`🪨 ${stones} stone${stones > 1 ? 's' : ''}: clear twice`);
+  if (iced) extra.push(`🧊 ${iced} ice: clear lines through it twice`);
+  if (info.gems) extra.push(`💎 Collect ${info.gems} gems from your pieces`);
+  $('lvl-info').innerHTML = `${limit} · 🎯 ${info.total}${extra.length ? `<br><small>${extra.join('<br>')}</small>` : ''}`;
 }
 
 document.querySelectorAll('#diffs button').forEach((b) => b.addEventListener('click', () => { play.tap(); pickDiff(Number(b.dataset.d)); }));
@@ -851,7 +956,7 @@ $('b-close').addEventListener('click', () => { play.tap(); $('settings').hidden 
 $('b-restart').addEventListener('click', () => { $('settings').hidden = true; again(); });
 document.addEventListener('pointerdown', unlock, { once: true });
 document.addEventListener('visibilitychange', () => { if (document.hidden && S && !S.won) save(); });
-if (location.search.includes('debug')) window.dbg = { get S() { return S; }, renderAll, checkOver, place };
+if (location.search.includes('debug')) window.dbg = { get S() { return S; }, renderAll, checkOver, place, undo, stats };
 
 // ---------------------------------------------------------------- start (back where she left off)
 window.addEventListener('resize', layout);

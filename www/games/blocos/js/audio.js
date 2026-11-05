@@ -1,6 +1,6 @@
 // Synthesised sound effects + a light music loop (WebAudio). No audio files.
 let ctx = null, sfxBus = null, musicBus = null, musicTimer = null, nextBeat = 0, beat = 0;
-export const settings = { sfx: true, music: true, vib: true };
+export const settings = { sfx: true, music: false, vib: true };
 
 export function unlock() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -26,6 +26,15 @@ const note = (n) => 440 * Math.pow(2, (n - 69) / 12); // MIDI → Hz
 export const buzz = (ms) => {
   if (settings.vib && navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* ignore */ } }
 };
+// Vibration for a clear: more pulses with more lines and a higher combo, longer pulses with the combo.
+export function clearBuzz(lines, combo) {
+  const n = Math.min(lines + Math.max(0, combo - 1), 7);
+  if (n <= 1) return 25;
+  const on = 22 + Math.min(combo, 8) * 6, out = [];
+  for (let i = 0; i < n; i++) out.push(on + (i === n - 1 ? 20 : 0), 35);
+  out.pop();
+  return out;
+}
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
 
 export const play = {
@@ -41,7 +50,7 @@ export const play = {
       tone(note(base + PENTA[i] + 12), 0.16, 0.05, 'sine', i * 0.055);
     }
     tone(90, 0.3, 0.25, 'sine', 0, 0.5); // thump
-    buzz(lines >= 2 ? [25, 40, 35] : 25);
+    buzz(clearBuzz(lines, combo));
   },
   praise() { [72, 76, 79, 84, 88].forEach((n, i) => tone(note(n), 0.3, 0.12, 'square', i * 0.06)); },
   allClear() { [72, 76, 79, 84, 79, 84, 88, 91].forEach((n, i) => tone(note(n), 0.35, 0.13, 'triangle', i * 0.07)); },

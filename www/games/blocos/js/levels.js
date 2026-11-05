@@ -1,5 +1,5 @@
 // Adventures levels: endless, generated from (mode, level number), balanced by letting a simple AI play them.
-import { N, SHAPES, fits, dealTray, clearLines, fullLines, isTarget, STONE } from './pieces.js';
+import { N, SHAPES, fits, dealTray, clearLines, fullLines, isTarget, STONE, GEM, addGem } from './pieces.js';
 
 export const MODES = ['time', 'moves', 'relaxed'];
 export const DIFFS = [null,
@@ -118,8 +118,28 @@ function withStones(lvl, n, diff) {
   return g;
 }
 
+// ---------------------------------------------------------------- extra goals
+// From level 8 every third level has ice (empty cells with 2 layers, each clear through one melts a
+// layer); from level 12 every third level asks for gems (dealt pieces carry them, clear to collect).
+export function extras(n) {
+  return {
+    ice: n >= 8 && n % 3 === 2 ? Math.min(5, 2 + Math.floor((n - 8) / 18)) : 0,
+    gems: n >= 12 && n % 3 === 0 ? Math.min(5, 2 + Math.floor((n - 12) / 15)) : 0,
+  };
+}
+// Ice goes on empty cells sharing a row or column with the picture, so clears can count twice.
+function iceFor(grid, rng, k) {
+  const rows = new Set(), cols = new Set();
+  grid.forEach((v, j) => { if (v) { rows.add(Math.floor(j / N)); cols.add(j % N); } });
+  const free = []; grid.forEach((v, j) => { if (!v && (rows.has(Math.floor(j / N)) || cols.has(j % N))) free.push(j); });
+  const ice = Array(N * N).fill(0);
+  for (let i = 0; i < k && free.length; i++) ice[free.splice(int(rng, free.length), 1)[0]] = 2;
+  return ice;
+}
+const layers = (ice) => (ice ? ice.reduce((a, b) => a + b, 0) : 0);
+
 // ---------------------------------------------------------------- the AI
-function evaluate(g, res) {
+function evaluate(g, res, ice = null) {
   // Reward progress on targets and clears; keep the board tidy (few cells, few edges, no holes).
   let s = res.hit * 100 + res.cracked.length * 45 + res.L * 30, filled = 0, edges = 0, near = 0;
   for (let a = 0; a < N; a++) {
@@ -128,7 +148,8 @@ function evaluate(g, res) {
       const v = g[a * N + b] ? 1 : 0, w = g[b * N + a] ? 1 : 0;
       if (v !== pr) edges++; if (w !== pc) edges++;
       pr = v; pc = w; fr += v; fc += w; filled += v;
-      if (isTarget(g[a * N + b])) tr++; if (isTarget(g[b * N + a])) tc++;
+      if (isTarget(g[a * N + b]) || (ice && ice[a * N + b])) tr++;
+      if (isTarget(g[b * N + a]) || (ice && ice[b * N + a])) tc++;
     }
     if (!pr) edges++; if (!pc) edges++;
     if (tr && fr >= 5) near += fr - 4;
@@ -143,27 +164,31 @@ function evaluate(g, res) {
   return s;
 }
 
-// Greedy play; returns moves needed to clear every target, or Infinity.
-function simulate(start, rng, help, cap = 120) {
-  const grid = start.slice();
-  let left = grid.filter(isTarget).length, tray = dealTray(grid, rng, help);
+// Greedy play; returns moves needed to reach every goal (targets, ice layers, gems), or Infinity.
+// It plays by the game's rules: same deals (incl. gem pieces), same clears, same goal counting.
+function simulate(start, rng, help, cap = 120, ice0 = null, gems = 0) {
+  const grid = start.slice(), ice = ice0 && ice0.slice();
+  let left = grid.filter(isTarget).length + layers(ice) + gems, need = gems;
+  let tray = addGem(dealTray(grid, rng, help, ice), grid, need, rng);
   for (let moves = 1; moves <= cap; moves++) {
     let best = null;
     tray.forEach((p, i) => {
       if (!p) return;
       for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
         if (!fits(grid, p.s, r, c)) continue;
-        const g = grid.slice();
-        for (const [y, x] of SHAPES[p.s].cells) g[(r + y) * N + c + x] = 1;
-        const res = clearLines(g), v = evaluate(g, res) + rng() * 3;
-        if (!best || v > best.v) best = { v, i, g, hit: res.hit };
+        const g = grid.slice(), ic = ice && ice.slice();
+        SHAPES[p.s].cells.forEach(([y, x], k) => { g[(r + y) * N + c + x] = k === p.gem ? GEM + 1 : 1; });
+        const res = clearLines(g, ic), v = evaluate(g, res, ic) + rng() * 3;
+        if (!best || v > best.v) best = { v, i, g, ic, hit: res.hit, gems: res.gems };
       }
     });
     if (!best) return Infinity;
     for (let j = 0; j < N * N; j++) grid[j] = best.g[j];
+    if (ice) for (let j = 0; j < N * N; j++) ice[j] = best.ic[j];
+    need -= best.gems;
     tray[best.i] = null;
     if ((left -= best.hit) <= 0) return moves;
-    if (tray.every((t) => !t)) tray = dealTray(grid, rng, help);
+    if (tray.every((t) => !t)) tray = addGem(dealTray(grid, rng, help, ice), grid, need, rng);
   }
   return Infinity;
 }
@@ -177,13 +202,15 @@ function level(mode, n) {
   const key = mode + n;
   if (cache.has(key)) return cache.get(key);
   let best = null;
+  const ex = extras(n);
   for (let v = 0; v < 8; v++) {
     const rng = rngFrom(seedOf(mode, n, v)), grid = pattern(rng, n);
     const order = []; grid.forEach((x, j) => { if (x) order.push(j); });
     order.sort(() => rng() - 0.5);
-    const lvl = { grid, order }, test = withStones(lvl, n, 2);
+    const ice = ex.ice ? iceFor(grid, rngFrom(seedOf(mode, n, v) ^ 0x1ce), ex.ice) : null;
+    const lvl = { grid, order, ice, gems: ex.gems }, test = withStones(lvl, n, 2);
     let fails = 0;
-    for (let i = 0; i < 6; i++) if (!isFinite(simulate(test, rngFrom(seedOf(mode, n, v) + i), 0.2))) fails++;
+    for (let i = 0; i < 6; i++) if (!isFinite(simulate(test, rngFrom(seedOf(mode, n, v) + i), 0.2, 120, ice, ex.gems))) fails++;
     if (!best || fails < best.fails) best = { lvl, fails };
     if (fails === 0) break;
   }
@@ -197,12 +224,16 @@ export function levelInfo(mode, n, diff) {
   if (cache.has(key)) return cache.get(key);
   const lvl = level(mode, n), grid = withStones(lvl, n, diff), D = DIFFS[diff];
   const runs = [];
-  for (let i = 0; i < 9; i++) runs.push(simulate(grid, rngFrom(seedOf(mode, n, 50 + diff * 10 + i)), D.help));
+  for (let i = 0; i < 9; i++) runs.push(simulate(grid, rngFrom(seedOf(mode, n, 50 + diff * 10 + i)), D.help, 120, lvl.ice, lvl.gems));
   runs.sort((a, b) => a - b);
-  const est = Math.min(isFinite(runs[4]) ? runs[4] : runs.filter(isFinite).pop() || 40, 60);
+  // Ice and gem levels vary more from deal to deal: budget from a higher run so most attempts can make it.
+  const k = lvl.ice || lvl.gems ? 6 : 4;
+  const est = Math.min(isFinite(runs[k]) ? runs[k] : runs.filter(isFinite).pop() || 40, k === 4 ? 60 : 70);
   const info = {
     grid,
-    total: grid.filter(isTarget).length,
+    ice: lvl.ice ? lvl.ice.slice() : null,
+    gems: lvl.gems || 0,
+    total: grid.filter(isTarget).length + layers(lvl.ice) + (lvl.gems || 0),
     moves: Math.ceil(est * D.mv[0]) + D.mv[1],
     time: Math.ceil((est * D.tm[0] + D.tm[1]) / 5) * 5,
   };
@@ -215,4 +246,4 @@ export function levelInfo(mode, n, diff) {
   return info;
 }
 
-export const _test = { simulate, rngFrom, level, withStones, DIFFS };
+export const _test = { simulate, rngFrom, level, withStones, DIFFS, extras };
