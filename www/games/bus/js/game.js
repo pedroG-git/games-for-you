@@ -14,7 +14,7 @@
   const HOP_MS = 170;
   const DIRV = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
   const DIRA = { U: -Math.PI / 2, D: Math.PI / 2, L: Math.PI, R: 0 };
-  const defaultSave = () => ({ level: 1, wins: 0, boosters: { slot: 2, shuffle: 2 }, muted: false, vib: true, seenQuotes: [], current: null, updated: 0, epoch: 0 });
+  const defaultSave = () => ({ level: 1, wins: 0, boosters: { slot: 2, shuffle: 2 }, muted: false, vib: true, seenQuotes: [], current: null, updated: 0, epoch: 0, stars: {} });
 
   const $ = (id) => document.getElementById(id);
   const cv = $('c');
@@ -24,7 +24,7 @@
 
   let W = 0, H = 0, DPR = 1, L = null;
   let save = null, quotes = [];
-  let n = 1, state = null, usedSlot = false, levelDone = false;
+  let n = 1, state = null, usedSlot = false, levelDone = false, helpers = 0; // helpers used in this attempt (for the stars)
   let screen = 'title';
   const vis = new Map(); // busId -> running animation ('exit' to a slot, or 'nudge' when blocked)
   let leaving = [], hoppers = [];
@@ -64,7 +64,7 @@
   const bus = (id) => state.buses[id];
 
   function showScreen(id) {
-    for (const s of ['title', 'win', 'lose']) $(s).classList.toggle('show', s === id);
+    for (const s of ['title', 'win', 'lose', 'map']) $(s).classList.toggle('show', s === id);
   }
 
   // ---------- layout ----------
@@ -617,6 +617,7 @@
     if (usedSlot || save.boosters.slot <= 0) return Sfx.noslot();
     Rules.addSlot(state);
     usedSlot = true;
+    helpers++;
     save.boosters.slot--;
     layoutSlots();
     drawBg();
@@ -629,6 +630,7 @@
   function useShuffle() {
     if (save.boosters.shuffle <= 0 || !Rules.shuffleQueue(state)) return Sfx.noslot();
     save.boosters.shuffle--;
+    helpers++;
     wiggleUntil = now + 600;
     Sfx.shuffle();
     resumeFromLose();
@@ -657,6 +659,7 @@
       try {
         state = save.current.state;
         usedSlot = !!save.current.usedSlot;
+        helpers = Math.max(0, Math.floor(save.current.helpers) || 0);
         Rules.status(state);
       } catch {
         state = null;
@@ -665,6 +668,7 @@
     if (!state) {
       state = Rules.createState(window.LevelGen.generate(level));
       usedSlot = false;
+      helpers = 0;
     }
     layoutAll();
     updateUI();
@@ -674,15 +678,18 @@
   function onWin() {
     screen = 'win';
     levelDone = true;
-    save.wins++;
-    save.level = n + 1;
-    const reward = save.wins % 5 === 0;
+    // Replaying a beaten level can raise its stars but doesn't move progress or give boosters again.
+    const r = BusProgress.recordWin(save, n, helpers);
+    if (r.first) save.wins++;
+    const reward = r.first && save.wins % 5 === 0;
     if (reward) {
       save.boosters.slot++;
       save.boosters.shuffle++;
     }
     const q = pickQuote();
     $('winT').textContent = `Level ${n} complete!`;
+    $('winStars').innerHTML = starRow(r.stars);
+    $('next').textContent = r.first ? 'Next level' : `Play level ${save.level}`;
     $('qText').textContent = q ? `“${q.text}”` : 'Order up!';
     $('qWho').textContent = q ? `— ${q.who}` : '';
     $('qEp').textContent = q && q.ep ? q.ep : '';
@@ -879,7 +886,8 @@
   function saveNow() {
     clearTimeout(saveTimer);
     if (!save) return;
-    save.current = state && !levelDone ? { n, state, usedSlot } : null;
+    // Only the newest level is kept in progress; a replay of a beaten level isn't saved mid-way.
+    if (n >= save.level) save.current = state && !levelDone ? { n, state, usedSlot, helpers } : null;
     save.updated = Date.now();
     const body = JSON.stringify(save);
     try {
@@ -896,12 +904,13 @@
     if (!Array.isArray(s.seenQuotes)) s.seenQuotes = [];
     // Before the vibration switch existed, muting the game also silenced vibration: keep that for old saves.
     if (pick && pick.vib === undefined && pick.muted) s.vib = false;
+    if (!s.stars || typeof s.stars !== 'object' || Array.isArray(s.stars)) s.stars = {};
     return s;
   }
 
   // ---------- boot ----------
   async function init() {
-    if (!window.Rules || !window.LevelGen) {
+    if (!window.Rules || !window.LevelGen || !window.BusProgress) {
       $('titleLvl').textContent = 'Game files missing (rules.js / levelgen.js)';
       return;
     }
@@ -915,13 +924,14 @@
     Sfx.setVib(save.vib);
     startLevel(save.level, true);
     $('titleLvl').textContent = `Level ${save.level}`;
+    $('mapLink').hidden = save.level <= 1;
     if (document.fonts) document.fonts.load(`20px ${TITLE_FONT}`).then(() => state && drawBg(), () => {});
     requestAnimationFrame(frame);
   }
 
   cv.addEventListener('pointerdown', onPointer);
   document.addEventListener('gesturestart', (e) => e.preventDefault());
-  document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('touchmove', (e) => { if (!e.target.closest('#mapGrid')) e.preventDefault(); }, { passive: false });
   window.addEventListener('resize', () => state && layoutAll());
   document.addEventListener('visibilitychange', () => document.hidden && saveNow());
   window.addEventListener('pagehide', saveNow);
@@ -954,11 +964,12 @@
     startLevel(1, false);
     saveNow();
     $('titleLvl').textContent = 'Level 1';
+    $('mapLink').hidden = true;
   });
   $('next').addEventListener('click', () => {
     Sfx.unlock();
     showScreen(null);
-    startLevel(save.level, false);
+    startLevel(save.level, true);
     screen = 'play';
   });
   $('retry').addEventListener('click', () => {
@@ -976,8 +987,49 @@
     onOpen: () => Sfx.unlock(),
   });
 
+  // ---------- level map ----------
+  const starRow = (k) => [1, 2, 3].map((i) => `<i class="${i <= k ? 'on' : ''}">★</i>`).join('');
+  let mapFrom = 'title';
+  function openMap() {
+    Sfx.unlock();
+    mapFrom = screen === 'map' ? mapFrom : screen;
+    screen = 'map';
+    const top = BusProgress.frontier(save);
+    $('mapStars').textContent = `★ ${BusProgress.totalStars(save)} / ${(top - 1) * 3}`;
+    const grid = $('mapGrid');
+    let html = '';
+    for (let k = 1; k <= top; k++) {
+      const cur = k === top;
+      html += `<button class="tile${cur ? ' cur' : ''}" data-lvl="${k}"><b>${k}</b><span class="stars">${cur ? 'Play' : starRow(BusProgress.starsOf(save, k))}</span></button>`;
+    }
+    grid.innerHTML = html;
+    showScreen('map');
+    const cur = grid.querySelector('.cur');
+    if (cur) grid.scrollTop = Math.max(0, cur.offsetTop - grid.clientHeight / 2);
+  }
+  function closeMap() {
+    screen = mapFrom === 'map' ? 'title' : mapFrom;
+    showScreen(screen === 'play' ? null : screen);
+    if (screen === 'play') settleT = 0;
+  }
+  $('mapGrid').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-lvl]');
+    if (!t) return;
+    const k = +t.dataset.lvl;
+    if (!BusProgress.isUnlocked(save, k)) return;
+    saveNow();
+    if (k !== n || levelDone || mapFrom !== 'play') startLevel(k, k === BusProgress.frontier(save));
+    showScreen(null);
+    screen = 'play';
+    settleT = 0;
+  });
+  $('mapBtn').addEventListener('click', openMap);
+  $('mapLink').addEventListener('click', openMap);
+  $('winMap').addEventListener('click', openMap);
+  $('mapBack').addEventListener('click', closeMap);
+
   // for testing from the console / tools
-  window.BusDebug = { state: () => state, screen: () => screen, save: () => save, tap: (id) => tapBus(bus(id)) };
+  window.BusDebug = { state: () => state, screen: () => screen, save: () => save, tap: (id) => tapBus(bus(id)), openMap };
 
   layoutAll();
   init();
