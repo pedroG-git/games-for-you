@@ -85,9 +85,12 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   box-shadow: var(--side);
   transition: transform .18s, opacity .3s, left .45s cubic-bezier(.3,1.3,.5,1), top .45s cubic-bezier(.3,1.3,.5,1);
 }
-.t i { position: absolute; inset: 6% 7%; background: center / contain no-repeat; pointer-events: none; }
+.t i { position: absolute; inset: 3% 4%; background: center / contain no-repeat; pointer-events: none; }
 .t::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; transition: background .25s; }
-.dim .t.blk::after { background: rgba(70, 50, 10, .30); }
+/* free vs locked at a glance (baked colours, no filters): free = bright face with a crisp dark edge,
+   locked = face shaded with a cool grey so it reads as "switched off" */
+.dim .t:not(.blk) { box-shadow: inset 0 0 0 clamp(1.5px, calc(var(--tw) * .035), 2.5px) #4a3412, var(--side); }
+.dim .t.blk::after { background: rgba(24, 34, 44, .5); }
 .t.sel { transform: translateY(calc(var(--tw) * -.1)); }
 .t.sel::after { box-shadow: inset 0 0 0 3px #ffb300, 0 0 12px 3px rgba(255,190,40,.9); background: rgba(255,220,100,.18); }
 .t.hint::after { animation: hintp .55s infinite alternate; }

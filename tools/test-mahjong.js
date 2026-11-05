@@ -46,6 +46,19 @@ const MAX = Number(process.argv[2]) || 40;
   const flat = E.flatLayout(10), fg = E.geometry(flat);
   if (!E.removalOrder(fg, new Uint8Array(10).fill(1), rand)) fails.push('flat layout stuck');
   for (let k = 0; k < 30; k++) { const G = Lv.generate(E.rng(k), 40 + k * 4); check('gen' + k, G.pos); }
+  // both tile sets: every face has its own symbol, pictures are all different, and no cats
+  const T = await import('../www/games/mahjong/js/tiles.js');
+  for (const style of ['classic', 'pics']) {
+    const seen = new Set();
+    for (let f = 0; f < E.FACES; f++) {
+      const s = T.symbolOf(f, style);
+      if (!s) fails.push(`${style}: face ${f} has no symbol`);
+      else if (seen.has(s)) fails.push(`${style}: face ${f} repeats ${s}`);
+      seen.add(s);
+    }
+    if (T.symbolOf(E.FACES, style) !== null) fails.push(`${style}: symbol beyond FACES`);
+  }
+  for (let f = 0; f < E.FACES; f++) if (/[\u{1F431}\u{1F408}\u{1F63A}-\u{1F640}\u{1F42F}\u{1F405}\u{1F981}\u{1F406}]/u.test(T.symbolOf(f, 'pics'))) fails.push(`pics: face ${f} is a cat`);
   console.log(`${MAX} levels in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   if (fails.length) { console.log('FAIL\n' + fails.join('\n')); process.exit(1); }
   console.log('OK');
