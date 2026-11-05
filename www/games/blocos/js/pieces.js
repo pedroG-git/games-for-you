@@ -1,7 +1,7 @@
 // Piece shapes and the tray generator. A shape is a list of [row, col] cells.
 export const N = 8;
 
-export const COLORS = ['#ff4d5e', '#ff9a2e', '#ffd23a', '#4fd65a', '#2ec9e8', '#3f7cff', '#a35cff'];
+export const COLORS = ['#ff3b5c', '#ff8a1f', '#ffd60a', '#2fd65c', '#18c2f2', '#4a64ff', '#b44dff'];
 
 // Cell values: 0 empty, 1–7 placed block (colour k+1), GOLD = golden block (Classic bonus),
 // 11–17 Adventures target block, STONE needs two clears (first one cracks it), CRACKED needs one more,

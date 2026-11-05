@@ -41,12 +41,6 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 #score.bump { transform: scale(1.12); }
 
 #boardwrap { position: relative; margin-top: 6px; }
-#boardwrap.shake { animation: shake .35s; }
-@keyframes shake {
-  0%, 100% { transform: translate(0,0); }
-  20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -4px); }
-  60% { transform: translate(-4px, 2px); } 80% { transform: translate(3px, -1px); }
-}
 #board {
   display: grid;
   grid-template-columns: repeat(8, var(--cell));
@@ -58,15 +52,11 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 #board.dead { filter: grayscale(1) brightness(.75); transition: filter 1s; }
 .c { position: relative; border-radius: 5px; background: linear-gradient(#1f2c62, #24336f); box-shadow: inset 0 2px 3px rgba(0,0,0,.4), inset 0 -1px 0 rgba(255,255,255,.06); }
 
-/* Bevelled block: light top edge, dark bottom edge, a raised glossy face in the middle. --k is the block colour. */
+/* Candy block: flat bright colour, soft top gloss, slightly darker bottom lip. --k is the block colour. */
 .b {
-  border-radius: 6px;
-  background:
-    linear-gradient(165deg, rgba(255,255,255,.38), rgba(255,255,255,.1) 45%, rgba(0,0,0,.06)) center / 62% 62% no-repeat,
-    linear-gradient(var(--k), var(--k)) center / 62% 62% no-repeat,
-    conic-gradient(from -45deg, rgba(255,255,255,.5) 0 25%, rgba(0,0,0,.12) 0 50%, rgba(0,0,0,.34) 0 75%, rgba(255,255,255,.2) 0),
-    var(--k);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.25), 0 2px 3px rgba(0,0,0,.3);
+  border-radius: 7px;
+  background: linear-gradient(rgba(255,255,255,.3), rgba(255,255,255,0) 55%), var(--k);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.4), inset 0 -3px 0 rgba(0,0,0,.16), 0 2px 3px rgba(0,0,0,.25);
 }
 .c.ghost { background: var(--k); opacity: .38; box-shadow: none; }
 .c.hl { filter: brightness(1.25) saturate(1.2); --k: var(--hk) !important; }
@@ -332,26 +322,18 @@ body[data-theme="neon"] #board { background: linear-gradient(#0b0b1a, #06060f); 
 body[data-theme="neon"] .c:not(.b):not(.ghost) { background: linear-gradient(#15152b, #191935); }
 
 /* ---------------------------------------------------------------- juice */
-/* Placement: the piece squashes in and bounces; completed lines flash before they clear. */
-.c.land { animation: land .24s cubic-bezier(.3, 1.5, .5, 1); z-index: 1; }
+/* Placement: the piece lights up briefly (no squash or shake); completed lines flash before they clear. */
+.c.land { animation: land .16s ease-out; z-index: 1; }
 @keyframes land {
-  0% { transform: translateY(-18%) scale(1.22, .72); }
-  45% { transform: scale(.9, 1.12); }
-  75% { transform: scale(1.05, .95); }
-  100% { transform: none; }
+  0% { filter: brightness(1.5); }
+  100% { filter: none; }
 }
 .c.flash { animation: flash .19s ease-out; z-index: 2; }
-.c.land.flash { animation: land .24s cubic-bezier(.3, 1.5, .5, 1), flash .19s ease-out; }
+.c.land.flash { animation: flash .19s ease-out; }
 @keyframes flash {
   0% { filter: brightness(1.2); }
   40% { filter: brightness(2.4) saturate(.5); box-shadow: 0 0 0 2px #fff, 0 0 14px #fff; }
   100% { filter: brightness(1.9) saturate(.7); box-shadow: 0 0 0 2px rgba(255,255,255,.7), 0 0 10px #fff; }
-}
-#boardwrap.shake2 { animation: shake2 .5s; }
-@keyframes shake2 {
-  0%, 100% { transform: none; }
-  12% { transform: translate(-11px, 6px) rotate(-1deg); } 28% { transform: translate(10px, -8px) rotate(1deg); }
-  44% { transform: translate(-8px, 5px); } 60% { transform: translate(6px, -3px); } 78% { transform: translate(-3px, 2px); }
 }
 
 /* Combo aura: page and board take the combo colour (set from JS as --aura / --aura2), stronger each level. */

@@ -78,7 +78,7 @@ function statsHtml(now = null) {
 // Themes: block colours + board look, unlocked by the Classic best score.
 const THEME = 'blocos-theme';
 const THEMES = [
-  { id: 'classic', name: 'Classic', need: 0, colors: ['#ff4d5e', '#ff9a2e', '#ffd23a', '#4fd65a', '#2ec9e8', '#3f7cff', '#a35cff'] },
+  { id: 'classic', name: 'Rainbow', need: 0, colors: ['#ff3b5c', '#ff8a1f', '#ffd60a', '#2fd65c', '#18c2f2', '#4a64ff', '#b44dff'] },
   { id: 'candy', name: 'Candy', need: 500, colors: ['#ff7eb6', '#ffa86b', '#ffe17a', '#8be0a4', '#7fd8f0', '#9fb4ff', '#d39bff'] },
   { id: 'ocean', name: 'Ocean', need: 1500, colors: ['#ff6f61', '#ffb347', '#f9e07f', '#3ddc97', '#1fd1e0', '#2f8cff', '#6c63ff'] },
   { id: 'sunset', name: 'Sunset', need: 3000, colors: ['#ff3d6e', '#ff7a2f', '#ffc23a', '#c2e05a', '#ff9ec4', '#b04aff', '#7a4dff'] },
@@ -579,10 +579,8 @@ function melt(list) {
   for (const j of list) { const [x, y] = cellXY(j); burst(x, y, '#dff6ff', 9); burst(x, y, '#8fd8ff', 5); }
 }
 
-function shake(big = false) {
-  const w = $('boardwrap');
-  w.classList.remove('shake', 'shake2'); void w.offsetWidth; w.classList.add(big ? 'shake2' : 'shake');
-}
+// The board never shakes (player feedback); kept as a no-op so callers stay simple.
+function shake() {}
 
 // Combo aura: the page and board glow in a colour that shifts strongly with the combo level.
 const AURA = ['', '#2ee6ff', '#45ff8a', '#ffe23a', '#ff8a2a', '#ff3df0', '#b45cff'];
