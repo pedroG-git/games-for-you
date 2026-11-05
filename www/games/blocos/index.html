@@ -9,15 +9,17 @@
 <link rel="stylesheet" href="../../shared/fonts.css">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="../../shared/nav.css">
+<link rel="stylesheet" href="../../shared/settings.css">
 <script src="../../shared/nav.js"></script>
-<script>GFY.back([['#settings', '#b-close'], ['#lvl', '#lvl-close'], ['#win', '#win-map'], ['#app', '#b-home'], ['#map', '#map-back']]);</script>
+<script src="../../shared/settings.js"></script>
+<script>GFY.back([['#lvl', '#lvl-close'], ['#win', '#win-map'], ['#app', '#b-home'], ['#map', '#map-back']]);</script>
 </head>
 <body>
 <div id="menu" class="screen" hidden>
   <header class="bar">
     <button class="gfy-home" aria-label="All games"></button>
     <span></span>
-    <button class="round b-set" aria-label="Settings">⚙️</button>
+    <button class="gfy-gear b-set" aria-label="Settings"></button>
   </header>
   <h1 id="logo"><span>Blocos</span><small>Block puzzle</small></h1>
   <button class="mode-btn" id="m-classic"><b>Classic</b><small>👑 <span id="m-best">0</span></small></button>
@@ -29,7 +31,7 @@
   <header class="bar">
     <button class="round" id="map-back" aria-label="Back">↩</button>
     <h2>Adventures</h2>
-    <button class="round b-set" aria-label="Settings">⚙️</button>
+    <button class="gfy-gear b-set" aria-label="Settings"></button>
   </header>
   <nav id="tabs">
     <button data-mode="time">⏱<small>Time Attack</small></button>
@@ -44,7 +46,7 @@
     <button class="round" id="b-home" aria-label="Back">↩</button>
     <div id="best"><span>👑</span><b id="best-n">0</b></div>
     <div id="chip" hidden></div>
-    <button class="round b-set" aria-label="Settings">⚙️</button>
+    <button class="gfy-gear b-set" aria-label="Settings"></button>
   </header>
 
   <div id="score">0</div>
@@ -117,18 +119,7 @@
   </div>
 </div>
 
-<div id="settings" hidden>
-  <div class="box">
-    <h2>Settings</h2>
-    <label><span>🔊 Sounds</span><input type="checkbox" id="s-sfx"></label>
-    <label><span>🎵 Music</span><input type="checkbox" id="s-music"></label>
-    <label><span>📳 Vibration</span><input type="checkbox" id="s-vib"></label>
-    <p class="lbl">🎨 Theme <small>· new ones unlock with your 👑 best</small></p>
-    <div id="themes"></div>
-    <button class="ghostbtn" id="b-restart">Restart game</button>
-    <button class="big" id="b-close">Done</button>
-  </div>
-</div>
+<div id="themes-wrap" hidden><div id="themes"></div></div>
 
 <script type="module" src="js/main.js"></script>
 </body>

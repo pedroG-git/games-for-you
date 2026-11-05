@@ -14,7 +14,7 @@
   const HOP_MS = 170;
   const DIRV = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
   const DIRA = { U: -Math.PI / 2, D: Math.PI / 2, L: Math.PI, R: 0 };
-  const defaultSave = () => ({ level: 1, wins: 0, boosters: { slot: 2, shuffle: 2 }, muted: false, seenQuotes: [], current: null, updated: 0, epoch: 0 });
+  const defaultSave = () => ({ level: 1, wins: 0, boosters: { slot: 2, shuffle: 2 }, muted: false, vib: true, seenQuotes: [], current: null, updated: 0, epoch: 0 });
 
   const $ = (id) => document.getElementById(id);
   const cv = $('c');
@@ -726,7 +726,6 @@
     $('nShuffle').textContent = save.boosters.shuffle;
     $('bSlot').disabled = usedSlot || save.boosters.slot <= 0;
     $('bShuffle').disabled = save.boosters.shuffle <= 0;
-    $('mute').textContent = save.muted ? '🔇' : '🔊';
   }
 
   // ---------- per-frame update ----------
@@ -895,6 +894,8 @@
     const s = Object.assign(defaultSave(), pick || {});
     s.boosters = Object.assign({ slot: 2, shuffle: 2 }, (pick && pick.boosters) || {});
     if (!Array.isArray(s.seenQuotes)) s.seenQuotes = [];
+    // Before the vibration switch existed, muting the game also silenced vibration: keep that for old saves.
+    if (pick && pick.vib === undefined && pick.muted) s.vib = false;
     return s;
   }
 
@@ -911,6 +912,7 @@
     }
     save = await loadSave();
     Sfx.setMuted(save.muted);
+    Sfx.setVib(save.vib);
     startLevel(save.level, true);
     $('titleLvl').textContent = `Level ${save.level}`;
     if (document.fonts) document.fonts.load(`20px ${TITLE_FONT}`).then(() => state && drawBg(), () => {});
@@ -948,7 +950,7 @@
     restartArmed = 0;
     btn.textContent = 'Start over from level 1';
     btn.classList.remove('armed');
-    save = Object.assign(defaultSave(), { muted: save.muted, epoch: Date.now() });
+    save = Object.assign(defaultSave(), { muted: save.muted, vib: save.vib, epoch: Date.now() });
     startLevel(1, false);
     saveNow();
     $('titleLvl').textContent = 'Level 1';
@@ -968,12 +970,10 @@
   $('lShuffle').addEventListener('click', useShuffle);
   $('bSlot').addEventListener('click', () => screen === 'play' && useSlot());
   $('bShuffle').addEventListener('click', () => screen === 'play' && useShuffle());
-  $('mute').addEventListener('click', () => {
-    Sfx.unlock();
-    save.muted = !save.muted;
-    Sfx.setMuted(save.muted);
-    updateUI();
-    scheduleSave();
+  GFY.settings.init({
+    sfx: { get: () => !(save && save.muted), set: (v) => { if (!save) return; save.muted = !v; Sfx.setMuted(save.muted); scheduleSave(); if (v) Sfx.tap(); } },
+    vib: { get: () => !save || save.vib !== false, set: (v) => { if (!save) return; save.vib = v; Sfx.setVib(v); scheduleSave(); if (v) Sfx.vibrate(15); } },
+    onOpen: () => Sfx.unlock(),
   });
 
   // for testing from the console / tools

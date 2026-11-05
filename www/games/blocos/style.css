@@ -131,7 +131,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 }
 @keyframes pts { to { opacity: 0; transform: translate(-50%, -150%); } }
 
-#over, #settings, .modal {
+#over, .modal {
   position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
   background: rgba(10, 16, 45, .7); animation: fade .3s;
 }
@@ -156,11 +156,6 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   display: block; width: 100%; margin-top: 12px; padding: 10px; border-radius: 14px; font-size: 18px;
   background: rgba(255,255,255,.14);
 }
-#settings label {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 6px; font-size: 20px; border-bottom: 1px solid rgba(255,255,255,.12);
-}
-#settings input { width: 26px; height: 26px; accent-color: #5fe07a; }
 
 /* ---------------------------------------------------------------- Adventures blocks */
 /* Target (pre-placed) block: a white gem in the middle. */
@@ -314,7 +309,6 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 @keyframes got { 40% { transform: scale(1.35) rotate(-8deg); } }
 
 /* Theme picker in settings */
-#settings .lbl small { font-size: 12px; opacity: .75; }
 #themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 14px; }
 #themes button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px; border-radius: 14px; background: rgba(0,0,0,.25); }
 #themes button.on { box-shadow: inset 0 0 0 3px #5fe07a; }

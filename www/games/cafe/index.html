@@ -58,7 +58,9 @@
   #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #e85d75; z-index: 20; font-weight: 800; font-size: 22px; }
 </style>
 <link rel="stylesheet" href="../../shared/nav.css">
+<link rel="stylesheet" href="../../shared/settings.css">
 <script src="../../shared/nav.js"></script>
+<script src="../../shared/settings.js"></script>
 <script>GFY.back([['#confirm', '#bNo'], ['#upg', '#bClose']]);</script>
 </head>
 <body>
@@ -72,9 +74,9 @@
     <div class="goal hidden" id="goal"><b id="goalT"></b><span id="goalP"></span><i><u id="goalBar"></u></i></div>
   </div>
   <div class="btns">
+    <button class="gfy-gear" aria-label="Definições"></button>
     <button class="btn badge" id="bUp">Melhorias</button>
     <button class="btn hidden" id="bAd" style="background:#7e57c2;box-shadow:0 4px 0 #4d2c91;color:#fff;font-size:14px;padding:8px 12px">Anúncio<br><small style="font-weight:600">ganha um prémio</small></button>
-    <button class="btn round" id="bSnd" aria-label="Som"></button>
     <button class="btn round" id="bFs" aria-label="Ecrã inteiro">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
     </button>
@@ -92,6 +94,7 @@
     <p id="tSub"></p>
     <button class="btn" id="bPlay">Jogar</button>
     <button class="gfy-home corner" aria-label="Todos os jogos"></button>
+    <button class="gfy-gear corner" aria-label="Definições"></button>
   </div>
 </div>
 
@@ -101,7 +104,7 @@
     <div id="upList"></div>
     <div class="stats" id="stats"></div>
     <div class="foot">
-      <span><button class="link" id="bGfx" style="color:#5a6f8f">Gráficos</button><br><button class="link" id="bReset">Recomeçar jogo</button></span>
+      <span></span>
       <button class="btn" id="bClose">Fechar</button>
     </div>
   </div>

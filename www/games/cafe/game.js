@@ -53,7 +53,7 @@ let CFG = {
 // ---------- estado gravado ----------
 const S = {
   v: 3, cash: 0, total: 0, built: 1, cashiers: new Array(N1).fill(false), helpers: 0, up: { speed: 0, cap: 0, grow: 0, price: 0, pedro: 0 },
-  muted: false, tut: 0, padPaid: {}, pets: 0, sala: false, tables: 2, cook: false, waiters: 0, stove2: false,
+  muted: false, music: true, vib: true, tut: 0, padPaid: {}, pets: 0, sala: false, tables: 2, cook: false, waiters: 0, stove2: false,
   floor2: false, built2: 0, cashiers2: [false, false, false, false], helpers2: 0, goal: null, goalsDone: 0, adNext: 0, adBump: 2, adVotes: {}, stats: null, gfx: 'high', gfxUser: false, w: null,
 };
 // ---------- estatísticas internas (desligadas na app: não há servidor) ----------
@@ -550,7 +550,7 @@ function bindInput() {
   const joy = $('joy'), knob = $('knob');
   canvas.addEventListener('pointerdown', (e) => {
     if (!running || input.active) return;
-    sound.muted = S.muted;
+    applySound();
     sound.init(); // depois de uma atualização automática o som volta ao primeiro toque
     input.active = true;
     input.id = e.pointerId;
@@ -1641,8 +1641,6 @@ function updateTutorial() {
 }
 
 // ---------- interface ----------
-const ICON_SND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/></svg>';
-const ICON_MUTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
 let hudCash = -1, hudCarry = '';
 function updateHud(dt) {
   const c = Math.floor(S.cash);
@@ -1702,16 +1700,24 @@ function renderUpgrades() {
     list.appendChild(row);
   }
   $('stats').textContent = `Total ganho: ${fmt(S.total)} · Festinhas às gatas: ${S.pets} · Objetivos: ${S.goalsDone}`;
-  $('bGfx').textContent = 'Gráficos: ' + (S.gfx === 'low' ? 'simples' : 'bonitos');
+}
+function applySound() {
+  sound.muted = S.muted;
+  sound.vib = S.vib;
+  sound.setMusicOff(!S.music);
 }
 function bindUi() {
-  $('bSnd').innerHTML = S.muted ? ICON_MUTE : ICON_SND;
-  $('bSnd').onclick = () => {
-    S.muted = !S.muted;
-    sound.setMuted(S.muted);
-    $('bSnd').innerHTML = S.muted ? ICON_MUTE : ICON_SND;
-    save();
-  };
+  GFY.settings.init({
+    lang: 'pt',
+    sfx: { get: () => !S.muted, set: (v) => { S.muted = !v; applySound(); if (v) sound.click(); save(); } },
+    music: { get: () => S.music, set: (v) => { S.music = v; sound.unlock(); applySound(); save(); } },
+    vib: { get: () => S.vib, set: (v) => { S.vib = v; applySound(); if (v) sound.buzz(20); save(); } },
+    extras: [
+      { type: 'seg', label: 'Gráficos', options: [['low', 'Simples'], ['high', 'Bonitos']], get: () => S.gfx, set: (v) => { S.gfx = v; S.gfxUser = true; applyGfx(); save(); } },
+      { type: 'button', label: 'Recomeçar jogo', close: true, onClick: () => $('confirm').classList.remove('hidden') },
+    ],
+    onOpen: () => { applySound(); sound.init(); },
+  });
   $('bFs').onclick = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else goFullscreen();
@@ -1726,14 +1732,6 @@ function bindUi() {
   $('upg').addEventListener('pointerdown', (e) => {
     if (e.target === $('upg')) $('upg').classList.add('hidden');
   });
-  $('bGfx').onclick = () => {
-    S.gfx = S.gfx === 'low' ? 'high' : 'low';
-    S.gfxUser = true;
-    applyGfx();
-    renderUpgrades();
-    save();
-  };
-  $('bReset').onclick = () => $('confirm').classList.remove('hidden');
   $('bNo').onclick = () => $('confirm').classList.add('hidden');
   $('bYes').onclick = async () => {
     resetting = true;
@@ -1741,7 +1739,7 @@ function bindUi() {
     location.reload();
   };
   $('bPlay').onclick = () => {
-    sound.muted = S.muted;
+    applySound();
     sound.init();
     goFullscreen();
     $('title').classList.add('hidden');
@@ -1804,6 +1802,9 @@ async function load() {
   if (d.up) for (const u of UPS) S.up[u.id] = int(d.up[u.id], 0, u.max, 0);
   if (d.padPaid && typeof d.padPaid === 'object') S.padPaid = d.padPaid;
   S.muted = !!d.muted;
+  // Before the music switch existed, mute silenced everything: an old muted save keeps its music off.
+  S.music = d.music === undefined ? !d.muted : !!d.music;
+  S.vib = d.vib !== false;
   S.sala = !!d.sala;
   S.cook = !!d.cook;
   S.stove2 = !!d.stove2;

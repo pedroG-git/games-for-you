@@ -9,15 +9,17 @@
 <link rel="stylesheet" href="../../shared/fonts.css">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="../../shared/nav.css">
+<link rel="stylesheet" href="../../shared/settings.css">
 <script src="../../shared/nav.js"></script>
-<script>GFY.back([['#chal', '#chal-close'], ['#ach', '#ach-close'], ['#replay', '#rp-close'], ['#settings', '#b-close'], ['#over', '#o-menu'], ['#upgrade', null], ['#pause', '#p-close'], ['#frozen', '#f-resume'], ['#mapview', '#mv-back'], ['#game', '#b-back']]);</script>
+<script src="../../shared/settings.js"></script>
+<script>GFY.back([['#chal', '#chal-close'], ['#ach', '#ach-close'], ['#replay', '#rp-close'], ['#over', '#o-menu'], ['#upgrade', null], ['#pause', '#p-close'], ['#frozen', '#f-resume'], ['#mapview', '#mv-back'], ['#game', '#b-back']]);</script>
 </head>
 <body>
 <div id="menu" class="screen">
   <header class="bar">
     <button class="gfy-home" aria-label="All games"></button>
     <span></span>
-    <button class="round b-set" aria-label="Settings">⚙️</button>
+    <button class="gfy-gear b-set" aria-label="Settings"></button>
   </header>
   <h1 id="logo"><span>Linhas</span><small>Connect the city by train</small></h1>
   <button class="mode-btn cont" id="m-cont" hidden><b>▶ Continue</b><small id="m-cont-sub"></small></button>
@@ -146,20 +148,6 @@
     <button class="big" id="rp-save">Save picture</button>
     <button class="ghostbtn" id="rp-again">Play it again</button>
     <button class="ghostbtn" id="rp-close">Back</button>
-  </div>
-</div>
-
-<div id="settings" class="modal" hidden>
-  <div class="box">
-    <h2>Settings</h2>
-    <label><span>🔊 Sounds</span><input type="checkbox" id="s-sfx"></label>
-    <label><span>🎵 Music</span><input type="checkbox" id="s-music"></label>
-    <label><span>📳 Vibration</span><input type="checkbox" id="s-vib"></label>
-    <label><span>🌙 Night map</span><input type="checkbox" id="s-night"></label>
-    <label><span>🌗 Day and night</span><input type="checkbox" id="s-cycle"></label>
-    <label><span>🎨 Colour-blind lines</span><input type="checkbox" id="s-cb"></label>
-    <label><span>⏸ Pause when a station fills up</span><input type="checkbox" id="s-auto"></label>
-    <button class="big" id="b-close">Done</button>
   </div>
 </div>
 

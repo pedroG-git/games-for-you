@@ -1,6 +1,6 @@
 // Synthesised sound effects + a gentle music loop (WebAudio). No audio files.
 let ctx = null, sfxBus = null, musicBus = null, musicTimer = null, nextBeat = 0, beat = 0;
-export const settings = { sfx: true, music: true };
+export const settings = { sfx: true, music: true, vib: true };
 
 export function unlock() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -23,7 +23,7 @@ function tone(freq, dur, vol, type = 'sine', when = 0, slide = 0, bus = sfxBus) 
   o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.05);
 }
 const note = (n) => 440 * Math.pow(2, (n - 69) / 12); // MIDI → Hz
-const buzz = (ms) => { if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* ignore */ } } };
+const buzz = (ms) => { if (settings.vib && navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) { /* ignore */ } } };
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
 
 export const play = {

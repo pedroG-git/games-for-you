@@ -40,7 +40,8 @@
     } catch (e) { console.warn('orientation', e); }
   };
 
-  window.GFY = { home, back: (list) => steps.push(...list), orient };
+  // backTop puts steps in front of the game's own (used by the shared settings panel).
+  window.GFY = { home, back: (list) => steps.push(...list), backTop: (list) => steps.unshift(...list), orient };
 
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.gfy-home')) return;

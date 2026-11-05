@@ -751,14 +751,12 @@ $('fire').addEventListener('click', async () => {
   afterMove();
 });
 
-for (const b of document.querySelectorAll('.b-set')) b.addEventListener('click', () => {
-  $('s-sfx').checked = settings.sfx; $('s-music').checked = settings.music; $('s-vib').checked = settings.vib;
-  openModal('m-set');
+GFY.settings.init({
+  sfx: { get: () => settings.sfx, set: (v) => { settings.sfx = v; saveSettings(); } },
+  music: { get: () => settings.music, set: (v) => { unlock(); setMusic(v); saveSettings(); } },
+  vib: { get: () => settings.vib, set: (v) => { settings.vib = v; saveSettings(); } },
+  onOpen: () => unlock(),
 });
-$('s-sfx').addEventListener('change', (e) => { settings.sfx = e.target.checked; saveSettings(); });
-$('s-music').addEventListener('change', (e) => { setMusic(e.target.checked); saveSettings(); });
-$('s-vib').addEventListener('change', (e) => { settings.vib = e.target.checked; saveSettings(); });
-$('s-close').addEventListener('click', () => closeModal('m-set'));
 
 document.addEventListener('pointerdown', unlock, { once: true });
 if (location.search.includes('debug')) window.dbg = { get S() { return S; }, E, P, trySwap, tapCell, openStart, winFlow, loseFlow };

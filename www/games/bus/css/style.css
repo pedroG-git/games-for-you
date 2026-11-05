@@ -142,4 +142,4 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 .big:disabled { opacity: .45; }
 
 /* the title / win / lose screens have their own 🏠 */
-body:has(.screen.show) #hud .gfy-home { visibility: hidden; }
+body:has(.screen.show) #hud .gfy-home, body:has(.screen.show) #hud .gfy-gear { visibility: hidden; }

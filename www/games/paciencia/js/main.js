@@ -609,11 +609,6 @@ setInterval(() => {
 
 const statCells = rows => rows.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
 function refreshSettings() {
-  for (const b of $('seg-draw').children) b.classList.toggle('on', +b.dataset.v === S.draw);
-  for (const b of $('seg-theme').children) b.classList.toggle('on', b.dataset.v === S.theme);
-  $('sw-sound').classList.toggle('on', S.sound);
-  $('sw-haptic').classList.toggle('on', S.haptic);
-  $('sw-left').classList.toggle('on', S.left);
   const s = data.stats[S.draw];
   $('stats-mode').textContent = `(tirar ${S.draw})`;
   $('stats').innerHTML = statCells([
@@ -624,7 +619,6 @@ function refreshSettings() {
 }
 function showSheet(id) {
   hideSheets(); $('backdrop').hidden = false; $(id).hidden = false;
-  if (id === 'sheet-settings') refreshSettings();
   if (id === 'sheet-new') {
     for (const b of document.querySelectorAll('#sheet-new [data-diff]')) b.classList.toggle('on', b.dataset.diff === S.diff);
     $('btn-daily').classList.toggle('done', !!data.daily[todayKey()]);
@@ -646,7 +640,6 @@ function applyTheme() {
 }
 
 $('btn-new').onclick = () => { unlock(); showSheet('sheet-new'); };
-$('btn-settings').onclick = () => { unlock(); showSheet('sheet-settings'); };
 $('btn-hint').onclick = () => { unlock(); hint(); };
 $('btn-undo').onclick = () => { unlock(); undo(); };
 $('finish').onclick = () => { unlock(); autoFinish(); };
@@ -656,15 +649,22 @@ for (const b of document.querySelectorAll('#sheet-new [data-diff]')) b.onclick =
 $('btn-daily').onclick = () => newGame({ diff: 'normal', seed: dailySeed(), daily: todayKey() });
 $('btn-restart').onclick = () => newGame({ diff: G.diff, seed: G.seed, daily: G.daily, restart: true });
 $('btn-again').onclick = () => newGame({ diff: S.diff });
-for (const b of $('seg-draw').children) b.onclick = () => {
-  const v = +b.dataset.v; if (v === S.draw) return;
-  S.draw = v; refreshSettings();
-  if (!G || G.moves === 0 || G.won) newGame({ diff: S.diff }); else persist();
-};
-for (const b of $('seg-theme').children) b.onclick = () => { S.theme = b.dataset.v; applyTheme(); refreshSettings(); persist(); };
-$('sw-sound').onclick = () => { S.sound = !S.sound; sfx.enabled = S.sound; refreshSettings(); persist(); if (S.sound) play.place(); };
-$('sw-haptic').onclick = () => { S.haptic = !S.haptic; sfx.haptic = S.haptic; refreshSettings(); persist(); if (S.haptic) play.pick(); };
-$('sw-left').onclick = () => { S.left = !S.left; layoutSlots(); sync({ dur: 0.3, lift: 0.3 }); refreshSettings(); persist(); };
+GFY.settings.init({
+  lang: 'pt',
+  sfx: { get: () => S.sound, set: (v) => { S.sound = v; sfx.enabled = v; persist(); if (v) play.place(); } },
+  vib: { get: () => S.haptic, set: (v) => { S.haptic = v; sfx.haptic = v; persist(); if (v) play.pick(); } },
+  extras: [
+    { type: 'seg', label: 'Cartas a tirar', options: [[1, '1'], [3, '3']], get: () => S.draw, set: (v) => {
+      if (v === S.draw) return;
+      S.draw = v; refreshSettings();
+      if (!G || G.moves === 0 || G.won) newGame({ diff: S.diff }); else persist();
+    } },
+    { type: 'seg', label: 'Tema', options: [['verde', 'Verde'], ['azul', 'Azul'], ['bordo', 'Bordô']], get: () => S.theme, set: (v) => { S.theme = v; applyTheme(); persist(); } },
+    { type: 'toggle', label: 'Mão esquerda', get: () => S.left, set: (v) => { S.left = v; layoutSlots(); sync({ dur: 0.3, lift: 0.3 }); persist(); } },
+    { type: 'node', el: $('stats-wrap') },
+  ],
+  onOpen: () => { unlock(); refreshSettings(); },
+});
 
 window.addEventListener('resize', () => { fitCamera(); if (st) sync({ dur: 0 }); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); else { last = now(); dirty = true; } });

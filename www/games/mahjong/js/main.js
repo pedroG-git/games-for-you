@@ -527,32 +527,25 @@ function floatText(text, x, y) {
 }
 // ---------------------------------------------------------------- clock (daily & classic best times)
 setInterval(() => {
-  if (!G || G.over || document.hidden || $('game').hidden || !$('m-set').hidden || !$('m-stuck').hidden) return;
+  if (!G || G.over || document.hidden || $('game').hidden || GFY.settings.isOpen() || !$('m-stuck').hidden) return;
   G.time++;
   if (G.mode !== 'journey') $('g-time').textContent = '⏱ ' + fmtTime(G.time);
   if (G.time % 10 === 0) persist();
 }, 1000);
 
 // ---------------------------------------------------------------- settings & buttons
-function openSettings() {
-  $('s-sfx').checked = settings.sfx; $('s-music').checked = settings.music; $('s-vib').checked = settings.vib;
-  $('s-dim').checked = settings.dim; $('s-warn').checked = settings.warn;
-  for (const b of document.querySelectorAll('.seg button')) b.classList.toggle('on', b.dataset.style === settings.style);
-  openModal('m-set');
-}
-for (const b of document.querySelectorAll('.b-set')) b.addEventListener('click', () => { unlock(); openSettings(); });
-$('s-sfx').addEventListener('change', (e) => { settings.sfx = e.target.checked; saveSettings(); });
-$('s-music').addEventListener('change', (e) => { unlock(); setMusic(e.target.checked); saveSettings(); });
-$('s-vib').addEventListener('change', (e) => { settings.vib = e.target.checked; saveSettings(); });
-$('s-dim').addEventListener('change', (e) => { settings.dim = e.target.checked; saveSettings(); $('board').classList.toggle('dim', settings.dim); });
-$('s-warn').addEventListener('change', (e) => { settings.warn = e.target.checked; saveSettings(); });
-for (const b of document.querySelectorAll('.seg button')) b.addEventListener('click', () => {
-  settings.style = b.dataset.style; saveSettings();
-  for (const o of document.querySelectorAll('.seg button')) o.classList.toggle('on', o === b);
-  if (G && !$('game').hidden) render();
+GFY.settings.init({
+  sfx: { get: () => settings.sfx, set: (v) => { settings.sfx = v; saveSettings(); } },
+  music: { get: () => settings.music, set: (v) => { unlock(); setMusic(v); saveSettings(); } },
+  vib: { get: () => settings.vib, set: (v) => { settings.vib = v; saveSettings(); } },
+  extras: [
+    { type: 'toggle', label: '🌗 Darken locked tiles', get: () => settings.dim, set: (v) => { settings.dim = v; saveSettings(); $('board').classList.toggle('dim', v); } },
+    { type: 'toggle', label: '🧭 Warn when stuck ahead', get: () => settings.warn, set: (v) => { settings.warn = v; saveSettings(); } },
+    { type: 'seg', label: 'Tiles', options: [['classic', '🀄 Classic'], ['pics', '🍎 Pictures']], get: () => settings.style, set: (v) => { settings.style = v; saveSettings(); if (G && !$('game').hidden) render(); } },
+    { type: 'button', label: 'How to play', close: true, onClick: () => openModal('m-help') },
+  ],
+  onOpen: () => unlock(),
 });
-$('s-close').addEventListener('click', () => closeModal('m-set'));
-$('s-help').addEventListener('click', () => { closeModal('m-set'); openModal('m-help'); });
 $('help-ok').addEventListener('click', () => closeModal('m-help'));
 $('h-play').addEventListener('click', () => startGame('journey', P.level));
 

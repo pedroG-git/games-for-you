@@ -250,5 +250,3 @@ svg { display: block; }
 .task.done { opacity: .55; }
 .task.done .nm::after { content: ' ✓'; color: #7cf08a; }
 
-#m-set label { display: flex; justify-content: space-between; align-items: center; padding: 10px 6px; font-size: 20px; }
-#m-set input { width: 24px; height: 24px; accent-color: #22a84a; }

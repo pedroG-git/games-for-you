@@ -9,8 +9,10 @@
 <link rel="stylesheet" href="../../shared/fonts.css">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="../../shared/nav.css">
+<link rel="stylesheet" href="../../shared/settings.css">
 <script src="../../shared/nav.js"></script>
-<script>GFY.back([['#m-help', '#help-ok'], ['#m-set', '#s-close'], ['#m-shop', '#shop-close'], ['#m-album', '#a-close'], ['#m-classic', '#c-close'],
+<script src="../../shared/settings.js"></script>
+<script>GFY.back([['#m-help', '#help-ok'], ['#m-shop', '#shop-close'], ['#m-album', '#a-close'], ['#m-classic', '#c-close'],
   ['#m-daily', '#d-close'], ['#m-post', '#post-ok'], ['#m-win', '#win-home'], ['#game', '#g-back']]);</script>
 </head>
 <body>
@@ -19,7 +21,7 @@
   <header class="bar">
     <button class="gfy-home" aria-label="All games"></button>
     <div class="pill" id="h-coins">🪙 <b>0</b></div>
-    <button class="round b-set" aria-label="Settings">⚙️</button>
+    <button class="gfy-gear b-set" aria-label="Settings"></button>
   </header>
   <h1 id="logo">Mahjong <span>Journey</span></h1>
   <div id="ch-name"></div>
@@ -41,7 +43,7 @@
       <div id="g-title"></div>
       <div id="g-stats"><span id="g-left"></span><span id="g-pairs"></span><span id="g-time" hidden></span></div>
     </div>
-    <button class="round small b-set" aria-label="Settings">⚙️</button>
+    <button class="gfy-gear b-set" aria-label="Settings"></button>
   </header>
   <div id="combo" hidden><b></b><i><s></s></i></div>
   <div id="boardwrap"><div id="board"></div></div>
@@ -117,20 +119,6 @@
     <p class="lbl" id="shop-text"></p>
     <button class="big" id="shop-buy">Buy</button>
     <button class="ghostbtn" id="shop-close">Not now</button>
-  </div>
-</div>
-
-<div id="m-set" class="modal" hidden>
-  <div class="box">
-    <h2>Settings</h2>
-    <label><span>🔊 Sounds</span><input type="checkbox" id="s-sfx"></label>
-    <label><span>🎵 Music</span><input type="checkbox" id="s-music"></label>
-    <label><span>📳 Vibration</span><input type="checkbox" id="s-vib"></label>
-    <label><span>🌗 Darken locked tiles</span><input type="checkbox" id="s-dim"></label>
-    <label><span>🧭 Warn when stuck ahead</span><input type="checkbox" id="s-warn"></label>
-    <div class="seg"><span>Tiles</span><button data-style="classic">🀄 Classic</button><button data-style="pics">🍎 Pictures</button></div>
-    <button class="big" id="s-close">Done</button>
-    <button class="ghostbtn" id="s-help">How to play</button>
   </div>
 </div>
 
