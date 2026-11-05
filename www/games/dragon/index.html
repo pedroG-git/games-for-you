@@ -12,11 +12,11 @@
 <link rel="stylesheet" href="../../shared/settings.css">
 <script src="../../shared/nav.js"></script>
 <script src="../../shared/settings.js"></script>
-<script>GFY.back([['#m-tasks', '#t-close'], ['#m-start', '#st-close'], ['#m-quit', '#q-stay'],
+<script>GFY.back([['#m-chest', '#chest-ok'], ['#m-start', '#st-close'], ['#m-quit', '#q-stay'],
   ['#m-gift', '#gift-ok'], ['#m-win', '#win-ok'], ['#m-lose', '#lose-home'], ['#game', '#g-back']]);</script>
 </head>
 <body>
-<!-- Fortress (home screen) -->
+<!-- Home screen -->
 <div id="home" class="screen">
   <header class="bar">
     <button class="gfy-home" aria-label="All games"></button>
@@ -24,10 +24,12 @@
     <button class="gfy-gear b-set" aria-label="Settings"></button>
   </header>
   <h1 id="logo">Dragon <span>Match</span></h1>
-  <div id="area-name"></div>
-  <div id="scene"></div>
-  <div id="area-prog"><i></i><span></span></div>
-  <button class="wide" id="h-tasks">🔨 Build <i id="h-badge" hidden></i></button>
+  <div id="hero"></div>
+  <div id="starbar">
+    <svg class="st" viewBox="0 0 100 100"><use href="#star"/></svg>
+    <div id="bar-track"><i id="bar-fill"></i><span id="bar-n"></span></div>
+    <div id="bar-gift"></div>
+  </div>
   <button class="big" id="h-play">Level 1</button>
 </div>
 
@@ -61,6 +63,7 @@
     <p class="tag" id="st-tag" hidden>Hard level</p>
     <p class="streak" id="st-streak" hidden></p>
     <p class="streak help" id="st-help" hidden></p>
+    <p class="newob" id="st-new" hidden></p>
     <p class="lbl">Goals</p>
     <div id="st-goals" class="goalrow"></div>
     <p class="lbl">Boosters</p>
@@ -91,7 +94,7 @@
     <p class="streak warn" id="lose-streak" hidden></p>
     <button class="big" id="lose-more">+5 moves</button>
     <button class="big alt" id="lose-retry">Try again</button>
-    <button class="ghostbtn" id="lose-home">Fortress</button>
+    <button class="ghostbtn" id="lose-home">Home</button>
   </div>
 </div>
 
@@ -104,11 +107,11 @@
   </div>
 </div>
 
-<div id="m-tasks" class="modal" hidden>
+<div id="m-chest" class="modal" hidden>
   <div class="box">
-    <h2 id="t-title">Tasks</h2>
-    <div id="t-list"></div>
-    <button class="ghostbtn" id="t-close">Close</button>
+    <h2>Star bar full!</h2>
+    <p class="lbl" id="chest-got"></p>
+    <button class="big" id="chest-ok">Collect</button>
   </div>
 </div>
 

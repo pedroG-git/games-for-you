@@ -1,15 +1,16 @@
-// Dragon Match — Royal Match-style match-3: beat levels to earn stars, spend stars to restore the
-// dragon rider fortress. Rules live in engine.js; this file draws, animates and handles input.
+// Dragon Match — Royal Match-style match-3: beat levels to earn stars; stars fill the star bar on the
+// home screen and every full bar gives a booster. Rules live in engine.js; this file draws, animates and
+// handles input.
 import * as E from './engine.js';
 import { levelFor, isHard } from './levels.js';
 import { MOVES } from './moves.js';
 import { installArt, use, tileArt, goalArt, GEM_COLORS } from './art.js';
-import { AREAS, currentArea, renderScene, propArt } from './fortress.js';
 import { play, settings, unlock, setMusic } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 const { W, H, idx } = E;
-const SAVE = 'dragon-save', SET = 'dragon-settings', CACHE = 'dragon-moves';
+// 'dragon-moves' (old, stale numbers) is left alone; the versioned key starts fresh with the new generator.
+const SAVE = 'dragon-save', SET = 'dragon-settings', CACHE = 'dragon-moves-v2';
 installArt();
 
 const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
@@ -22,6 +23,37 @@ const P = Object.assign({ level: 1, stars: 0, built: [], boost: {}, streak: 0, g
 for (const b of BOOSTS) if (!(P.boost[b] >= 0)) P.boost[b] = ['hammer', 'shuffle'].includes(b) ? 2 : 1;
 const saveP = () => store(SAVE, P);
 const boostArt = (k) => use(k === 'shuffle' ? 'mix' : k);
+
+// ---------------------------------------------------------------- star bar
+// Stars fill a bar on the home screen; each full bar gives one booster (in a fixed rotation).
+// The old fortress is gone: its save fields (built, stars) stay untouched, and on the first run the bar
+// starts with her unspent stars plus every star she had spent on buildings.
+const BAR = 10;
+const BAR_GIFTS = ['rocket', 'hammer', 'bomb', 'arrow', 'light', 'cannon', 'shuffle'];
+const OLD_COSTS = [[1, 2, 1, 1, 2, 2], [1, 2, 2, 2, 3, 2], [1, 1, 2, 2, 2, 3], [2, 3, 2, 2, 4], [2, 2, 2, 2, 3, 3], [2, 2, 2, 2, 3, 3], [2, 3, 2, 2, 3, 3], [2, 2, 3, 2, 3, 4]];
+if (!(P.bar >= 0)) {
+  const spent = (P.built || []).reduce((n, k) => {
+    const [a, i] = String(k).split(':').map(Number);
+    return n + ((OLD_COSTS[a] && OLD_COSTS[a][i]) || 0);
+  }, 0);
+  P.bar = Math.max(0, (+P.stars || 0) + spent);
+  P.bars = 0;
+  saveP();
+}
+function addStars(n) { P.stars += n; P.bar += n; }
+/** Turns full bars into boosters. Returns the boosters given (in order). */
+function cashBars() {
+  const got = [];
+  while (P.bar >= BAR) {
+    P.bar -= BAR;
+    const k = BAR_GIFTS[(P.bars || 0) % BAR_GIFTS.length];
+    P.bars = (P.bars || 0) + 1;
+    P.boost[k]++;
+    got.push(k);
+  }
+  if (got.length) saveP();
+  return got;
+}
 
 // ---------------------------------------------------------------- win streak
 // Every level won in a row starts the next one with free powers on the board. Losing a level ends it,
@@ -84,7 +116,7 @@ function maybeGift() {
   openModal('m-gift');
 }
 function collectGift() {
-  for (const [k, n] of Object.entries(GIFTS[P.gift.n])) { if (k === 'stars') P.stars += n; else P.boost[k] += n; }
+  for (const [k, n] of Object.entries(GIFTS[P.gift.n])) { if (k === 'stars') addStars(n); else P.boost[k] += n; }
   P.gift = { day: today(), n: (P.gift.n + 1) % GIFTS.length };
   saveP();
   const b = document.querySelector('#gift-days .now').getBoundingClientRect();
@@ -107,8 +139,9 @@ function getLevel(n) {
 
 // ---------------------------------------------------------------- state of the level being played
 let S = null, L = null;
-const G = { busy: false, sel: -1, tool: null, down: null, extra: false, pre: new Set(), speed: 1, at: new Map(), merge: new Map(), hintT: 0 };
-const els = new Map(), iceEls = new Map();
+const G = { busy: false, sel: -1, tool: null, down: null, extra: false, pre: new Set(), speed: 1, at: new Map(), merge: new Map(), hintT: 0,
+  skip: false, wake: null, finale: false };
+const els = new Map(), iceEls = new Map(), grassEls = new Map();
 let cell = 44;
 
 // ---------------------------------------------------------------- screens
@@ -129,66 +162,34 @@ function layout() {
 }
 addEventListener('resize', layout);
 
-// ---------------------------------------------------------------- home / fortress
-function openHome(justBuilt) {
+// ---------------------------------------------------------------- home
+function drawBar() {
+  $('h-stars').querySelector('b').textContent = P.stars;
+  $('bar-fill').style.width = (Math.min(P.bar, BAR) / BAR) * 100 + '%';
+  $('bar-n').textContent = `${Math.min(P.bar, BAR)} / ${BAR}`;
+  $('bar-gift').innerHTML = boostArt(BAR_GIFTS[(P.bars || 0) % BAR_GIFTS.length]);
+}
+function openHome() {
   show('home');
   layout();
-  $('h-stars').querySelector('b').textContent = P.stars;
-  const a = currentArea(P.built), done = a >= AREAS.length, shownArea = done ? AREAS.length - 1 : a;
-  const A = AREAS[shownArea];
-  $('area-name').textContent = done ? 'The fortress is restored!' : `Area ${a + 1} · ${A.name}`;
-  renderScene($('scene'), shownArea, P.built, justBuilt);
-  const n = A.tasks.filter((_, i) => P.built.includes(shownArea + ':' + i)).length;
-  $('area-prog').querySelector('i').style.width = (n / A.tasks.length) * 100 + '%';
-  $('area-prog').querySelector('span').textContent = `${n} / ${A.tasks.length}`;
-  $('h-tasks').hidden = done;
-  $('h-badge').hidden = done || !A.tasks.some((t, i) => !P.built.includes(a + ':' + i) && t.cost <= P.stars);
-  const hard = isHard(P.level);
+  drawBar();
+  $('hero').innerHTML = use('prop');
+  const hard = isHard(P.level), resume = P.run && P.run.level === P.level;
   $('h-play').className = 'big' + (hard ? ' hard' : '');
-  $('h-play').innerHTML = `Level ${P.level}${hard ? '<small>Hard level</small>' : ''}${P.streak ? `<span class="fire">🔥 ${P.streak} in a row</span>` : ''}`;
-  maybeGift();
-}
-
-function openTasks() {
-  const a = currentArea(P.built), A = AREAS[a];
-  $('t-title').textContent = A.name;
-  const list = $('t-list');
-  list.innerHTML = '';
-  A.tasks.forEach((t, i) => {
-    const done = P.built.includes(a + ':' + i);
-    const row = document.createElement('div');
-    row.className = 'task' + (done ? ' done' : '');
-    row.innerHTML = `<span class="ic">${propArt(t)}</span><span class="nm"></span>`;
-    row.querySelector('.nm').textContent = t.name;
-    if (!done) {
-      const b = document.createElement('button');
-      b.className = t.cost <= P.stars ? '' : 'cant';
-      b.innerHTML = `${use('star')}${t.cost}`;
-      b.addEventListener('click', () => (t.cost > P.stars ? (play.locked(), nope(b)) : build(a, i)));
-      row.appendChild(b);
-    }
-    list.appendChild(row);
-  });
-  openModal('m-tasks');
-}
-
-function build(a, i) {
-  const t = AREAS[a].tasks[i];
-  if (t.cost > P.stars) return;
-  P.stars -= t.cost;
-  P.built.push(a + ':' + i);
-  saveP();
-  closeModal('m-tasks');
-  openHome(i);
-  play.build();
-  const item = $('scene').children[2 + i];
-  if (item) { const r = item.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, ['#ffd23a', '#fff', '#ff8a3d'], 30); }
-  if (currentArea(P.built) !== a) {
+  $('h-play').innerHTML = `Level ${P.level}${resume ? '<small>Continue</small>' : hard ? '<small>Hard level</small>' : ''}${P.streak ? `<span class="fire">🔥 ${P.streak} in a row</span>` : ''}`;
+  const got = cashBars();
+  if (got.length) {
+    $('chest-got').innerHTML = got.map((k) => `<span class="gift">${boostArt(k)}</span>`).join(' ');
+    openModal('m-chest');
     setTimeout(() => {
-      play.win();
-      setTimeout(() => openHome(), 1600);
-    }, 2200);
+      drawBar();
+      const b = $('chest-got').getBoundingClientRect();
+      burst(b.left + b.width / 2, b.top + b.height / 2, ['#ffd23a', '#fff', '#ff8a3d'], 36, 1.3);
+      play.build();
+    }, 250);
+    return;
   }
+  maybeGift();
 }
 
 // ---------------------------------------------------------------- refused-action feedback
@@ -219,22 +220,58 @@ function openStart() {
     b.querySelector('i').textContent = P.boost[k];
   }
   $('st-play').className = 'big' + (L.hard ? ' hard' : '');
+  // First time a new obstacle shows up: a small picture and one line, here before play (never during it).
+  const fresh = L.goals.map((g) => g.t).find((t) => NEWS[t] && !(P.seen || []).includes(t));
+  $('st-new').hidden = !fresh;
+  if (fresh) $('st-new').innerHTML = `<span class="ic">${NEWS[fresh][0]}</span><span>${NEWS[fresh][1]}</span>`;
+  G.fresh = fresh || null;
   openModal('m-start');
 }
+const NEWS = {
+  chain: [`<svg viewBox="0 0 100 100"><use href="#gem1"/><use href="#chain"/></svg>`, 'Chained gems can\'t move. Match them to break the chain.'],
+  grass: [use('grass'), 'Match on grass to spread it. Cover the cells!'],
+  honey: [use('honey'), 'Honey grows if you don\'t clear some. Match next to it.'],
+};
 
 function startLevel() {
   for (const k of G.pre) P.boost[k]--;
-  saveP();
+  if (G.fresh) { P.seen = [...(P.seen || []), G.fresh]; G.fresh = null; }
   S = E.createState(L, (Math.random() * 2 ** 31) | 0);
   const h = help();
   S.moves += h.moves;
   E.placeBoosters(S, [...G.pre, ...streakPowers(), ...h.powers]);
   G.pre.clear(); G.extra = false; G.failed = false; G.sel = -1; G.tool = null; G.busy = false;
+  saveRun(); // spent boosters and the board with them are saved together (one write)
+  enterBoard(true);
+}
+
+// ---------------------------------------------------------------- resume after the app was closed
+// The level is saved inside the main save (one atomic write) only when the board has settled. A booster
+// used mid-move is remembered as "pending" and given back on resume, since the board is from before it.
+function saveRun(pending) {
+  P.run = { level: P.level, S: E.snapshot(S), extra: G.extra, failed: !!G.failed, pending: pending || null };
+  saveP();
+}
+function dropRun() { if (P.run) { delete P.run; saveP(); } }
+function resumeLevel() {
+  const R = P.run;
+  L = getLevel(P.level);
+  S = E.restore(R.S);
+  if (R.pending) {
+    if (R.pending === 'fire') P.fire = 1; else P.boost[R.pending]++;
+    R.pending = null;
+  }
+  G.extra = !!R.extra; G.failed = !!R.failed; G.sel = -1; G.tool = null; G.busy = false;
+  saveRun();
+  enterBoard(false);
+  if (S.lost || S.moves <= 0) { S.lost = true; loseFlow(); }
+}
+function enterBoard(drop) {
   show('game');
   $('goals').innerHTML = '';
   layout();
   buildBoard();
-  for (let i = 0; i < W * H; i++) if (S.tiles[i] && S.tiles[i].t !== 'box') S.tiles[i].y0 = Math.floor(i / W) - H - 1;
+  if (drop) for (let i = 0; i < W * H; i++) if (S.tiles[i] && !E.fixed(S.tiles[i])) S.tiles[i].y0 = Math.floor(i / W) - H - 1;
   render();
   updateTools();
   updateFire();
@@ -247,7 +284,7 @@ const pos = (r, c) => `translate(${c * cell}px, ${r * cell}px)`;
 function buildBoard() {
   const cells = $('cells'), icel = $('icel');
   cells.innerHTML = ''; icel.innerHTML = ''; $('tiles').innerHTML = ''; $('fxl').innerHTML = '';
-  els.clear(); iceEls.clear();
+  els.clear(); iceEls.clear(); grassEls.clear();
   for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
     if (!E.inBoard(S, r, c)) continue;
     const d = document.createElement('div');
@@ -256,6 +293,7 @@ function buildBoard() {
       + (E.inBoard(S, r, c - 1) ? '' : ' e-l') + (E.inBoard(S, r, c + 1) ? '' : ' e-r');
     d.style.transform = pos(r, c);
     cells.appendChild(d);
+    if (S.grass[idx(r, c)]) addGrass(idx(r, c), false);
     if (S.ice[idx(r, c)]) {
       const e = document.createElement('div');
       e.className = 'ice';
@@ -265,6 +303,15 @@ function buildBoard() {
       iceEls.set(idx(r, c), e);
     }
   }
+}
+
+function addGrass(i, grow) {
+  const e = document.createElement('div');
+  e.className = 'grass' + (grow ? ' grow' : '');
+  e.style.transform = pos(Math.floor(i / W), i % W);
+  e.innerHTML = use('grass');
+  $('icel').prepend(e);
+  grassEls.set(i, e);
 }
 
 function render(instant) {
@@ -290,12 +337,12 @@ function render(instant) {
       delete t.y0;
     }
     el._t = t;
-    const key = t.t + (t.c !== undefined ? t.c : '') + (t.hp !== undefined ? t.hp : '');
+    const key = t.t + (t.c !== undefined ? t.c : '') + (t.hp !== undefined ? t.hp : '') + (t.lock ? 'L' : '');
     if (el.dataset.k !== key) {
-      if (el.dataset.k && t.t === 'box') { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); play.box(); boxBits(r, c); }
+      if (el.dataset.k && (t.t === 'box' || (t.t === 'g' && el.dataset.k.endsWith('L')))) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); play.box(); boxBits(r, c); }
       el.dataset.k = key;
       el.innerHTML = tileArt(t);
-      el.classList.toggle('crate', t.t === 'box');
+      el.classList.toggle('crate', t.t === 'box' || t.t === 'honey');
       el.classList.toggle('special', E.isSpecial(t));
     }
     el.classList.toggle('sel', G.sel === i);
@@ -313,6 +360,7 @@ function render(instant) {
     burst(b.x, b.y, ['#e8f8ff', '#9adfff'], 5);
   }
   if (melted) play.ice();
+  for (let i = 0; i < W * H; i++) if (S.grass[i] && !grassEls.has(i)) addGrass(i, true);
   updateHud();
 }
 
@@ -340,6 +388,7 @@ function removeTile(el, id) {
   const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
   if (t.t === 'g') burst(cx, cy, [GEM_COLORS[t.c], '#fff'], 7);
   if (t.t === 'box') { burst(cx, cy, ['#c88a4a', '#7a4317', '#ffe0b0'], 12); play.box(); }
+  if (t.t === 'honey') { burst(cx, cy, ['#ffb020', '#ffe27a', '#c26a00'], 12); play.box(); }
   const target = goalEl(t);
   if (target && (t.t !== 'g' || S.goals.some((g) => g.t === 'gem' && g.c === t.c))) {
     flyTo(el.innerHTML, rect, target);
@@ -370,7 +419,7 @@ function flyTo(html, rect, target) {
 
 function updateHud() {
   $('moves-n').textContent = S.moves;
-  $('moves').classList.toggle('low', S.moves <= 5);
+  $('moves').classList.toggle('low', S.moves <= 3);
   const box = $('goals');
   if (box.children.length !== S.goals.length) box.innerHTML = goalsHTML(S.goals, true);
   S.goals.forEach((g, k) => {
@@ -507,7 +556,12 @@ function tickSparks() {
 }
 
 // ---------------------------------------------------------------- running a move with animation
-const wait = (ms) => new Promise((r) => setTimeout(r, ms * G.speed));
+// A tap during the finale sets G.skip: waits end at once and drive() stops stepping.
+const wait = (ms) => new Promise((r) => {
+  if (G.skip) { r(); return; }
+  const t = setTimeout(() => { G.wake = null; r(); }, ms * G.speed);
+  G.wake = () => { clearTimeout(t); G.wake = null; r(); };
+});
 
 async function drive(gen) {
   G.busy = true;
@@ -516,6 +570,7 @@ async function drive(gen) {
   const s0 = S;
   while (!(r = gen.next()).done) {
     if (S !== s0) return; // left the level mid-animation
+    if (G.skip) break;
     const ph = r.value;
     if (ph.type === 'swap') { render(); play.swap(); await wait(170); }
     else if (ph.type === 'swapback') { render(); play.nope(); await wait(200); }
@@ -536,6 +591,7 @@ async function drive(gen) {
     else if (ph.type === 'collect') { render(); play.egg(); await wait(260); }
     else if (ph.type === 'shuffle') { render(); play.shuffle(); await wait(500); }
     else if (ph.type === 'turn') { render(); play.born(); await wait(220); }
+    else if (ph.type === 'honey') { render(); play.box(); const el = els.get(S.tiles[ph.at].id); if (el) el.classList.add('born'); await wait(260); }
   }
   G.busy = false;
   return r.value;
@@ -543,6 +599,7 @@ async function drive(gen) {
 
 async function afterMove() {
   if (S.won) return winFlow();
+  saveRun(); // settled: safe to resume from here
   if (S.lost) return loseFlow();
   resetHint();
 }
@@ -551,7 +608,7 @@ async function trySwap(a, b) {
   const ra = Math.floor(a / W), ca = a % W, rb = Math.floor(b / W), cb = b % W;
   if (!E.inBoard(S, rb, cb) || Math.abs(ra - rb) + Math.abs(ca - cb) !== 1) return;
   const ta = S.tiles[a], tb = S.tiles[b];
-  if (!ta || !tb || ta.t === 'box' || tb.t === 'box') { play.nope(); return; }
+  if (!E.movable(ta) || !E.movable(tb)) { play.nope(); return; }
   G.sel = -1;
   await drive(E.swap(S, a, b));
   afterMove();
@@ -568,7 +625,7 @@ async function tapCell(i) {
     await drive(E.tap(S, i));
     return afterMove();
   }
-  G.sel = t && t.t !== 'box' && G.sel !== i ? i : -1;
+  G.sel = E.movable(t) && G.sel !== i ? i : -1;
   if (G.sel >= 0) play.pick();
   render();
 }
@@ -633,7 +690,7 @@ for (const b of document.querySelectorAll('#tools [data-tool]')) {
     const k = b.dataset.tool;
     if (!P.boost[k]) { play.locked(); nope(b); return; }
     if (k === 'shuffle') {
-      P.boost[k]--; saveP(); G.tool = null; updateTools();
+      P.boost[k]--; saveRun(k); G.tool = null; updateTools();
       await drive(E.tool(S, 'shuffle'));
       return afterMove();
     }
@@ -645,29 +702,18 @@ for (const b of document.querySelectorAll('#tools [data-tool]')) {
 async function useTool(i) {
   const k = G.tool;
   G.tool = null;
-  P.boost[k]--; saveP();
- 
+  P.boost[k]--; saveRun(k);
   updateTools();
   await drive(E.tool(S, k, i));
   afterMove();
 }
 
 // ---------------------------------------------------------------- win / lose
-async function winFlow() {
-  G.busy = true;
-  clearHint();
-  play.win();
-  await wait(1100);
-  if (S.moves > 0) {
-    G.speed = 0.55;
-    await drive(E.finale(S));
-    G.speed = 1;
-    if (!S) return;
-    await wait(400);
-  }
-  G.busy = true;
+// The win is credited first, in one save, before the finale plays: the finale only decorates, so skipping
+// it (tap) or the app closing during it gives exactly the same stars and gifts, and never twice.
+function creditWin() {
   const stars = L.hard ? 2 : 1;
-  P.stars += stars;
+  addStars(stars);
   P.level++;
   P.streak++;
   if (P.shield) P.shield--;
@@ -678,7 +724,27 @@ async function winFlow() {
     P.boost[g]++;
     gifts.push(g);
   }
+  delete P.run;
   saveP();
+  return { stars, gifts };
+}
+async function winFlow() {
+  G.busy = true;
+  clearHint();
+  const { stars, gifts } = creditWin();
+  G.skip = false; G.finale = true;
+  play.win();
+  await wait(1100);
+  if (S && S.moves > 0 && !G.skip) {
+    G.speed = 0.55;
+    await drive(E.finale(S));
+    G.speed = 1;
+    if (!S) { G.finale = false; return; }
+    await wait(400);
+  }
+  G.finale = false; G.skip = false;
+  if (!S) return;
+  G.busy = true;
   $('win-n').textContent = '+' + stars;
   $('win-gift').innerHTML = 'Reward: ' + gifts.map((g) => `<span class="gift">${boostArt(g)}</span>`).join(' ');
   $('win-streak').hidden = false;
@@ -708,10 +774,19 @@ function loseFlow() {
   openModal('m-lose');
 }
 
+// Tap anywhere on the level during the finale to jump to the win screen.
+$('game').addEventListener('pointerdown', () => {
+  if (!G.finale || G.skip) return;
+  G.skip = true;
+  if (G.wake) G.wake();
+});
+
 // ---------------------------------------------------------------- buttons
-$('h-play').addEventListener('click', () => { unlock(); play.tap(); openStart(); });
-$('h-tasks').addEventListener('click', () => { unlock(); play.tap(); openTasks(); });
-$('t-close').addEventListener('click', () => closeModal('m-tasks'));
+$('h-play').addEventListener('click', () => {
+  unlock(); play.tap();
+  if (P.run && P.run.level === P.level) resumeLevel(); else { dropRun(); openStart(); }
+});
+$('chest-ok').addEventListener('click', () => { play.tap(); closeModal('m-chest'); maybeGift(); });
 $('st-close').addEventListener('click', () => closeModal('m-start'));
 $('st-play').addEventListener('click', () => { play.tap(); closeModal('m-start'); startLevel(); });
 for (const b of $('st-boost').children) {
@@ -727,25 +802,26 @@ $('win-ok').addEventListener('click', () => { play.tap(); S = null; openHome(); 
 $('lose-more').addEventListener('click', () => {
   G.extra = true;
   S.moves += 5; S.lost = false;
+  saveRun();
   closeModal('m-lose');
   updateHud();
   resetHint();
 });
-$('lose-retry').addEventListener('click', () => { endStreak(); closeModal('m-lose'); openStart(); });
-$('lose-home').addEventListener('click', () => { endStreak(); S = null; openHome(); });
+$('lose-retry').addEventListener('click', () => { endStreak(); dropRun(); closeModal('m-lose'); openStart(); });
+$('lose-home').addEventListener('click', () => { endStreak(); dropRun(); S = null; openHome(); });
 $('g-back').addEventListener('click', () => {
   if (G.busy) return;
   $('q-msg').textContent = 'You will have to start this level again.' + (P.streak ? ' ' + streakRisk() + '.' : '');
   openModal('m-quit');
 });
 $('q-stay').addEventListener('click', () => closeModal('m-quit'));
-$('q-leave').addEventListener('click', () => { endStreak(); S = null; clearHint(); openHome(); });
+$('q-leave').addEventListener('click', () => { endStreak(); dropRun(); S = null; clearHint(); openHome(); });
 $('gift-ok').addEventListener('click', () => { unlock(); collectGift(); });
 $('fire').addEventListener('click', async () => {
   unlock();
   if (G.busy || !S || S.won || S.lost) return;
   if (P.fire < 1) { play.tap(); nope($('fire')); return; }
-  P.fire = 0; saveP(); updateFire();
+  P.fire = 0; saveRun('fire'); updateFire();
   G.tool = null; updateTools();
   await drive(E.tool(S, 'fire'));
   afterMove();
@@ -759,5 +835,5 @@ GFY.settings.init({
 });
 
 document.addEventListener('pointerdown', unlock, { once: true });
-if (location.search.includes('debug')) window.dbg = { get S() { return S; }, E, P, trySwap, tapCell, openStart, winFlow, loseFlow };
+if (location.search.includes('debug')) window.dbg = { get S() { return S; }, get G() { return G; }, E, P, trySwap, tapCell, openStart, winFlow, loseFlow, resumeLevel, openHome };
 openHome();
