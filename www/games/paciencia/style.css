@@ -65,3 +65,8 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .gfy-set-box .stats div { background: rgba(0, 0, 0, .28); }
 .gfy-set-box .stats span { color: rgba(255, 255, 255, .75); }
 .gfy-set-box .stats b { font-weight: 400; }
+/* Compact: 6 stats in 2 rows of 3, so the panel fits on a phone. */
+.gfy-set-box .stats { grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 0; }
+.gfy-set-box .stats div { padding: 6px 6px; border-radius: 10px; text-align: center; }
+.gfy-set-box .stats b { font-size: 17px; }
+.gfy-set-box .stats span { font-size: 11px; line-height: 1.1; display: block; }
