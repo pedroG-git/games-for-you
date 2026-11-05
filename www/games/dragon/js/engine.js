@@ -4,7 +4,9 @@
 export const W = 8, H = 9;
 export const SPECIALS = ['rh', 'rv', 'bomb', 'prop', 'light'];
 export const isSpecial = (t) => !!t && SPECIALS.includes(t.t);
-const movable = (t) => !!t && t.t !== 'box';
+// Fixed tiles don't fall and can't be swapped: boxes, honey and chained (locked) gems.
+export const fixed = (t) => !!t && (t.t === 'box' || t.t === 'honey' || !!t.lock);
+export const movable = (t) => !!t && !fixed(t);
 
 // ---------------------------------------------------------------- random (state lives in S.rs so clones replay)
 export function rand(S) {
@@ -26,25 +28,30 @@ const gem = (S, c) => newTile(S, 'g', { c });
 export function createState(L, seed) {
   const S = {
     top: L.top.slice(), bot: L.bot.slice(), colors: L.colors, moves: L.moves,
-    tiles: Array(W * H).fill(null), ice: Array(W * H).fill(0),
+    tiles: Array(W * H).fill(null), ice: Array(W * H).fill(0), grass: Array(W * H).fill(0),
     goals: L.goals.map((g) => ({ ...g, left: g.n })),
     eggsLeft: 0, nextId: 1, rs: seed | 0, wave: 0, queue: [], won: false, lost: false, stats: { specials: 0 },
+    spread: false, honeyHit: false, honeyCap: 0,
   };
   for (const [r, c, hp] of L.boxes) S.tiles[idx(r, c)] = newTile(S, 'box', { hp });
   for (const [r, c] of L.ice) S.ice[idx(r, c)] = 1;
+  for (const [r, c] of L.grass || []) S.grass[idx(r, c)] = 1;
+  for (const [r, c] of L.honey || []) S.tiles[idx(r, c)] = newTile(S, 'honey');
+  S.honeyCap = (L.honey || []).length + 6; // honey never grows past this
   const eggGoal = S.goals.find((g) => g.t === 'egg');
   if (eggGoal) {
     S.eggsLeft = eggGoal.n;
     for (const [r, c] of L.eggs) { S.tiles[idx(r, c)] = newTile(S, 'egg'); S.eggsLeft--; }
   }
   fillNoMatch(S);
+  for (const [r, c] of L.chains || []) { const t = S.tiles[idx(r, c)]; if (t && t.t === 'g') t.lock = 1; }
   if (!hasMove(S)) shuffle(S);
   return S;
 }
 
 export function clone(S) {
   return {
-    ...S, top: S.top, bot: S.bot, tiles: S.tiles.map((t) => t && { ...t }), ice: S.ice.slice(),
+    ...S, top: S.top, bot: S.bot, tiles: S.tiles.map((t) => t && { ...t }), ice: S.ice.slice(), grass: S.grass.slice(),
     goals: S.goals.map((g) => ({ ...g })), queue: [], stats: { ...S.stats },
   };
 }
@@ -183,7 +190,7 @@ export function hasMove(S) {
 /** Re-deals the gems (not specials, boxes or eggs) so there is no match and at least one move. */
 export function shuffle(S) {
   const spots = [];
-  for (let i = 0; i < W * H; i++) if (S.tiles[i] && S.tiles[i].t === 'g') spots.push(i);
+  for (let i = 0; i < W * H; i++) if (S.tiles[i] && S.tiles[i].t === 'g' && !S.tiles[i].lock) spots.push(i);
   for (let tries = 0; tries < 60; tries++) {
     const pool = spots.map((i) => S.tiles[i]);
     for (let k = pool.length - 1; k > 0; k--) { const j = rint(S, k + 1); [pool[k], pool[j]] = [pool[j], pool[k]]; }
@@ -199,10 +206,20 @@ function count(S, t, c) {
   const g = S.goals.find((x) => x.t === t && (t !== 'gem' || x.c === c));
   if (g && g.left > 0) g.left--;
 }
+// Grass spreads onto a cell (not under a box). Counts toward the 'grass' goal.
+function cover(S, i) {
+  const r = Math.floor(i / W), c = i % W;
+  if (!inBoard(S, r, c) || S.grass[i]) return;
+  const t = S.tiles[i];
+  if (t && t.t === 'box') return;
+  S.grass[i] = 1;
+  count(S, 'grass');
+}
 export const goalsDone = (S) => S.goals.every((g) => g.left <= 0);
 
 // ---------------------------------------------------------------- hitting cells
-// Damage one cell: gems pop, boxes lose a layer (once per wave), specials get queued to go off, ice melts.
+// Damage one cell: gems pop, boxes lose a layer (once per wave), specials get queued to go off, ice melts,
+// chains break (the gem stays), honey is wiped. A blast from a special that sits on grass spreads the grass.
 function hit(S, i) {
   const r = Math.floor(i / W), c = i % W;
   if (!inBoard(S, r, c)) return;
@@ -213,24 +230,32 @@ function hit(S, i) {
     if (--t.hp <= 0) { S.tiles[i] = null; count(S, 'box'); }
     return;
   }
+  if (S.spread) cover(S, i);
+  if (t && t.lock) {
+    if (t.hw === S.wave) return;
+    t.hw = S.wave; t.lock = 0; count(S, 'chain');
+    return;
+  }
+  if (t && t.t === 'honey') { S.tiles[i] = null; S.honeyHit = true; count(S, 'honey'); return; }
   if (S.ice[i]) { S.ice[i] = 0; count(S, 'ice'); }
   if (!t || t.t === 'egg') return;
   if (t.t === 'g') { S.tiles[i] = null; count(S, 'gem', t.c); return; }
   if (isSpecial(t) && !t.fired) { t.fired = true; S.queue.push({ t: t.t, at: i, id: t.id }); }
 }
-// Matches crack boxes next to them.
+// Matches crack boxes and wipe honey next to them.
 function nudge(S, i) {
   const r = Math.floor(i / W), c = i % W;
   for (const [dr, dc] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
     if (!inBoard(S, r + dr, c + dc)) continue;
     const t = S.tiles[idx(r + dr, c + dc)];
-    if (t && t.t === 'box') hit(S, idx(r + dr, c + dc));
+    if (t && (t.t === 'box' || t.t === 'honey')) hit(S, idx(r + dr, c + dc));
   }
 }
 
 function clearGroups(S, groups) {
   S.wave++;
   for (const g of groups) {
+    if (g.cells.some((i) => S.grass[i])) for (const i of g.cells) cover(S, i); // a match touching grass spreads it
     for (const i of g.cells) {
       const t = S.tiles[i];
       if (!t || t.t !== 'g') continue;
@@ -263,8 +288,11 @@ function pickTarget(S, avoid) {
     if (avoid.has(i)) continue;
     let s = 0;
     if (t && t.t === 'box' && want('box')) s = 10 + (3 - t.hp);
+    else if (t && t.t === 'honey' && want('honey')) s = 10;
+    else if (t && t.lock && want('chain')) s = 9;
     else if (S.ice[i] && want('ice') && !(t && t.t === 'box')) s = 8;
     else if (t && t.t === 'g' && want('gem', t.c)) s = 6;
+    else if (want('grass') && !S.grass[i] && t && t.t === 'g' && S.spread) s = 5;
     else if (want('egg') && r > 0 && inBoard(S, r - 1, c) && S.tiles[idx(r - 1, c)] && S.tiles[idx(r - 1, c)].t === 'egg' && t && t.t !== 'egg') s = 7;
     else if (t && t.t === 'g') s = 1;
     if (s > score) { score = s; best = [i]; } else if (s === score) best.push(i);
@@ -275,6 +303,12 @@ function pickTarget(S, avoid) {
 /** Sets off one special (or a combo / booster). Pushes visual effects to fx. */
 function activate(S, a, fx) {
   if (a.id !== undefined && S.tiles[a.at] && S.tiles[a.at].id === a.id) S.tiles[a.at] = null;
+  const before = S.spread;
+  S.spread = !!S.grass[a.at];
+  blastAt(S, a, fx);
+  S.spread = before;
+}
+function blastAt(S, a, fx) {
   const [r, c] = rc(a.at);
   switch (a.t) {
     case 'rh': fx.push({ fx: 'rocket', r, c, dir: 'h' }); row(S, r); break;
@@ -310,6 +344,7 @@ function activate(S, a, fx) {
       fx.push({ fx: 'light', r, c, targets: targets.map(rc), turn: a.turn || null });
       if (a.turn) {
         for (const i of targets) {
+          if (S.tiles[i].lock) { hit(S, i); continue; } // a chained gem only loses its chain
           const t = a.turn === 'rocket' ? (rand(S) < 0.5 ? 'rh' : 'rv') : a.turn;
           S.tiles[i] = newTile(S, t, { fired: true });
           S.queue.push({ t, at: i, id: S.tiles[i].id });
@@ -337,15 +372,16 @@ function combo(x, y) {
 }
 
 // ---------------------------------------------------------------- gravity
-// Tiles fall straight down; boxes stay put, and gaps under them are filled by tiles sliding in diagonally.
+// Tiles fall straight down; fixed tiles (boxes, honey, chained gems) stay put, and gaps under them are
+// filled by tiles sliding in diagonally.
 function gravity(S) {
   let moved = false;
   for (let guard = 0; guard < 200; guard++) {
     for (let c = 0; c < W; c++) {
       let r = S.bot[c];
       while (r >= S.top[c]) {
-        let end = r; // segment [start..end] between boxes
-        while (r >= S.top[c] && !(S.tiles[idx(r, c)] && S.tiles[idx(r, c)].t === 'box')) r--;
+        let end = r; // segment [start..end] between fixed tiles
+        while (r >= S.top[c] && !fixed(S.tiles[idx(r, c)])) r--;
         const start = r + 1;
         const stack = [];
         for (let k = end; k >= start; k--) if (S.tiles[idx(k, c)]) stack.push(S.tiles[idx(k, c)]);
@@ -355,7 +391,7 @@ function gravity(S) {
           let n = 0;
           for (; k >= start; k--) { S.tiles[idx(k, c)] = spawn(S); S.tiles[idx(k, c)].y0 = start - 1 - n++; moved = true; }
         } else for (; k >= start; k--) S.tiles[idx(k, c)] = null;
-        r--; // skip the box
+        r--; // skip the fixed tile
       }
     }
     // One diagonal slide, then settle again.
@@ -391,7 +427,8 @@ function collectEggs(S) {
 }
 
 // ---------------------------------------------------------------- moves
-function* cascade(S, acts, prefer = []) {
+// turn = this cascade ends a player move (swap or tap): honey grows if none was wiped during it.
+function* cascade(S, acts, prefer = [], turn = false) {
   let combo = 0;
   for (;;) {
     while (acts.length) {
@@ -411,8 +448,31 @@ function* cascade(S, acts, prefer = []) {
     acts = S.queue.splice(0);
   }
   if (goalsDone(S)) { S.won = true; return; }
+  if (turn && !S.honeyHit) { const at = growHoney(S); if (at >= 0) yield { type: 'honey', at }; }
   if (S.moves <= 0) { S.lost = true; return; }
   if (!hasMove(S)) { shuffle(S); yield { type: 'shuffle' }; }
+}
+
+/** Honey grows onto one plain gem next to it (if there is honey and it is under its cap). Returns the cell or -1. */
+export function growHoney(S) {
+  let n = 0;
+  const spots = [];
+  for (let i = 0; i < W * H; i++) {
+    if (!S.tiles[i] || S.tiles[i].t !== 'honey') continue;
+    n++;
+    const [r, c] = rc(i);
+    for (const [dr, dc] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
+      if (!inBoard(S, r + dr, c + dc)) continue;
+      const j = idx(r + dr, c + dc), t = S.tiles[j];
+      if (t && t.t === 'g' && !t.lock && !spots.includes(j)) spots.push(j);
+    }
+  }
+  if (!n || n >= S.honeyCap || !spots.length) return -1;
+  const at = spots[rint(S, spots.length)];
+  S.tiles[at] = newTile(S, 'honey');
+  const g = S.goals.find((x) => x.t === 'honey');
+  if (g) g.left++;
+  return at;
 }
 
 /** Player swaps cells a and b. Yields animation phases; returns false if the swap was not allowed. */
@@ -420,12 +480,13 @@ export function* swap(S, a, b) {
   const ta = S.tiles[a], tb = S.tiles[b];
   if (!movable(ta) || !movable(tb)) return false;
   S.tiles[a] = tb; S.tiles[b] = ta;
+  S.honeyHit = false;
   yield { type: 'swap' };
   const sa = isSpecial(ta), sb = isSpecial(tb);
   if (sa && sb) {
     S.moves--;
     S.tiles[a] = null; S.tiles[b] = null;
-    yield* cascade(S, [{ ...combo(ta.t, tb.t), at: b }]);
+    yield* cascade(S, [{ ...combo(ta.t, tb.t), at: b }], [], true);
     return true;
   }
   if (sa || sb) {
@@ -434,7 +495,7 @@ export function* swap(S, a, b) {
     ta.fired = tb.fired = isSpecial(ta) || isSpecial(tb);
     const act = { t: sp.t, at, id: sp.id };
     if (sp.t === 'light') act.color = other.t === 'g' ? other.c : -1;
-    yield* cascade(S, [act], [a, b]);
+    yield* cascade(S, [act], [a, b], true);
     return true;
   }
   const groups = findGroups(S, [a, b]);
@@ -442,7 +503,7 @@ export function* swap(S, a, b) {
   S.moves--;
   clearGroups(S, groups);
   yield { type: 'match', groups, combo: 0 };
-  yield* cascade(S, S.queue.splice(0));
+  yield* cascade(S, S.queue.splice(0), [], true);
   return true;
 }
 
@@ -452,7 +513,8 @@ export function* tap(S, i) {
   if (!isSpecial(t)) return false;
   S.moves--;
   t.fired = true;
-  yield* cascade(S, [{ t: t.t, at: i, id: t.id }]);
+  S.honeyHit = false;
+  yield* cascade(S, [{ t: t.t, at: i, id: t.id }], [], true);
   return true;
 }
 
@@ -475,7 +537,7 @@ export function* tool(S, kind, i) {
 export function placeBoosters(S, kinds) {
   for (const k of kinds) {
     const spots = [];
-    for (let i = 0; i < W * H; i++) if (S.tiles[i] && S.tiles[i].t === 'g') spots.push(i);
+    for (let i = 0; i < W * H; i++) if (S.tiles[i] && S.tiles[i].t === 'g' && !S.tiles[i].lock) spots.push(i);
     if (!spots.length) return;
     const t = k === 'rocket' ? (rand(S) < 0.5 ? 'rh' : 'rv') : k;
     S.tiles[spots[rint(S, spots.length)]] = newTile(S, t, { born: true });
@@ -498,6 +560,25 @@ export function* finale(S) {
     yield { type: 'turn' };
     yield* cascade(S, acts);
   }
+}
+
+/** Plain-data copy of a settled state (for saving a level to resume later). */
+export function snapshot(S) {
+  const tiles = S.tiles.map((t) => {
+    if (!t) return null;
+    const { y0, born, ...rest } = t; // eslint-disable-line no-unused-vars
+    return rest;
+  });
+  return { ...S, tiles, queue: [], spread: false };
+}
+/** Rebuilds a state saved with snapshot() (older saves may miss newer fields). */
+export function restore(D) {
+  const S = { ...D, tiles: D.tiles.map((t) => t && { ...t }), queue: [], spread: false };
+  if (!S.ice) S.ice = Array(W * H).fill(0);
+  if (!S.grass) S.grass = Array(W * H).fill(0);
+  if (!S.stats) S.stats = { specials: 0 };
+  if (!(S.honeyCap >= 0)) S.honeyCap = 6;
+  return S;
 }
 
 /** Runs a generator to the end without animation (for the simulator). */

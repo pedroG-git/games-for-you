@@ -4,6 +4,12 @@ import { W, H, createState, clone, listMoves, swap, tap, run, goalsDone, idx } f
 
 export const isHard = (n) => n >= 10 && n % 10 === 0;
 export const isTricky = (n) => n > 10 && n % 10 === 5;
+/** The level right after a hard one is an easy breather. */
+export const isBreather = (n) => n > 10 && n % 10 === 1;
+/** Most moves a level can give (raised from 45 so hard levels can ask for more). */
+export const MAX_MOVES = 60;
+/** New obstacles and the level where each first appears (one at a time). */
+export const INTRO = { chain: 16, grass: 22, honey: 26 };
 
 export function rngFrom(seed) {
   return () => {
@@ -55,6 +61,48 @@ function boxPattern(rng, sh, want) {
   return [...out];
 }
 
+// Chains: gems in the middle rows, never on the top row (it would block the column) or the bottom row.
+// Chained gems don't fall, so they sit on a checker pattern (never one above another) and keep away from
+// boxes and honey: that way gems can always slide in diagonally and no part of the board gets walled off.
+function chainPattern(rng, sh, want, taken) {
+  const kind = int(rng, 3), all = [];
+  const near = (r, c) => [[0, 0], [0, 1], [1, 0], [0, -1], [-1, 0]].some(([dr, dc]) => taken.has(idx(r + dr, c + dc)) || taken.has(idx(r + dr, W - 1 - c - dc)));
+  for (let r = 0; r < H; r++) for (let c = 0; c < 4; c++) {
+    if (!ok(sh, r, c) || r < sh.top[c] + 1 || r >= sh.bot[c] || near(r, c)) continue;
+    if ((r + c) % 2 !== (kind === 1 ? 1 : 0)) continue; // checkers
+    if (kind === 2 && r % 2) continue; // sparse: every other row only
+    all.push([r, c]);
+  }
+  all.sort(() => rng() - 0.5);
+  const s = new Set();
+  for (const [r, c] of all) { if (s.size >= want) break; mirrorAdd(s, r, c); }
+  return [...s];
+}
+
+// Grass: a small starting patch at the bottom or in the middle.
+function grassPattern(rng, sh, want, taken) {
+  const mid = rng() < 0.5, s = new Set();
+  const all = [];
+  for (let r = 0; r < H; r++) for (let c = 0; c < 4; c++) if (ok(sh, r, c) && !taken.has(idx(r, c))) all.push([r, c]);
+  all.sort((a, b) => (mid ? Math.abs(a[0] - 4.5) - Math.abs(b[0] - 4.5) : b[0] - a[0]) || b[1] - a[1]);
+  for (const [r, c] of all) { if (s.size >= want) break; mirrorAdd(s, r, c); }
+  return [...s];
+}
+
+// Honey: one or two clumps, away from the top rows.
+function honeyPattern(rng, sh, want, taken) {
+  const s = new Set();
+  const r0 = 4 + int(rng, 3), c0 = int(rng, 3);
+  const cand = [];
+  for (let r = 0; r < H; r++) for (let c = 0; c < 4; c++) {
+    if (!ok(sh, r, c) || r < sh.top[c] + 2 || taken.has(idx(r, c)) || taken.has(idx(r, W - 1 - c))) continue;
+    cand.push([r, c, Math.abs(r - r0) + Math.abs(c - c0)]);
+  }
+  cand.sort((a, b) => a[2] - b[2]);
+  for (const [r, c] of cand) { if (s.size >= want) break; mirrorAdd(s, r, c); }
+  return [...s];
+}
+
 function icePattern(rng, sh, want, avoid) {
   const s = new Set(), kind = int(rng, 3);
   const all = [];
@@ -70,7 +118,7 @@ function icePattern(rng, sh, want, avoid) {
 /** The level layout for level n (variant > 0 = easier re-roll if the first try was too hard). */
 export function makeLevel(n, variant = 0) {
   const rng = rngFrom(n * 7919 + variant * 104729 + 13);
-  const hard = isHard(n), tricky = isTricky(n);
+  const hard = isHard(n), tricky = isTricky(n), breather = isBreather(n);
   const ramp = Math.min(1, (n - 1) / 60) * (1 - variant * 0.25); // 0 → 1 over the first 60 levels
   let sh;
   if (n <= 3) sh = SHAPES[0];
@@ -85,16 +133,27 @@ export function makeLevel(n, variant = 0) {
   else if (n <= 10) types = ['ice'];
   else if (n === 11) types = ['ice', 'box'];
   else if (n <= 14) types = ['egg'];
+  else if (n >= INTRO.chain && n <= INTRO.chain + 2) types = ['chain'];
+  else if (n === INTRO.chain + 3) types = ['chain', 'gem'];
+  else if (n >= INTRO.grass && n <= INTRO.grass + 2) types = ['grass'];
+  else if (n >= INTRO.honey && n <= INTRO.honey + 2) types = ['honey'];
+  else if (n === INTRO.honey + 3) types = ['honey', 'gem'];
   else {
-    const pool = ['gem', 'box', 'ice', 'egg'];
-    const k = 1 + (rng() < 0.55 ? 1 : 0) + ((hard || tricky) && n > 25 && rng() < 0.5 ? 1 : 0);
+    const pool = ['gem', 'box', 'ice', 'egg', ...Object.keys(INTRO).filter((t) => n >= INTRO[t])];
+    // Hard levels mix two or three obstacles; a breather has just one.
+    const k = breather ? 1 : hard ? 2 + (n > 25 && rng() < 0.6 ? 1 : 0)
+      : 1 + (rng() < 0.55 ? 1 : 0) + (tricky && n > 25 && rng() < 0.5 ? 1 : 0);
     types = [];
-    while (types.length < k) { const t = pick(rng, pool); if (!types.includes(t)) types.push(t); }
+    while (types.length < k) {
+      const t = pick(rng, pool);
+      if (types.includes(t) || (t === 'grass' && types.includes('ice')) || (t === 'ice' && types.includes('grass'))) continue;
+      types.push(t);
+    }
   }
   if (types.includes('egg') && types.includes('box') && sh.name === 'narrow') sh = SHAPES[1];
 
-  const L = { n, hard, tricky, top: sh.top, bot: sh.bot, shape: sh.name, colors, goals: [], boxes: [], ice: [], eggs: [] };
-  const boost = hard ? 1.35 : tricky ? 1.15 : 1;
+  const L = { n, hard, tricky, breather, top: sh.top, bot: sh.bot, shape: sh.name, colors, goals: [], boxes: [], ice: [], eggs: [], chains: [], grass: [], honey: [] };
+  const boost = hard ? 1.55 : tricky ? 1.15 : breather ? 0.7 : 1;
   let boxCells = new Set();
   if (types.includes('box')) {
     const want = Math.round((10 + ramp * 14) * boost);
@@ -128,6 +187,28 @@ export function makeLevel(n, variant = 0) {
     }
     L.goals.push({ t: 'egg', n: total });
   }
+  const taken = new Set([...boxCells, ...L.eggs.map(([r, c]) => idx(r, c))]);
+  const cellsOf = (list) => list.map((i) => [Math.floor(i / W), i % W]);
+  if (types.includes('honey')) {
+    const want = Math.round((6 + ramp * 8) * boost);
+    L.honey = cellsOf(honeyPattern(rng, sh, want, taken));
+    L.honey.forEach(([r, c]) => taken.add(idx(r, c)));
+    if (L.honey.length) L.goals.push({ t: 'honey', n: L.honey.length });
+  }
+  if (types.includes('chain')) {
+    const want = Math.round((8 + ramp * 10) * boost);
+    L.chains = cellsOf(chainPattern(rng, sh, want, new Set([...taken, ...L.ice.map(([r, c]) => idx(r, c))])));
+    if (L.chains.length < 4) L.chains = []; // too few to be a goal
+    else L.goals.push({ t: 'chain', n: L.chains.length });
+  }
+  if (types.includes('grass')) {
+    L.grass = cellsOf(grassPattern(rng, sh, 4, taken));
+    let free = 0;
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) if (ok(sh, r, c)) free++;
+    free -= L.grass.length;
+    const share = Math.min(1, (0.45 + ramp * 0.3) * boost);
+    L.goals.push({ t: 'grass', n: Math.max(8, Math.round((free * share) / 2) * 2) });
+  }
   if (types.includes('gem') || !L.goals.length) {
     const nGem = n > 20 && rng() < 0.4 ? 2 : 1;
     const cs = [...Array(colors).keys()].sort(() => rng() - 0.5).slice(0, nGem);
@@ -138,10 +219,19 @@ export function makeLevel(n, variant = 0) {
 }
 
 // ---------------------------------------------------------------- simulator
+// How good a position is for the AI. Every obstacle must count here, or the AI wanders until the move cap
+// and the level silently re-rolls easier.
 function progress(S) {
   let p = 0;
-  for (const g of S.goals) p += ((g.n - g.left) * 30) / Math.max(1, g.n);
-  for (let i = 0; i < S.tiles.length; i++) { const t = S.tiles[i]; if (t && t.t === 'egg') p += Math.floor(i / W) * 2.5; }
+  for (const g of S.goals) p += ((g.n - g.left) * 30) / Math.max(1, g.n); // honey: left grows when it spreads
+  for (let i = 0; i < S.tiles.length; i++) {
+    const t = S.tiles[i];
+    if (!t) continue;
+    if (t.t === 'egg') p += Math.floor(i / W) * 2.5; // eggs lower down are closer to the bottom
+    else if (t.t === 'honey') p -= 2; // every honey cell left is a risk (it spreads)
+    else if (t.lock) p -= 1; // chained gems also block the column under them
+  }
+  if (S.goals.some((g) => g.t === 'grass' && g.left > 0)) for (let i = 0; i < S.grass.length; i++) if (S.grass[i]) p += 0.5;
   for (const t of S.tiles) if (t && ['rh', 'rv', 'bomb', 'prop', 'light'].includes(t.t)) p += t.t === 'light' ? 3 : 1.5;
   return p;
 }
@@ -180,13 +270,14 @@ export function levelFor(n, cache) {
   let L, med;
   for (let v = 0; v < 4; v++) {
     L = makeLevel(n, v);
-    const runs = [1, 2, 3, 4, 5].map((k) => simulate(L, L.seed + k * 977)).sort((a, b) => a - b);
-    med = runs[3];
-    if (med < 45) { L.v = v; break; }
+    // The greedy AI varies a lot from game to game, so take a high pick of 7 tries (6th best).
+    const runs = [1, 2, 3, 4, 5, 6, 7].map((k) => simulate(L, L.seed + k * 977)).sort((a, b) => a - b);
+    med = runs[5];
+    if (med < (L.hard ? 56 : 45)) { L.v = v; break; }
     L.v = v;
   }
-  const f = Math.max(1.12, 1.7 - n * 0.012) * (L.hard ? 0.9 : L.tricky ? 0.95 : 1);
-  L.moves = Math.max(10, Math.min(45, Math.round(med * f + 2)));
+  const f = Math.max(1.12, 1.7 - n * 0.012) * (L.hard ? 0.9 : L.tricky ? 0.95 : L.breather ? 1.25 : 1);
+  L.moves = Math.max(10, Math.min(MAX_MOVES, Math.round(med * f + 2)));
   if (cache) cache[n] = { v: L.v, m: L.moves };
   return L;
 }

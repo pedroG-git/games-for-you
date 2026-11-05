@@ -1,6 +1,7 @@
-import { PROPS } from './props.js';
-
 // All the pictures, drawn as SVG symbols (viewBox 0 0 100 100). Injected once into the page as <defs>.
+// Tile shadows are baked into the art (a dark copy of the outline, or a soft ellipse) instead of CSS
+// drop-shadow filters, which were slow with 72 tiles moving at once.
+const SHADOW = '<ellipse cx="50" cy="91" rx="36" ry="7" fill="#000" opacity=".35"/>';
 const grad = (id, stops, x2 = 0, y2 = 1) =>
   `<linearGradient id="${id}" x1="0" y1="0" x2="${x2}" y2="${y2}">${stops.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>`;
 const rgrad = (id, stops, cx = 0.4, cy = 0.35) =>
@@ -29,6 +30,7 @@ function cut(i, outer, [cx, cy], k, [dark, mid, light], line) {
   const [tx, ty] = inner.reduce(([x, y], p) => [Math.min(x, p[0]), Math.min(y, p[1])], [100, 100]);
   return `${grad(`g${i}t`, [[0, light], [0.55, mid], [1, mixc(mid, dark, 0.35)]], 0.6, 1)}
    <symbol id="gem${i}" viewBox="0 0 100 100">
+   <polygon points="${pts(outer)}" transform="translate(0 4)" fill="#000" opacity=".4"/>
    <polygon points="${pts(outer)}" fill="${dark}" stroke="${line}" stroke-width="5" stroke-linejoin="round"/>${f}
    <polygon points="${pts(inner)}" fill="url(#g${i}t)" stroke="${light}" stroke-opacity=".5" stroke-width="1.2"/>
    <polygon points="${pts(outer)}" fill="none" stroke="${line}" stroke-width="3" stroke-linejoin="round"/>
@@ -52,7 +54,7 @@ const gems = [
   // pearl: sphere with a soft rainbow sheen
   `${rgrad('g5a', [[0, '#ffffff'], [0.5, '#f3eaf7'], [0.85, '#c9b6d6'], [1, '#9c86ad']], 0.38, 0.32)}
    <linearGradient id="g5b" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#ff9ad5" stop-opacity=".55"/><stop offset=".5" stop-color="#9ae6ff" stop-opacity=".25"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-   <symbol id="gem5" viewBox="0 0 100 100"><circle cx="50" cy="51" r="42" fill="url(#g5a)" stroke="#6e5a80" stroke-width="4"/>
+   <symbol id="gem5" viewBox="0 0 100 100"><circle cx="50" cy="55" r="42" fill="#000" opacity=".4"/><circle cx="50" cy="51" r="42" fill="url(#g5a)" stroke="#6e5a80" stroke-width="4"/>
    <circle cx="50" cy="51" r="40" fill="url(#g5b)"/>
    <path d="M18 62A34 34 0 0 0 82 62A38 30 0 0 1 18 62Z" fill="#fff" opacity=".45"/>
    <ellipse cx="36" cy="32" rx="13" ry="8" fill="#fff" transform="rotate(-30 36 32)"/>${spark(64, 26, 6)}</symbol>`,
@@ -64,7 +66,7 @@ const specials = `
   ${grad('rkG', [[0, '#fff6b8'], [0.5, '#ffc93a'], [1, '#b86a00']])}
   ${grad('rkF', [[0, '#ffe08a'], [1, '#ff6a1a']])}
   <radialGradient id="rkGl" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffb020" stop-opacity=".55"/><stop offset="1" stop-color="#ff6a1a" stop-opacity="0"/></radialGradient>
-  <symbol id="rocket" viewBox="0 0 100 100">
+  <symbol id="rocket" viewBox="0 0 100 100">${SHADOW}
     <ellipse cx="50" cy="50" rx="50" ry="30" fill="url(#rkGl)"/>
     <path d="M41 36L33 14Q48 16 58 36Z M41 64L33 86Q48 84 58 64Z" fill="url(#rkF)" stroke="#5a1400" stroke-width="3" stroke-linejoin="round"/>
     <path d="M40 34L36 22" stroke="#fff" stroke-width="2.5" opacity=".6" stroke-linecap="round"/>
@@ -78,7 +80,7 @@ const specials = `
   </symbol>
   <radialGradient id="bmB" cx=".36" cy=".32" r=".75"><stop offset="0" stop-color="#9a8ac8"/><stop offset=".35" stop-color="#4a3a7a"/><stop offset=".8" stop-color="#1a1030"/><stop offset="1" stop-color="#0a0418"/></radialGradient>
   <radialGradient id="bmS" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff6b0"/><stop offset=".4" stop-color="#ffc93a" stop-opacity=".9"/><stop offset="1" stop-color="#ff6a1a" stop-opacity="0"/></radialGradient>
-  <symbol id="bomb" viewBox="0 0 100 100">
+  <symbol id="bomb" viewBox="0 0 100 100">${SHADOW}
     <path d="M62 24Q66 8 80 12" stroke="#3a2010" stroke-width="7" fill="none" stroke-linecap="round"/>
     <path d="M62 24Q66 8 80 12" stroke="#c8a070" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-dasharray="4 3"/>
     <circle cx="82" cy="11" r="13" fill="url(#bmS)"/>
@@ -94,7 +96,7 @@ const specials = `
   ${grad('drH', [[0, '#a8ffb8'], [0.5, '#3ad46a'], [1, '#127a3a']])}
   ${grad('drW', [[0, '#ffe0a8'], [1, '#ff7a3d']])}
   ${grad('drC', [[0, '#fffbe8'], [1, '#e8c98a']])}
-  <symbol id="prop" viewBox="0 0 100 100">
+  <symbol id="prop" viewBox="0 0 100 100">${SHADOW}
     <path d="M30 52Q12 18 0 34Q10 38 6 48Q16 46 16 56Q24 52 30 62Z" fill="url(#drW)" stroke="#6a2a06" stroke-width="3" stroke-linejoin="round"/>
     <path d="M70 52Q88 18 100 34Q90 38 94 48Q84 46 84 56Q76 52 70 62Z" fill="url(#drW)" stroke="#6a2a06" stroke-width="3" stroke-linejoin="round"/>
     <path d="M28 50L10 36M28 54L12 48M72 50L90 36M72 54L88 48" stroke="#c2480a" stroke-width="2" opacity=".7"/>
@@ -112,7 +114,7 @@ const specials = `
   </symbol>
   <radialGradient id="cbG" cx=".5" cy=".5" r=".5"><stop offset=".55" stop-color="#fff2a8" stop-opacity=".9"/><stop offset=".8" stop-color="#ff8ad8" stop-opacity=".45"/><stop offset="1" stop-color="#a86bff" stop-opacity="0"/></radialGradient>
   <radialGradient id="cbC" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#fff" stop-opacity=".85"/><stop offset=".75" stop-color="#fff" stop-opacity=".1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-  <symbol id="light" viewBox="0 0 100 100">
+  <symbol id="light" viewBox="0 0 100 100">${SHADOW}
     <circle cx="50" cy="50" r="50" fill="url(#cbG)"/>
     ${[0, 3, 2, 1, 4, 5].map((g) => GEM_COLORS[g]).map((col, i) => { // colour bomb: a rainbow swirl round a white-hot core
       const P = (deg, r) => { const t = (deg * Math.PI) / 180; return `${(50 + r * Math.cos(t)).toFixed(1)} ${(50 + r * Math.sin(t)).toFixed(1)}`; };
@@ -128,7 +130,7 @@ const specials = `
 // Obstacles: crate (1 layer), iron-banded crate (2), rune stone (3); dragon egg; ice.
 const obstacles = `
   ${grad('wd', [[0, '#e0a868'], [1, '#9a5a24']])}
-  <symbol id="box1" viewBox="0 0 100 100">
+  <symbol id="box1" viewBox="0 0 100 100"><rect x="8" y="10" width="88" height="88" rx="10" fill="#000" opacity=".35"/>
     <rect x="6" y="6" width="88" height="88" rx="8" fill="url(#wd)" stroke="#5a2f0e" stroke-width="4"/>
     <path d="M6 34H94M6 66H94" stroke="#7a4317" stroke-width="3"/>
     <path d="M14 14L86 86M86 14L14 86" stroke="#6b3a12" stroke-width="7" opacity=".55"/>
@@ -143,7 +145,7 @@ const obstacles = `
     <circle cx="16" cy="50" r="3" fill="#39414d"/><circle cx="84" cy="50" r="3" fill="#39414d"/><circle cx="50" cy="16" r="3" fill="#39414d"/><circle cx="50" cy="84" r="3" fill="#39414d"/>
   </symbol>
   ${grad('st', [[0, '#a7b2c4'], [1, '#4b5468']])}
-  <symbol id="box3" viewBox="0 0 100 100">
+  <symbol id="box3" viewBox="0 0 100 100"><rect x="8" y="10" width="88" height="88" rx="10" fill="#000" opacity=".35"/>
     <rect x="5" y="5" width="90" height="90" rx="12" fill="url(#st)" stroke="#262b38" stroke-width="4"/>
     <path d="M5 38H50V5M50 38H95M30 38V68M5 68H95M70 68V95M70 38V68" stroke="#2f3546" stroke-width="3" fill="none" opacity=".6"/>
     <path d="M40 46L50 56L60 46M50 56V64" stroke="#5ae6ff" stroke-width="4" fill="none" stroke-linecap="round"/>
@@ -151,10 +153,36 @@ const obstacles = `
   </symbol>
   ${grad('eg', [[0, '#7ef0e0'], [0.6, '#1fa3a0'], [1, '#0b5560']])}
   <symbol id="egg" viewBox="0 0 100 100">
-    <path d="M50 6C74 6 88 44 88 62A38 34 0 0 1 12 62C12 44 26 6 50 6Z" fill="url(#eg)" stroke="#073b42" stroke-width="3"/>
-    <circle cx="36" cy="54" r="6" fill="#ffd23a"/><circle cx="62" cy="40" r="4.5" fill="#ffd23a"/><circle cx="64" cy="70" r="7" fill="#ffd23a"/>
-    <circle cx="44" cy="76" r="3.5" fill="#ffd23a"/><circle cx="52" cy="24" r="3.5" fill="#ffd23a"/>
-    <path d="M24 46Q36 40 32 30" stroke="#fff" stroke-width="5" fill="none" opacity=".5" stroke-linecap="round"/>
+    ${SHADOW}
+    <path d="M50 4C70 4 82 34 82 52A32 30 0 0 1 18 52C18 34 30 4 50 4Z" fill="url(#eg)" stroke="#fff" stroke-width="7"/>
+    <path d="M50 4C70 4 82 34 82 52A32 30 0 0 1 18 52C18 34 30 4 50 4Z" fill="none" stroke="#073b42" stroke-width="3"/>
+    <path d="M20 46L29 38L38 46L47 38L56 46L65 38L74 46L80 41" stroke="#fff6c8" stroke-width="4" fill="none" stroke-linejoin="round"/>
+    <circle cx="40" cy="26" r="4" fill="#ffd23a"/><circle cx="60" cy="22" r="3" fill="#ffd23a"/><circle cx="62" cy="60" r="5" fill="#ffd23a"/><circle cx="36" cy="62" r="3.5" fill="#ffd23a"/>
+    <path d="M30 30Q34 20 42 14" stroke="#fff" stroke-width="4" fill="none" opacity=".6" stroke-linecap="round"/>
+    <path d="M6 70Q50 58 94 70L88 90Q50 100 12 90Z" fill="#c8862a" stroke="#4a2a06" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M10 76L30 72M24 84L46 80M54 78L76 74M64 88L88 82M36 74L58 90M70 72L84 86" stroke="#ffd27a" stroke-width="2.5" stroke-linecap="round"/>
+  </symbol>
+  ${grad('chn', [[0, '#f0f4fa'], [0.5, '#9aa4b2'], [1, '#4a5466']])}
+  <symbol id="chain" viewBox="0 0 100 100">
+    <g fill="none" stroke-linecap="round">
+      ${[[-45, 0], [45, 1]].map(([a]) => `<g transform="rotate(${a} 50 50)">${[16, 38, 60, 82].map((x, k) => `<rect x="${x - 11}" y="${k % 2 ? 44 : 41}" width="22" height="${k % 2 ? 12 : 18}" rx="${k % 2 ? 6 : 9}" stroke="#1e2430" stroke-width="9"/><rect x="${x - 11}" y="${k % 2 ? 44 : 41}" width="22" height="${k % 2 ? 12 : 18}" rx="${k % 2 ? 6 : 9}" stroke="url(#chn)" stroke-width="5"/>`).join('')}</g>`).join('')}
+    </g>
+    <rect x="38" y="40" width="24" height="22" rx="5" fill="url(#rkG)" stroke="#3a2006" stroke-width="3"/>
+    <path d="M43 40V33A7 7 0 0 1 57 33V40" fill="none" stroke="#3a2006" stroke-width="4"/>
+    <circle cx="50" cy="49" r="3" fill="#3a2006"/><path d="M50 50V56" stroke="#3a2006" stroke-width="3"/>
+  </symbol>
+  ${grad('grs', [[0, '#9cf06a'], [1, '#3a9a2a']])}
+  <symbol id="grass" viewBox="0 0 100 100">
+    <rect x="1" y="1" width="98" height="98" rx="12" fill="url(#grs)" opacity=".9"/>
+    <path d="M14 88L18 70L22 88M34 90L40 66L44 90M60 88L64 72L68 88M78 90L84 68L88 90M22 40L26 24L30 40M52 46L56 30L60 46M74 34L78 18L82 34" stroke="#1f6a12" stroke-width="3.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="44" cy="20" r="4" fill="#fff6a8"/><circle cx="14" cy="56" r="3.5" fill="#ff9ad5"/><circle cx="86" cy="54" r="3.5" fill="#fff6a8"/>
+  </symbol>
+  ${grad('hny', [[0, '#ffe27a'], [0.5, '#ffb020'], [1, '#c26a00']])}
+  <symbol id="honey" viewBox="0 0 100 100">
+    <rect x="8" y="10" width="88" height="88" rx="16" fill="#000" opacity=".3"/>
+    <path d="M10 22Q10 6 26 6H74Q90 6 90 22V70Q90 82 80 84Q76 96 68 88Q60 96 52 86Q40 98 32 86Q20 92 16 82Q10 80 10 70Z" fill="url(#hny)" stroke="#7a3a00" stroke-width="4" stroke-linejoin="round"/>
+    ${[[32, 34], [62, 30], [47, 56], [70, 60], [28, 64]].map(([x, y]) => `<path d="M${x - 9} ${y}L${x - 4.5} ${y - 8}H${x + 4.5}L${x + 9} ${y}L${x + 4.5} ${y + 8}H${x - 4.5}Z" fill="#ffd04a" stroke="#a85a00" stroke-width="2.5"/>`).join('')}
+    <path d="M20 16Q40 10 58 14" stroke="#fff" stroke-width="5" fill="none" opacity=".6" stroke-linecap="round"/>
   </symbol>
   <symbol id="ice" viewBox="0 0 100 100">
     <rect x="2" y="2" width="96" height="96" rx="10" fill="#bfeaff" opacity=".85"/>
@@ -213,7 +241,7 @@ const obstacles = `
 
 export function installArt() {
   const div = document.createElement('div');
-  div.innerHTML = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${gems.join('')}${specials}${obstacles}${PROPS}</defs></svg>`;
+  div.innerHTML = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${gems.join('')}${specials}${obstacles}</defs></svg>`;
   document.body.prepend(div.firstChild);
 }
 
@@ -222,6 +250,7 @@ export const use = (id, cls = '') => `<svg class="${cls}" viewBox="0 0 100 100">
 
 /** Symbol for a tile. */
 export function tileArt(t) {
+  if (t.t === 'g' && t.lock) return `<svg viewBox="0 0 100 100"><use href="#gem${t.c}"/><use href="#chain"/></svg>`;
   if (t.t === 'g') return use('gem' + t.c);
   if (t.t === 'rh') return use('rocket');
   if (t.t === 'rv') return use('rocket', 'rot');
